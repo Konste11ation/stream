@@ -62,7 +62,13 @@ class Accelerator:
     @property
     def core_list(self) -> list[Core]:
         return list(self.cores.node_list)
-
+    def clean_memory_manager(self):
+        self.memory_manager.clean()
+    def clean_communication_manager(self):
+        self.communication_manager.clean()
+    def clean_accelerator(self):
+        self.clean_memory_manager()
+        self.clean_communication_manager()
     def spawn(
         self,
         tensor: Tensor,
