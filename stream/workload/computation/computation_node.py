@@ -76,6 +76,7 @@ class ComputationNode(LayerNode, Node):
             offchip_energy=0,
             runtime=0,
             possible_core_allocation=mapping_attr.core_allocation,
+            dvfs_level = 0
         )
 
         # Overwrite default spatial mapping with given one
@@ -88,6 +89,7 @@ class ComputationNode(LayerNode, Node):
 
         self.sub_id = sub_id
         self.group = group_id
+        self.schedule_order = 0
         self.operand_tensor_reshape = (
             operand_tensor_reshape if operand_tensor_reshape is not None else self.get_operand_tensor_reshape_default()
         )
@@ -283,7 +285,7 @@ class ComputationNode(LayerNode, Node):
             core_allocation=self.core_allocation,
             core_allocation_is_fixed=self.core_allocation_is_fixed,
             intra_core_tiling=self.intra_core_tiling,
-            inter_core_tiling=self.inter_core_tiling,
+            inter_core_tiling=self.inter_core_tiling
         )
         return deepcopy(mapping_attr)
 
