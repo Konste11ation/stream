@@ -92,7 +92,8 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
     def get_end(self):
         """Get the end time in cycles of this node."""
         return self.end
-
+    def get_chosen_core_allocation(self):
+        return self.chosen_core_allocation
     def set_onchip_energy(self, energy: float):
         """Set the on-chip energy of running this node.
 

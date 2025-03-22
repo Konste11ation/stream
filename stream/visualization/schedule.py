@@ -505,13 +505,13 @@ def get_dataframe_from_scme(
         layer = id
         if layer not in layer_ids:
             continue
-        core_id = node.chosen_core_allocation
-        start = node.start
-        end = node.end
-        runtime = node.runtime
+        core_id = node.get_chosen_core_allocation()
+        start = node.get_start()
+        end = node.get_end()
+        runtime = node.get_runtime()
         su_perfect_temporal, su_nonperfect_temporal = get_spatial_utilizations(scme, node, cost_lut)
         en_total_per_op, en_breakdown_per_op = get_energy_breakdown(scme, node, cost_lut)
-        energy = node.onchip_energy
+        energy = node.get_onchip_energy()
         tensors = get_real_input_tensors(node, scme.workload)
         task_type = "compute"
         d = dict(
