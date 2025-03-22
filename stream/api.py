@@ -124,6 +124,7 @@ def optimize_allocation_co(
     layer_stacks: list[tuple[int, ...]],
     experiment_id: str,
     output_path: str,
+    dvfs_opt: bool = True,
     skip_if_exists: bool = False,
 ) -> StreamCostModelEvaluation:
     _sanity_check_inputs(hardware, workload, mapping, mode, output_path)
@@ -165,6 +166,7 @@ def optimize_allocation_co(
             workload_path=workload,  # required by ModelParserStage
             mapping_path=mapping,  # required by ModelParserStage
             dvfs_path=dvfs,    # required by DvfsOptStage
+            dvfs_opt=dvfs_opt,
             loma_lpf_limit=6,  # required by LomaEngine
             mode=mode,
             layer_stacks=layer_stacks,
