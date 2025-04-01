@@ -1,0 +1,46 @@
+name: finer_dvfs
+dvfs_level:
+  0:
+    - vdd: 1.0
+    - freq: 1.0
+    - energy: 1.0
+  1:
+    - vdd: 0.95
+    - freq: 0.92
+    - energy: 0.92
+  2:
+    - vdd: 0.9
+    - freq: 0.85
+    - energy: 0.82
+  3:
+    - vdd: 0.85
+    - freq: 0.78
+    - energy: 0.73
+  4:
+    - vdd: 0.8
+    - freq: 0.71
+    - energy: 0.63
+  5:
+    - vdd: 0.75
+    - freq: 0.61
+    - energy: 0.55
+  6:
+    - vdd: 0.7
+    - freq: 0.52
+    - energy: 0.48
+  7:
+    - vdd: 0.65
+    - freq: 0.44
+    - energy: 0.40
+  8:
+    - vdd: 0.6
+    - freq: 0.34
+    - energy: 0.34
+  9:
+    - vdd: 0.55
+    - freq: 0.22
+    - energy: 0.30
+  10:
+    - vdd: 0.5
+    - freq: 0.11
+    - energy: 0.25  

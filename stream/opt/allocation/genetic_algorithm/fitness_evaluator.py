@@ -107,3 +107,47 @@ class StandardFitnessEvaluator(FitnessEvaluator):
                 node.set_chosen_core_allocation(core_allocation)
                 node.set_too_large_operands(too_large_operands)
                 node.set_offchip_bandwidth(required_offchip_bandwidth)
+
+class DvfsFitnessEvaluator(FitnessEvaluator):
+    """The DVFS fitness evaluator."""
+
+    def __init__(
+        self,
+        workload: ComputationNodeWorkload,
+        accelerator: Accelerator,
+        cost_lut: CostModelEvaluationLUT,
+        operands_to_prefetch: list[LayerOperand],
+        scheduling_order: list[tuple[int, int]],
+    ) -> None:
+        super().__init__(workload, accelerator, cost_lut)
+
+        self.weights = (-1.0, -1.0)
+        self.metrics = ["energy", "latency"]
+        self.operands_to_prefetch = operands_to_prefetch
+        self.scheduling_order = scheduling_order
+
+    def get_fitness(self, dvfs_level_allocation: list[int], return_scme: bool = False):
+        """Get the fitness of the given core_allocations
+
+        Args:
+            core_allocations (list): core_allocations
+        """
+        self.set_node_dvfs_level(dvfs_level_allocation)
+        scme = StreamCostModelEvaluation(
+            self.workload,
+            self.accelerator,
+            self.operands_to_prefetch,
+            self.scheduling_order,
+        )
+        scme.run()
+        energy = sum(n.get_onchip_energy() for n in scme.workload.node_list)
+        latency = scme.latency
+        if not return_scme:
+            return energy, latency
+        return energy, latency, scme
+    def set_node_dvfs_level(self,dvfs_level_allocation: list[int]):
+        node_list = [n for n in self.workload.node_list]
+        dvfs_config = {node: level for node, level in zip(node_list, dvfs_level_allocation)}
+        for n in node_list:
+            n.dvfs_level = dvfs_config[n]
+            

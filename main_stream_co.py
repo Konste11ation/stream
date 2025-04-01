@@ -16,9 +16,8 @@ _logging.basicConfig(level=_logging_level, format=_logging_format)
 ############################################INPUTS############################################
 accelerator = "stream/inputs/examples/hardware/tpu_like_quad_core.yaml"
 workload_path = "stream/inputs/examples/workload/resnet18.onnx"
-# workload_path = "dvfs_dev/inputs/workload/resnet18_inferred.onnx"
 mapping_path = "stream/inputs/examples/mapping/tpu_like_quad_core.yaml"
-dvfs_path = "stream/inputs/examples/hardware/standard_dvfs.yaml"
+dvfs_path = "stream/inputs/examples/hardware/fine_dvfs.yaml"
 mode = "fused"
 layer_stacks = [tuple(range(0, 11)), tuple(range(11, 22))] + list((i,) for i in range(22, 49))
 # layer_stacks = [tuple(range(0, 11)), tuple(range(11, 22)), tuple(range(22,32)), tuple(range(32,40)), tuple(range(40,49))]
@@ -38,6 +37,7 @@ scme = optimize_allocation_co(
     workload=workload_path,
     mapping=mapping_path,
     dvfs=dvfs_path,
+    dvfs_opt=True,
     mode=mode,
     layer_stacks=layer_stacks,
     experiment_id=experiment_id,

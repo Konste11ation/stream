@@ -90,8 +90,16 @@ class CommunicationManager:
         self.events = []
         self.event_id = 0
     def clean(self):
+        self.clean_links()
         self.events = []
-        self.event_id = 0        
+        self.event_id = 0
+    def clean_links(self):
+        for value in self.pair_links.values():
+            if value == []:
+                continue
+            for cl in value:
+                cl.clean()
+
     def get_shortest_paths(self):
         # For each core pair save a shortest path
         shortest_paths: dict[tuple[Core, Core], list[Core]] = {}

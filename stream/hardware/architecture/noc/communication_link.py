@@ -63,7 +63,12 @@ class CommunicationLink:
         self.active_ts = np.array([0, float("inf")])
         self.active_deltas = np.array([0, 0])
         self.tensors: dict[Tensor, list[CommunicationLinkEvent]] = {}
-
+    def clean(self):
+        self.events: list[CommunicationLinkEvent] = []
+        self.active_periods = [(0, float("inf"), 0)]
+        self.active_ts = np.array([0, float("inf")])
+        self.active_deltas = np.array([0, 0])
+        self.tensors: dict[Tensor, list[CommunicationLinkEvent]] = {}
     def __str__(self) -> str:
         return f"CommunicationLink({self.sender}, {self.receiver}, bw={self.bandwidth})"
 

@@ -150,10 +150,8 @@ def optimize_allocation_co(
         mainstage = MainStage(
             [  # Initializes the MainStage as entry point
                 AcceleratorParserStage,  # Parses the accelerator
-                
                 # StreamUserDefinedModelParserStage,
                 StreamONNXModelParserStage,  # Parses the ONNX Model into the workload
-                DvfsParserStage, # Parses the Dvfs
                 LayerStacksGenerationStage,
                 TilingGenerationStage,
                 TiledWorkloadGenerationStage,
@@ -161,6 +159,7 @@ def optimize_allocation_co(
                 SetFixedAllocationPerformanceStage,
                 SchedulingOrderGenerationStage,
                 ConstraintOptimizationAllocationStage,
+                # TODO: Add the dvfs opt stage here
             ],
             accelerator=hardware,  # required by AcceleratorParserStage
             workload_path=workload,  # required by ModelParserStage

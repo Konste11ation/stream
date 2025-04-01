@@ -15,6 +15,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def initialize_workload_accelerator(workload: ComputationNodeWorkload, accelerator: "Accelerator"):
+    for n in workload.node_list:
+        n.start = None
+        n.end = None
+    accelerator.clean_accelerator()
+
 def initialize_priorities(workload: ComputationNodeWorkload, accelerator: "Accelerator"):
     for n in workload.node_list:
         for tensor in n.operand_tensors.values():
@@ -281,6 +287,7 @@ def schedule_graph(
     offchip_core = accelerator.get_core(offchip_core_id)
 
     # Schedule preparation:
+    initialize_workload_accelerator(G,accelerator)
     # 1. Initialize the memory instance priorities for each tensor
     initialize_priorities(G, accelerator)
     # 2. Add the constant operand tensors of all nodes to the off-chip initially
