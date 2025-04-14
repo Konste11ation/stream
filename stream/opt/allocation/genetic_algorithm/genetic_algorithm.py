@@ -6,8 +6,9 @@ from deap import algorithms, base, creator, tools
 from stream.opt.allocation.genetic_algorithm.statistics_evaluator import (
     StatisticsEvaluator,
 )
-
-
+import matplotlib.pyplot as plt
+# import multiprocessing
+# pool = multiprocessing.Pool()
 class GeneticAlgorithm:
     def __init__(
         self,
@@ -69,7 +70,7 @@ class GeneticAlgorithm:
         self.toolbox.register("mutate", self.mutate)
         # use non-dominated sorting genetic algorithm for multi-objective optimization
         self.toolbox.register("select", tools.selNSGA2)
-
+        # self.toolbox.register("map", pool.map)
         # populate random initial generation
         self.pop = self.toolbox.population(n=self.num_individuals)
 
@@ -170,3 +171,129 @@ class GeneticAlgorithm:
         else:
             self.statistics_evaluator.current_generation += 1
             return False
+
+
+class DvfsGeneticAlgorithm:
+    def __init__(
+        self,
+        fitness_evaluator,
+        individual_length,
+        valid_allocations,
+        num_generations=250,
+        num_individuals=64,
+        pop=[],
+    ) -> None:
+        self.num_generations = num_generations  # number of generations
+        self.num_individuals = num_individuals  # number of individuals in initial generation
+        self.para_mu = int(num_individuals / 2)  # number of indiviuals taken from previous generation
+        self.para_lambda = num_individuals  # number of indiviuals in generation
+        self.prob_crossover = 0.3  # probablility to perform corssover
+        self.prob_mutation = 0.7  # probablility to perform mutation
+        self.valid_allocations = valid_allocations
+
+        self.individual_length = individual_length
+
+        self.fitness_evaluator = fitness_evaluator  # class to evaluate fitness of each indiviual
+        # class to track statistics of certain generations
+        self.statistics_evaluator = StatisticsEvaluator(self.fitness_evaluator)
+
+        # define target of fitness function
+        creator.create("FitnessMulti", base.Fitness, weights=self.fitness_evaluator.weights)
+        # define individual in population
+        creator.create("Individual", array.array, typecode="i", fitness=creator.FitnessMulti)
+
+        self.toolbox = base.Toolbox()  # initialize DEAP toolbox
+        self.hof = tools.ParetoFront()  # initialize Hall-of-Fame as Pareto Front
+
+        # attribute generator
+        self.toolbox.register(
+            "attr_int", random.randint, valid_allocations[0], valid_allocations[1]
+        )  # single attribute of indiviuals can encode core allocation for HW
+
+        # structure initializers
+        self.toolbox.register(
+            "individual", 
+            tools.initRepeat, 
+            creator.Individual, 
+            self.toolbox.attr_int, 
+            n=individual_length
+        )
+        self.toolbox.register(
+            "population", tools.initRepeat, list, self.toolbox.individual
+        )  # define polulation based on indiviudal
+
+        # link user defined fitness function to toolbox
+        self.toolbox.register("evaluate", self.fitness_evaluator.get_fitness)
+        if self.individual_length > 10:
+            self.toolbox.register("mate", tools.cxOrdered)  # for big graphs use cxOrdered crossover function
+        else:
+            self.toolbox.register("mate", tools.cxTwoPoint)  # for small graphs use two point crossover function
+
+        self.toolbox.register("mutate", tools.mutUniformInt, low=valid_allocations[0], up=valid_allocations[1], indpb=0.1)
+        # use non-dominated sorting genetic algorithm for multi-objective optimization
+        self.toolbox.register("select", tools.selNSGA2)
+
+        # populate random initial generation
+        self.pop = self.toolbox.population(n=self.num_individuals)
+
+        # replace sub part of initial generation with user provided individuals
+        for indv_index in range(len(pop)):
+            for i in range(self.fitness_evaluator.workload.number_of_nodes()):
+                self.pop[indv_index][i] = pop[indv_index][i]
+
+            # don't bias initial population too much
+            if indv_index >= self.num_individuals / 4:
+                break
+
+    def run(self):
+        # plot statistics during evolution
+        stats = tools.Statistics(lambda ind: ind.fitness.values)
+        stats.register(
+            "avg (" + ", ".join(self.fitness_evaluator.metrics) + ")",
+            self.statistics_evaluator.get_avg,
+        )
+        stats.register(
+            "std (" + ", ".join(self.fitness_evaluator.metrics) + ")",
+            self.statistics_evaluator.get_std,
+        )
+        stats.register(
+            "min (" + ", ".join(self.fitness_evaluator.metrics) + ")",
+            self.statistics_evaluator.get_min,
+        )
+        stats.register(
+            "max (" + ", ".join(self.fitness_evaluator.metrics) + ")",
+            self.statistics_evaluator.get_max,
+        )
+        # stats.register("saved", self.save_population)
+
+        algorithms.eaMuPlusLambda(
+            self.pop,
+            self.toolbox,
+            mu=self.para_mu,
+            lambda_=self.para_lambda,
+            cxpb=self.prob_crossover,
+            mutpb=self.prob_mutation,
+            ngen=self.num_generations,
+            stats=stats,
+            halloffame=self.hof,
+        ) 
+        return self.pop, self.hof
+    
+    def plot_pareto_front(self,filename=None):
+        plt.figure(figsize=(10, 6))
+        pareto_front = self.hof
+        if len(pareto_front) > 0:
+            pf_energy = [ind.fitness.values[0] for ind in pareto_front]
+            pf_latency = [ind.fitness.values[1] for ind in pareto_front]
+            plt.scatter(pf_energy, pf_latency, 
+                        c='red', s=80, edgecolors='black',
+                        label='Pareto Front', zorder=3)
+        plt.xlabel('Energy Consumption', fontsize=12)
+        plt.ylabel('Latency', fontsize=12)
+        plt.title('Pareto Front Visualization', fontsize=14)
+        plt.legend()
+        plt.grid(True, linestyle='--', alpha=0.7)
+        if filename:
+            plt.savefig(filename, dpi=300, bbox_inches='tight')
+        else:
+            plt.show()

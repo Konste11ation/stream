@@ -17,27 +17,32 @@ _logging.basicConfig(level=_logging_level, format=_logging_format)
 accelerator = "stream/inputs/examples/hardware/tpu_like_quad_core.yaml"
 workload_path = "stream/inputs/examples/workload/resnet18.onnx"
 mapping_path = "stream/inputs/examples/mapping/tpu_like_quad_core.yaml"
+dvfs_path = "stream/inputs/examples/hardware/fine_dvfs.yaml"
 mode = "fused"
 layer_stacks = [tuple(range(0, 11)), tuple(range(11, 22))] + list((i,) for i in range(22, 49))
+# layer_stacks = [tuple(range(0, 11)), tuple(range(11, 22)), tuple(range(22,32)), tuple(range(32,40)), tuple(range(40,49))]
 ##############################################################################################
 
 ################################PARSING###############################
 hw_name = accelerator.split("/")[-1].split(".")[0]
 wl_name = re.split(r"/|\.", workload_path)[-1]
+dvfs_name = re.split(r"/|\.", dvfs_path)[-2]
 if wl_name == "onnx":
     wl_name = re.split(r"/|\.", workload_path)[-2]
-experiment_id = f"{hw_name}-{wl_name}-{mode}-constraint_optimization"
+experiment_id = f"{hw_name}-{wl_name}-{dvfs_name}-{mode}-constraint_optimization-test"
 ######################################################################
 
 scme = optimize_allocation_co(
     hardware=accelerator,
     workload=workload_path,
     mapping=mapping_path,
+    dvfs=dvfs_path,
+    dvfs_opt=True,
     mode=mode,
     layer_stacks=layer_stacks,
     experiment_id=experiment_id,
     output_path="outputs",
-    skip_if_exists=True,
+    skip_if_exists=False,
 )
 
 ############PLOTTING#############

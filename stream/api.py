@@ -16,7 +16,9 @@ from stream.stages.generation.tiled_workload_generation import (
 )
 from stream.stages.generation.tiling_generation import TilingGenerationStage
 from stream.stages.parsing.accelerator_parser import AcceleratorParserStage
+from stream.stages.parsing.dvfs_parser import DvfsParserStage
 from stream.stages.parsing.onnx_model_parser import ONNXModelParserStage as StreamONNXModelParserStage
+from stream.stages.parsing.user_defined_model_parser import UserDefinedModelParserStage as StreamUserDefinedModelParserStage
 from stream.stages.set_fixed_allocation_performance import SetFixedAllocationPerformanceStage
 from stream.stages.stage import MainStage
 
@@ -117,10 +119,12 @@ def optimize_allocation_co(
     hardware: str,
     workload: str,
     mapping: str,
+    dvfs: str,
     mode: Literal["lbl"] | Literal["fused"],
     layer_stacks: list[tuple[int, ...]],
     experiment_id: str,
     output_path: str,
+    dvfs_opt: bool = True,
     skip_if_exists: bool = False,
 ) -> StreamCostModelEvaluation:
     _sanity_check_inputs(hardware, workload, mapping, mode, output_path)
@@ -146,6 +150,7 @@ def optimize_allocation_co(
         mainstage = MainStage(
             [  # Initializes the MainStage as entry point
                 AcceleratorParserStage,  # Parses the accelerator
+                # StreamUserDefinedModelParserStage,
                 StreamONNXModelParserStage,  # Parses the ONNX Model into the workload
                 LayerStacksGenerationStage,
                 TilingGenerationStage,
@@ -154,10 +159,13 @@ def optimize_allocation_co(
                 SetFixedAllocationPerformanceStage,
                 SchedulingOrderGenerationStage,
                 ConstraintOptimizationAllocationStage,
+                # TODO: Add the dvfs opt stage here
             ],
             accelerator=hardware,  # required by AcceleratorParserStage
             workload_path=workload,  # required by ModelParserStage
             mapping_path=mapping,  # required by ModelParserStage
+            dvfs_path=dvfs,    # required by DvfsOptStage
+            dvfs_opt=dvfs_opt,
             loma_lpf_limit=6,  # required by LomaEngine
             mode=mode,
             layer_stacks=layer_stacks,
