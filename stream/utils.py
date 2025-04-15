@@ -1,4 +1,5 @@
 import os
+import yaml
 import pickle
 import pprint
 from typing import TYPE_CHECKING, Any, TypeAlias
@@ -12,7 +13,7 @@ from zigzag.parser.onnx.utils import get_onnx_tensor_type
 
 from stream.hardware.architecture.core import Core
 from stream.workload.mapping import TILING_T
-
+from stream.workload.onnx_workload import ONNXWorkload
 if TYPE_CHECKING:
     from stream.hardware.architecture.accelerator import Accelerator
     from stream.workload.computation.computation_node import ComputationNode
@@ -20,7 +21,28 @@ if TYPE_CHECKING:
 
 ARRAY_T: TypeAlias = NDArray[Any]
 
-
+def dump_workload_to_yaml(workload: ONNXWorkload, workload_path:str):
+    nodes_data = []
+    for node in workload.node_list:
+        node_data = {
+            "id": getattr(node, 'id', None),  
+            "name": getattr(node, 'name', None),
+            "operator_type": getattr(node, 'type', None),
+            "equation": getattr(getattr(node, 'equation', None),'data',None),
+            "layer_dim_sizes": str(getattr(node, 'layer_dim_sizes', {})),
+            "inter_core_tiling": str(getattr(node, 'inter_core_tiling', {})),
+            "intra_core_tiling": str(getattr(node, 'intra_core_tiling', {}))
+        }
+        nodes_data.append(node_data)
+    yaml_data = {"nodes": nodes_data}
+    os.makedirs(os.path.dirname(workload_path), exist_ok=True)
+    with open(workload_path, "w") as f:
+        yaml.dump(
+            yaml_data,
+            f,
+            default_flow_style=True,  
+            sort_keys=False
+        )
 def get_onnx_input_shapes(node: NodeProto, onnx_model: ModelProto) -> tuple[list[int], list[int]]:
     if len(node.input) != 2:
         raise ValueError(f"Node {node.name} does not have two inputs")

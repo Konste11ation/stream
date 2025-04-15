@@ -1,4 +1,4 @@
-name: offchip_2d
+name: offchip
 
 memories:
   dram:

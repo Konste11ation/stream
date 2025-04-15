@@ -1,0 +1,3585 @@
+nodes:
+- id: 0
+  name: operator_0
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 112, OY: 112, C: 3, FX: 7, FY: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 1
+  name: operator_1
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 2
+  name: operator_2
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 3
+  name: operator_3
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 4
+  name: operator_4
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 5
+  name: operator_5
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 6
+  name: operator_6
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 64, D: 112, K: 112}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 7
+  name: operator_7
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, OX: 56, OY: 56, C: 64, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 8
+  name: operator_8
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 56, OY: 56, C: 64, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 9
+  name: operator_9
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 10
+  name: operator_10
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 11
+  name: operator_11
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 12
+  name: operator_12
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 13
+  name: operator_13
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 14
+  name: operator_14
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 64, D: 56, K: 56}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 15
+  name: operator_15
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 56, OY: 56, C: 64, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 16
+  name: operator_16
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 17
+  name: operator_17
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 18
+  name: operator_18
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 19
+  name: operator_19
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 20
+  name: operator_20
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 21
+  name: operator_21
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 192, D: 56, K: 56}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 22
+  name: operator_22
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 192, OX: 28, OY: 28, C: 192, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 23
+  name: operator_23
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 192, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 24
+  name: operator_24
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 25
+  name: operator_25
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 26
+  name: operator_26
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 27
+  name: operator_27
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 28
+  name: operator_28
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 29
+  name: operator_29
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 30
+  name: operator_30
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 192, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 31
+  name: operator_31
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 32
+  name: operator_32
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 33
+  name: operator_33
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 34
+  name: operator_34
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 35
+  name: operator_35
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 36
+  name: operator_36
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 37
+  name: operator_37
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 64, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 38
+  name: operator_38
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 39
+  name: operator_39
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 40
+  name: operator_40
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 41
+  name: operator_41
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 42
+  name: operator_42
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 43
+  name: operator_43
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 44
+  name: operator_44
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 192, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 45
+  name: operator_45
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 46
+  name: operator_46
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 47
+  name: operator_47
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 48
+  name: operator_48
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 49
+  name: operator_49
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 50
+  name: operator_50
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 51
+  name: operator_51
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 28, OY: 28, C: 64, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 52
+  name: operator_52
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 53
+  name: operator_53
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 54
+  name: operator_54
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 55
+  name: operator_55
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 56
+  name: operator_56
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 57
+  name: operator_57
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 96, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 58
+  name: operator_58
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 28, OY: 28, C: 96, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 59
+  name: operator_59
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 60
+  name: operator_60
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 61
+  name: operator_61
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 62
+  name: operator_62
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 63
+  name: operator_63
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 64
+  name: operator_64
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 96, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 65
+  name: operator_65
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 192, OX: 28, OY: 28, C: 192, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 66
+  name: operator_66
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 32, G: 1, OX: 28, OY: 28, C: 192, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 67
+  name: operator_67
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 68
+  name: operator_68
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 69
+  name: operator_69
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 70
+  name: operator_70
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 71
+  name: operator_71
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 72
+  name: operator_72
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 32, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 73
+  name: operator_73
+  operator_type: concat
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 74
+  name: operator_74
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 256, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 75
+  name: operator_75
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 76
+  name: operator_76
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 77
+  name: operator_77
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 78
+  name: operator_78
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 79
+  name: operator_79
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 80
+  name: operator_80
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 81
+  name: operator_81
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 256, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 82
+  name: operator_82
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 83
+  name: operator_83
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 84
+  name: operator_84
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 85
+  name: operator_85
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 86
+  name: operator_86
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 87
+  name: operator_87
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 88
+  name: operator_88
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 28, OY: 28, C: 64, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 89
+  name: operator_89
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 90
+  name: operator_90
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 91
+  name: operator_91
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 92
+  name: operator_92
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 93
+  name: operator_93
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 94
+  name: operator_94
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 96, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 95
+  name: operator_95
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 256, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 96
+  name: operator_96
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 97
+  name: operator_97
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 98
+  name: operator_98
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 99
+  name: operator_99
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 100
+  name: operator_100
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 101
+  name: operator_101
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 102
+  name: operator_102
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 28, OY: 28, C: 64, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 103
+  name: operator_103
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 104
+  name: operator_104
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 105
+  name: operator_105
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 106
+  name: operator_106
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 107
+  name: operator_107
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 108
+  name: operator_108
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 96, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 109
+  name: operator_109
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 28, OY: 28, C: 96, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 110
+  name: operator_110
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 111
+  name: operator_111
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 112
+  name: operator_112
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 113
+  name: operator_113
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 114
+  name: operator_114
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 115
+  name: operator_115
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 96, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 116
+  name: operator_116
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 256, OX: 28, OY: 28, C: 256, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 117
+  name: operator_117
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 256, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 118
+  name: operator_118
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 119
+  name: operator_119
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 120
+  name: operator_120
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 121
+  name: operator_121
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 122
+  name: operator_122
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 123
+  name: operator_123
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 124
+  name: operator_124
+  operator_type: concat
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 125
+  name: operator_125
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 28, OY: 28, C: 320, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 126
+  name: operator_126
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 127
+  name: operator_127
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 128
+  name: operator_128
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 129
+  name: operator_129
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 130
+  name: operator_130
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 131
+  name: operator_131
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 132
+  name: operator_132
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 14, OY: 14, C: 128, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 133
+  name: operator_133
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 134
+  name: operator_134
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 135
+  name: operator_135
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 136
+  name: operator_136
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 137
+  name: operator_137
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 138
+  name: operator_138
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 160, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 139
+  name: operator_139
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 320, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 140
+  name: operator_140
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 141
+  name: operator_141
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 142
+  name: operator_142
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 143
+  name: operator_143
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 144
+  name: operator_144
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 145
+  name: operator_145
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 146
+  name: operator_146
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 28, OY: 28, C: 64, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 147
+  name: operator_147
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 148
+  name: operator_148
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 149
+  name: operator_149
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 150
+  name: operator_150
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 151
+  name: operator_151
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 152
+  name: operator_152
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 96, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 153
+  name: operator_153
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 96, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 154
+  name: operator_154
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 155
+  name: operator_155
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 156
+  name: operator_156
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 157
+  name: operator_157
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 158
+  name: operator_158
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 159
+  name: operator_159
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 160
+  name: operator_160
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 320, OX: 14, OY: 14, C: 320, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 161
+  name: operator_161
+  operator_type: concat
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 162
+  name: operator_162
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 224, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 163
+  name: operator_163
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 164
+  name: operator_164
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 165
+  name: operator_165
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 166
+  name: operator_166
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 167
+  name: operator_167
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 168
+  name: operator_168
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 224, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 169
+  name: operator_169
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 170
+  name: operator_170
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 171
+  name: operator_171
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 172
+  name: operator_172
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 173
+  name: operator_173
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 174
+  name: operator_174
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 175
+  name: operator_175
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 64, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 176
+  name: operator_176
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 64, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 177
+  name: operator_177
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 178
+  name: operator_178
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 179
+  name: operator_179
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 180
+  name: operator_180
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 181
+  name: operator_181
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 182
+  name: operator_182
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 183
+  name: operator_183
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 184
+  name: operator_184
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 185
+  name: operator_185
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 186
+  name: operator_186
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 187
+  name: operator_187
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 188
+  name: operator_188
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 189
+  name: operator_189
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 190
+  name: operator_190
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 96, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 191
+  name: operator_191
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 192
+  name: operator_192
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 193
+  name: operator_193
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 194
+  name: operator_194
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 195
+  name: operator_195
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 196
+  name: operator_196
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 197
+  name: operator_197
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 128, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 198
+  name: operator_198
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 199
+  name: operator_199
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 200
+  name: operator_200
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 201
+  name: operator_201
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 202
+  name: operator_202
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 203
+  name: operator_203
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 204
+  name: operator_204
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 576, OX: 14, OY: 14, C: 576, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 205
+  name: operator_205
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 206
+  name: operator_206
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 207
+  name: operator_207
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 208
+  name: operator_208
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 209
+  name: operator_209
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 210
+  name: operator_210
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 211
+  name: operator_211
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 212
+  name: operator_212
+  operator_type: concat
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 213
+  name: operator_213
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 214
+  name: operator_214
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 215
+  name: operator_215
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 216
+  name: operator_216
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 217
+  name: operator_217
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 218
+  name: operator_218
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 219
+  name: operator_219
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 192, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 220
+  name: operator_220
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 221
+  name: operator_221
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 222
+  name: operator_222
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 223
+  name: operator_223
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 224
+  name: operator_224
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 225
+  name: operator_225
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 226
+  name: operator_226
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 227
+  name: operator_227
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 96, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 228
+  name: operator_228
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 229
+  name: operator_229
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 230
+  name: operator_230
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 231
+  name: operator_231
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 232
+  name: operator_232
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 233
+  name: operator_233
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 234
+  name: operator_234
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 235
+  name: operator_235
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 236
+  name: operator_236
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 237
+  name: operator_237
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 238
+  name: operator_238
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 239
+  name: operator_239
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 240
+  name: operator_240
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 241
+  name: operator_241
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 96, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 242
+  name: operator_242
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 243
+  name: operator_243
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 244
+  name: operator_244
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 245
+  name: operator_245
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 246
+  name: operator_246
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 247
+  name: operator_247
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 248
+  name: operator_248
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 128, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 249
+  name: operator_249
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 250
+  name: operator_250
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 251
+  name: operator_251
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 252
+  name: operator_252
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 253
+  name: operator_253
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 254
+  name: operator_254
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 255
+  name: operator_255
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 576, OX: 14, OY: 14, C: 576, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 256
+  name: operator_256
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 257
+  name: operator_257
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 258
+  name: operator_258
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 259
+  name: operator_259
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 260
+  name: operator_260
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 261
+  name: operator_261
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 262
+  name: operator_262
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 263
+  name: operator_263
+  operator_type: concat
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 264
+  name: operator_264
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 265
+  name: operator_265
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 266
+  name: operator_266
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 267
+  name: operator_267
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 268
+  name: operator_268
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 269
+  name: operator_269
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 270
+  name: operator_270
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 160, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 271
+  name: operator_271
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 272
+  name: operator_272
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 273
+  name: operator_273
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 274
+  name: operator_274
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 275
+  name: operator_275
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 276
+  name: operator_276
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 277
+  name: operator_277
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 278
+  name: operator_278
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 14, OY: 14, C: 128, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 279
+  name: operator_279
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 280
+  name: operator_280
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 281
+  name: operator_281
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 282
+  name: operator_282
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 283
+  name: operator_283
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 284
+  name: operator_284
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 160, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 285
+  name: operator_285
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 286
+  name: operator_286
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 287
+  name: operator_287
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 288
+  name: operator_288
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 289
+  name: operator_289
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 290
+  name: operator_290
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 291
+  name: operator_291
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 292
+  name: operator_292
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 14, OY: 14, C: 128, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 293
+  name: operator_293
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 294
+  name: operator_294
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 295
+  name: operator_295
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 296
+  name: operator_296
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 297
+  name: operator_297
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 298
+  name: operator_298
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 160, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 299
+  name: operator_299
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 14, OY: 14, C: 160, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 300
+  name: operator_300
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 301
+  name: operator_301
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 302
+  name: operator_302
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 303
+  name: operator_303
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 304
+  name: operator_304
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 305
+  name: operator_305
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 160, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 306
+  name: operator_306
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 576, OX: 14, OY: 14, C: 576, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 307
+  name: operator_307
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 308
+  name: operator_308
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 309
+  name: operator_309
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 310
+  name: operator_310
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 311
+  name: operator_311
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 312
+  name: operator_312
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 313
+  name: operator_313
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 314
+  name: operator_314
+  operator_type: concat
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 315
+  name: operator_315
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 316
+  name: operator_316
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 317
+  name: operator_317
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 318
+  name: operator_318
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 319
+  name: operator_319
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 320
+  name: operator_320
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 321
+  name: operator_321
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 322
+  name: operator_322
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 323
+  name: operator_323
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 324
+  name: operator_324
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 325
+  name: operator_325
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 326
+  name: operator_326
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 327
+  name: operator_327
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 328
+  name: operator_328
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 329
+  name: operator_329
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 14, OY: 14, C: 128, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 330
+  name: operator_330
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 331
+  name: operator_331
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 332
+  name: operator_332
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 333
+  name: operator_333
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 334
+  name: operator_334
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 335
+  name: operator_335
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 192, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 336
+  name: operator_336
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 337
+  name: operator_337
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 338
+  name: operator_338
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 339
+  name: operator_339
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 340
+  name: operator_340
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 341
+  name: operator_341
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 342
+  name: operator_342
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 160, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 343
+  name: operator_343
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 14, OY: 14, C: 160, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 344
+  name: operator_344
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 345
+  name: operator_345
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 346
+  name: operator_346
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 347
+  name: operator_347
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 348
+  name: operator_348
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 349
+  name: operator_349
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 192, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 350
+  name: operator_350
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 14, OY: 14, C: 192, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 351
+  name: operator_351
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 352
+  name: operator_352
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 353
+  name: operator_353
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 354
+  name: operator_354
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 355
+  name: operator_355
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 356
+  name: operator_356
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 192, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 357
+  name: operator_357
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 576, OX: 14, OY: 14, C: 576, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 358
+  name: operator_358
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 359
+  name: operator_359
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 360
+  name: operator_360
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 361
+  name: operator_361
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 362
+  name: operator_362
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 363
+  name: operator_363
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 364
+  name: operator_364
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 365
+  name: operator_365
+  operator_type: concat
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 366
+  name: operator_366
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 367
+  name: operator_367
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 368
+  name: operator_368
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 369
+  name: operator_369
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 370
+  name: operator_370
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 371
+  name: operator_371
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 372
+  name: operator_372
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 373
+  name: operator_373
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 7, OY: 7, C: 128, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 374
+  name: operator_374
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 375
+  name: operator_375
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 376
+  name: operator_376
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 377
+  name: operator_377
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 378
+  name: operator_378
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 379
+  name: operator_379
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 192, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 380
+  name: operator_380
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 381
+  name: operator_381
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 382
+  name: operator_382
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 383
+  name: operator_383
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 384
+  name: operator_384
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 385
+  name: operator_385
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 386
+  name: operator_386
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 192, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 387
+  name: operator_387
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 256, G: 1, OX: 14, OY: 14, C: 192, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 388
+  name: operator_388
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 389
+  name: operator_389
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 390
+  name: operator_390
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 391
+  name: operator_391
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 392
+  name: operator_392
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 393
+  name: operator_393
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 256, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 394
+  name: operator_394
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 256, G: 1, OX: 7, OY: 7, C: 256, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 395
+  name: operator_395
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 396
+  name: operator_396
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 397
+  name: operator_397
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 398
+  name: operator_398
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 399
+  name: operator_399
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 400
+  name: operator_400
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 256, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 401
+  name: operator_401
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 576, OX: 7, OY: 7, C: 576, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 402
+  name: operator_402
+  operator_type: concat
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 403
+  name: operator_403
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 352, G: 1, OX: 7, OY: 7, C: 1024, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 404
+  name: operator_404
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 405
+  name: operator_405
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 406
+  name: operator_406
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 407
+  name: operator_407
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 408
+  name: operator_408
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 409
+  name: operator_409
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 352, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 410
+  name: operator_410
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 7, OY: 7, C: 1024, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 411
+  name: operator_411
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 412
+  name: operator_412
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 413
+  name: operator_413
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 414
+  name: operator_414
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 415
+  name: operator_415
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 416
+  name: operator_416
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 192, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 417
+  name: operator_417
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 320, G: 1, OX: 7, OY: 7, C: 192, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 418
+  name: operator_418
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 419
+  name: operator_419
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 420
+  name: operator_420
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 421
+  name: operator_421
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 422
+  name: operator_422
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 423
+  name: operator_423
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 320, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 424
+  name: operator_424
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 7, OY: 7, C: 1024, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 425
+  name: operator_425
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 426
+  name: operator_426
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 427
+  name: operator_427
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 428
+  name: operator_428
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 429
+  name: operator_429
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 430
+  name: operator_430
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 160, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 431
+  name: operator_431
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 224, G: 1, OX: 7, OY: 7, C: 160, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 432
+  name: operator_432
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 433
+  name: operator_433
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 434
+  name: operator_434
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 435
+  name: operator_435
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 436
+  name: operator_436
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 437
+  name: operator_437
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 224, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 438
+  name: operator_438
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 224, G: 1, OX: 7, OY: 7, C: 224, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 439
+  name: operator_439
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 440
+  name: operator_440
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 441
+  name: operator_441
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 442
+  name: operator_442
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 443
+  name: operator_443
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 444
+  name: operator_444
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 224, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 445
+  name: operator_445
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1024, OX: 7, OY: 7, C: 1024, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 446
+  name: operator_446
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 7, OY: 7, C: 1024, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 447
+  name: operator_447
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 448
+  name: operator_448
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 449
+  name: operator_449
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 450
+  name: operator_450
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 451
+  name: operator_451
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 452
+  name: operator_452
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 453
+  name: operator_453
+  operator_type: concat
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 454
+  name: operator_454
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 352, G: 1, OX: 7, OY: 7, C: 1024, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 455
+  name: operator_455
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 456
+  name: operator_456
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 457
+  name: operator_457
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 458
+  name: operator_458
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 459
+  name: operator_459
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 460
+  name: operator_460
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 352, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 461
+  name: operator_461
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 7, OY: 7, C: 1024, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 462
+  name: operator_462
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 463
+  name: operator_463
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 464
+  name: operator_464
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 465
+  name: operator_465
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 466
+  name: operator_466
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 467
+  name: operator_467
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 192, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 468
+  name: operator_468
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 320, G: 1, OX: 7, OY: 7, C: 192, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 469
+  name: operator_469
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 470
+  name: operator_470
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 471
+  name: operator_471
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 472
+  name: operator_472
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 473
+  name: operator_473
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 474
+  name: operator_474
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 320, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 475
+  name: operator_475
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 7, OY: 7, C: 1024, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 476
+  name: operator_476
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 477
+  name: operator_477
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 478
+  name: operator_478
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 479
+  name: operator_479
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 480
+  name: operator_480
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 481
+  name: operator_481
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 192, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 482
+  name: operator_482
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 224, G: 1, OX: 7, OY: 7, C: 192, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 483
+  name: operator_483
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 484
+  name: operator_484
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 485
+  name: operator_485
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 486
+  name: operator_486
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 487
+  name: operator_487
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 488
+  name: operator_488
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 224, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 489
+  name: operator_489
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 224, G: 1, OX: 7, OY: 7, C: 224, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 490
+  name: operator_490
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 491
+  name: operator_491
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 492
+  name: operator_492
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 493
+  name: operator_493
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 494
+  name: operator_494
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 495
+  name: operator_495
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 224, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 496
+  name: operator_496
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1024, OX: 7, OY: 7, C: 1024, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 497
+  name: operator_497
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 7, OY: 7, C: 1024, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 498
+  name: operator_498
+  operator_type: batchnormalization
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 499
+  name: operator_499
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 500
+  name: operator_500
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 501
+  name: operator_501
+  operator_type: unsqueeze
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 502
+  name: operator_502
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 503
+  name: operator_503
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 504
+  name: operator_504
+  operator_type: concat
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 505
+  name: operator_505
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1024, OX: 1, OY: 1, C: 1024, FX: 7, FY: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 506
+  name: operator_506
+  operator_type: reshape
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 507
+  name: operator_507
+  operator_type: gemm
+  equation: O[d][k] = I[d][c] * W[c][k]
+  layer_dim_sizes: '{C: 1024, D: 1, K: 1000}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 508
+  name: operator_508-max/
+  operator_type: max
+  equation: O[k] = I[k][c] * W[]
+  layer_dim_sizes: '{K: 1, C: 1000}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 509
+  name: operator_508-exp/
+  operator_type: exp
+  equation: O[k][c] = I[k][c] + W[k]
+  layer_dim_sizes: '{K: 1, C: 1000}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 510
+  name: operator_508-sum/
+  operator_type: sum
+  equation: O[k] = I[k][c] * W[]
+  layer_dim_sizes: '{K: 1, C: 1000}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 511
+  name: operator_508-div/
+  operator_type: div
+  equation: O[k][c] = I[k][c] + W[k]
+  layer_dim_sizes: '{K: 1, C: 1000}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'

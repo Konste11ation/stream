@@ -118,8 +118,18 @@ memories:
         tl: r_port_1
     served_dimensions: [D1, D2, D3, D4]
 
-multipliers:
+operational_array:
   unit_energy: 0.04 # pJ
   unit_area: 1 # unit
   dimensions: [D1, D2, D3, D4]
   sizes: [32, 2, 4, 4]
+
+dataflows:
+  D1:
+    - C, 32
+  D2:
+    - K, 32
+  D3:
+    - C, 32
+  D4:
+    - K, 32    

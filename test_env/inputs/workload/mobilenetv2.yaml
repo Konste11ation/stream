@@ -1,0 +1,701 @@
+nodes:
+- id: 0
+  name: /features/features.0/features.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 32, G: 1, OX: 112, OY: 112, C: 3, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 1
+  name: /features/features.0/features.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 2
+  name: /features/features.1/conv/conv.0/conv.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 32, OX: 112, OY: 112, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 3
+  name: /features/features.1/conv/conv.0/conv.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 4
+  name: /features/features.1/conv/conv.1/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 16, G: 1, OX: 112, OY: 112, C: 32, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 5
+  name: /features/features.2/conv/conv.0/conv.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 112, OY: 112, C: 16, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 6
+  name: /features/features.2/conv/conv.0/conv.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 7
+  name: /features/features.2/conv/conv.1/conv.1.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 96, OX: 56, OY: 56, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 8
+  name: /features/features.2/conv/conv.1/conv.1.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 9
+  name: /features/features.2/conv/conv.2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 24, G: 1, OX: 56, OY: 56, C: 96, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 10
+  name: /features/features.3/conv/conv.0/conv.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 144, G: 1, OX: 56, OY: 56, C: 24, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 11
+  name: /features/features.3/conv/conv.0/conv.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 12
+  name: /features/features.3/conv/conv.1/conv.1.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 144, OX: 56, OY: 56, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 13
+  name: /features/features.3/conv/conv.1/conv.1.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 14
+  name: /features/features.3/conv/conv.2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 24, G: 1, OX: 56, OY: 56, C: 144, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 15
+  name: /features/features.3/Add
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 16
+  name: /features/features.4/conv/conv.0/conv.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 144, G: 1, OX: 56, OY: 56, C: 24, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 17
+  name: /features/features.4/conv/conv.0/conv.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 18
+  name: /features/features.4/conv/conv.1/conv.1.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 144, OX: 28, OY: 28, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 19
+  name: /features/features.4/conv/conv.1/conv.1.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 20
+  name: /features/features.4/conv/conv.2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 32, G: 1, OX: 28, OY: 28, C: 144, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 21
+  name: /features/features.5/conv/conv.0/conv.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 28, OY: 28, C: 32, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 22
+  name: /features/features.5/conv/conv.0/conv.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 23
+  name: /features/features.5/conv/conv.1/conv.1.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 192, OX: 28, OY: 28, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 24
+  name: /features/features.5/conv/conv.1/conv.1.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 25
+  name: /features/features.5/conv/conv.2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 32, G: 1, OX: 28, OY: 28, C: 192, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 26
+  name: /features/features.5/Add
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 27
+  name: /features/features.6/conv/conv.0/conv.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 28, OY: 28, C: 32, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 28
+  name: /features/features.6/conv/conv.0/conv.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 29
+  name: /features/features.6/conv/conv.1/conv.1.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 192, OX: 28, OY: 28, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 30
+  name: /features/features.6/conv/conv.1/conv.1.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 31
+  name: /features/features.6/conv/conv.2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 32, G: 1, OX: 28, OY: 28, C: 192, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 32
+  name: /features/features.6/Add
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 33
+  name: /features/features.7/conv/conv.0/conv.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 28, OY: 28, C: 32, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 34
+  name: /features/features.7/conv/conv.0/conv.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 35
+  name: /features/features.7/conv/conv.1/conv.1.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 192, OX: 14, OY: 14, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 36
+  name: /features/features.7/conv/conv.1/conv.1.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 37
+  name: /features/features.7/conv/conv.2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 14, OY: 14, C: 192, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 38
+  name: /features/features.8/conv/conv.0/conv.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 384, G: 1, OX: 14, OY: 14, C: 64, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 39
+  name: /features/features.8/conv/conv.0/conv.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 40
+  name: /features/features.8/conv/conv.1/conv.1.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 384, OX: 14, OY: 14, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 41
+  name: /features/features.8/conv/conv.1/conv.1.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 42
+  name: /features/features.8/conv/conv.2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 14, OY: 14, C: 384, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 43
+  name: /features/features.8/Add
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 44
+  name: /features/features.9/conv/conv.0/conv.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 384, G: 1, OX: 14, OY: 14, C: 64, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 45
+  name: /features/features.9/conv/conv.0/conv.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 46
+  name: /features/features.9/conv/conv.1/conv.1.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 384, OX: 14, OY: 14, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 47
+  name: /features/features.9/conv/conv.1/conv.1.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 48
+  name: /features/features.9/conv/conv.2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 14, OY: 14, C: 384, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 49
+  name: /features/features.9/Add
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 50
+  name: /features/features.10/conv/conv.0/conv.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 384, G: 1, OX: 14, OY: 14, C: 64, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 51
+  name: /features/features.10/conv/conv.0/conv.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 52
+  name: /features/features.10/conv/conv.1/conv.1.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 384, OX: 14, OY: 14, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 53
+  name: /features/features.10/conv/conv.1/conv.1.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 54
+  name: /features/features.10/conv/conv.2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 14, OY: 14, C: 384, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 55
+  name: /features/features.10/Add
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 56
+  name: /features/features.11/conv/conv.0/conv.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 384, G: 1, OX: 14, OY: 14, C: 64, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 57
+  name: /features/features.11/conv/conv.0/conv.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 58
+  name: /features/features.11/conv/conv.1/conv.1.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 384, OX: 14, OY: 14, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 59
+  name: /features/features.11/conv/conv.1/conv.1.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 60
+  name: /features/features.11/conv/conv.2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 384, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 61
+  name: /features/features.12/conv/conv.0/conv.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 576, G: 1, OX: 14, OY: 14, C: 96, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 62
+  name: /features/features.12/conv/conv.0/conv.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 63
+  name: /features/features.12/conv/conv.1/conv.1.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 576, OX: 14, OY: 14, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 64
+  name: /features/features.12/conv/conv.1/conv.1.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 65
+  name: /features/features.12/conv/conv.2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 66
+  name: /features/features.12/Add
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 67
+  name: /features/features.13/conv/conv.0/conv.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 576, G: 1, OX: 14, OY: 14, C: 96, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 68
+  name: /features/features.13/conv/conv.0/conv.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 69
+  name: /features/features.13/conv/conv.1/conv.1.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 576, OX: 14, OY: 14, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 70
+  name: /features/features.13/conv/conv.1/conv.1.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 71
+  name: /features/features.13/conv/conv.2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 72
+  name: /features/features.13/Add
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 73
+  name: /features/features.14/conv/conv.0/conv.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 576, G: 1, OX: 14, OY: 14, C: 96, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 74
+  name: /features/features.14/conv/conv.0/conv.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 75
+  name: /features/features.14/conv/conv.1/conv.1.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 576, OX: 7, OY: 7, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 76
+  name: /features/features.14/conv/conv.1/conv.1.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 77
+  name: /features/features.14/conv/conv.2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 7, OY: 7, C: 576, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 78
+  name: /features/features.15/conv/conv.0/conv.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 960, G: 1, OX: 7, OY: 7, C: 160, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 79
+  name: /features/features.15/conv/conv.0/conv.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 80
+  name: /features/features.15/conv/conv.1/conv.1.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 960, OX: 7, OY: 7, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 81
+  name: /features/features.15/conv/conv.1/conv.1.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 82
+  name: /features/features.15/conv/conv.2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 7, OY: 7, C: 960, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 83
+  name: /features/features.15/Add
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 84
+  name: /features/features.16/conv/conv.0/conv.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 960, G: 1, OX: 7, OY: 7, C: 160, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 85
+  name: /features/features.16/conv/conv.0/conv.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 86
+  name: /features/features.16/conv/conv.1/conv.1.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 960, OX: 7, OY: 7, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 87
+  name: /features/features.16/conv/conv.1/conv.1.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 88
+  name: /features/features.16/conv/conv.2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 7, OY: 7, C: 960, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 89
+  name: /features/features.16/Add
+  operator_type: add
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 90
+  name: /features/features.17/conv/conv.0/conv.0.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 960, G: 1, OX: 7, OY: 7, C: 160, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 91
+  name: /features/features.17/conv/conv.0/conv.0.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 92
+  name: /features/features.17/conv/conv.1/conv.1.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 960, OX: 7, OY: 7, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 93
+  name: /features/features.17/conv/conv.1/conv.1.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 94
+  name: /features/features.17/conv/conv.2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 320, G: 1, OX: 7, OY: 7, C: 960, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 95
+  name: /features/features.18/features.18.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1280, G: 1, OX: 7, OY: 7, C: 320, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 96
+  name: /features/features.18/features.18.2/Clip
+  operator_type: clip
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 97
+  name: /GlobalAveragePool
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1280, OX: 1, OY: 1, C: 1280, FX: 7, FY: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 98
+  name: /Flatten
+  operator_type: flatten
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 99
+  name: /classifier/classifier.1/Gemm
+  operator_type: gemm
+  equation: O[d][k] = I[d][c] * W[c][k]
+  layer_dim_sizes: '{C: 1280, D: 1, K: 1000}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'

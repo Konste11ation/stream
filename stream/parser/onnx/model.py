@@ -1,6 +1,6 @@
 import logging
 from typing import Any, Type
-
+import os
 from onnx import NodeProto
 from zigzag.parser.onnx.utils import parse_onnx_model_from_path
 
@@ -23,6 +23,7 @@ from stream.parser.onnx.transpose import TransposeParser
 from stream.utils import get_onnx_input_shapes, has_asymmetric_input_data
 from stream.workload.mapping import InterCoreMappingAttributes
 from stream.workload.onnx_workload import ONNXWorkload
+from stream.utils import dump_workload_to_yaml
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +139,8 @@ class ONNXModelParser:
                 node_id += 1
 
             nodes_outputs[node_id - 1] = node.output
-
+        workload_base, _ = os.path.splitext(self.onnx_model_path)
+        dump_workload_to_yaml(workload, f"{workload_base}.yaml")
         logger.info(
             "Created ONNXWorkload graph with %i nodes and %i edges.",
             workload.number_of_nodes(),
