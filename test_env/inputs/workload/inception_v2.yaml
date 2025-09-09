@@ -5,7 +5,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 112, OY: 112, C: 3, FX: 7, FY: 7}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 1
   name: operator_1
   operator_type: batchnormalization
@@ -46,7 +46,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 64, D: 112, K: 112}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 7
   name: operator_7
@@ -61,7 +61,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 56, OY: 56, C: 64, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 9
   name: operator_9
   operator_type: batchnormalization
@@ -102,7 +102,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 64, D: 56, K: 56}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 15
   name: operator_15
@@ -110,7 +110,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 56, OY: 56, C: 64, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 16
   name: operator_16
   operator_type: batchnormalization
@@ -151,7 +151,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 192, D: 56, K: 56}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 22
   name: operator_22
@@ -166,7 +166,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 192, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 24
   name: operator_24
   operator_type: batchnormalization
@@ -207,7 +207,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 30
   name: operator_30
@@ -215,7 +215,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 192, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 31
   name: operator_31
   operator_type: batchnormalization
@@ -256,7 +256,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 37
   name: operator_37
@@ -264,7 +264,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 64, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 38
   name: operator_38
   operator_type: batchnormalization
@@ -305,7 +305,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 44
   name: operator_44
@@ -313,7 +313,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 192, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 45
   name: operator_45
   operator_type: batchnormalization
@@ -354,7 +354,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 51
   name: operator_51
@@ -362,7 +362,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 28, OY: 28, C: 64, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 52
   name: operator_52
   operator_type: batchnormalization
@@ -403,7 +403,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 96, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 58
   name: operator_58
@@ -411,7 +411,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 28, OY: 28, C: 96, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 59
   name: operator_59
   operator_type: batchnormalization
@@ -452,7 +452,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 96, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 65
   name: operator_65
@@ -467,7 +467,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 32, G: 1, OX: 28, OY: 28, C: 192, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 67
   name: operator_67
   operator_type: batchnormalization
@@ -508,7 +508,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 32, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 73
   name: operator_73
@@ -523,7 +523,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 256, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 75
   name: operator_75
   operator_type: batchnormalization
@@ -564,7 +564,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 81
   name: operator_81
@@ -572,7 +572,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 256, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 82
   name: operator_82
   operator_type: batchnormalization
@@ -613,7 +613,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 88
   name: operator_88
@@ -621,7 +621,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 28, OY: 28, C: 64, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 89
   name: operator_89
   operator_type: batchnormalization
@@ -662,7 +662,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 96, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 95
   name: operator_95
@@ -670,7 +670,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 256, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 96
   name: operator_96
   operator_type: batchnormalization
@@ -711,7 +711,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 102
   name: operator_102
@@ -719,7 +719,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 28, OY: 28, C: 64, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 103
   name: operator_103
   operator_type: batchnormalization
@@ -760,7 +760,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 96, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 109
   name: operator_109
@@ -768,7 +768,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 28, OY: 28, C: 96, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 110
   name: operator_110
   operator_type: batchnormalization
@@ -809,7 +809,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 96, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 116
   name: operator_116
@@ -824,7 +824,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 256, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 118
   name: operator_118
   operator_type: batchnormalization
@@ -865,7 +865,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 124
   name: operator_124
@@ -880,7 +880,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 28, OY: 28, C: 320, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 126
   name: operator_126
   operator_type: batchnormalization
@@ -921,7 +921,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 132
   name: operator_132
@@ -929,7 +929,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 14, OY: 14, C: 128, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 133
   name: operator_133
   operator_type: batchnormalization
@@ -970,7 +970,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 160, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 139
   name: operator_139
@@ -978,7 +978,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 28, OY: 28, C: 320, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 140
   name: operator_140
   operator_type: batchnormalization
@@ -1019,7 +1019,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 64, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 146
   name: operator_146
@@ -1027,7 +1027,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 28, OY: 28, C: 64, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 147
   name: operator_147
   operator_type: batchnormalization
@@ -1068,7 +1068,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 96, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 153
   name: operator_153
@@ -1076,7 +1076,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 96, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 154
   name: operator_154
   operator_type: batchnormalization
@@ -1117,7 +1117,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 160
   name: operator_160
@@ -1139,7 +1139,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 224, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 163
   name: operator_163
   operator_type: batchnormalization
@@ -1180,7 +1180,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 224, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 169
   name: operator_169
@@ -1188,7 +1188,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 170
   name: operator_170
   operator_type: batchnormalization
@@ -1229,7 +1229,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 64, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 176
   name: operator_176
@@ -1237,7 +1237,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 64, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 177
   name: operator_177
   operator_type: batchnormalization
@@ -1278,7 +1278,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 183
   name: operator_183
@@ -1286,7 +1286,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 184
   name: operator_184
   operator_type: batchnormalization
@@ -1327,7 +1327,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 190
   name: operator_190
@@ -1335,7 +1335,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 96, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 191
   name: operator_191
   operator_type: batchnormalization
@@ -1376,7 +1376,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 197
   name: operator_197
@@ -1384,7 +1384,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 128, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 198
   name: operator_198
   operator_type: batchnormalization
@@ -1425,7 +1425,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 204
   name: operator_204
@@ -1440,7 +1440,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 206
   name: operator_206
   operator_type: batchnormalization
@@ -1481,7 +1481,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 212
   name: operator_212
@@ -1496,7 +1496,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 214
   name: operator_214
   operator_type: batchnormalization
@@ -1537,7 +1537,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 192, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 220
   name: operator_220
@@ -1545,7 +1545,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 221
   name: operator_221
   operator_type: batchnormalization
@@ -1586,7 +1586,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 227
   name: operator_227
@@ -1594,7 +1594,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 96, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 228
   name: operator_228
   operator_type: batchnormalization
@@ -1635,7 +1635,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 234
   name: operator_234
@@ -1643,7 +1643,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 235
   name: operator_235
   operator_type: batchnormalization
@@ -1684,7 +1684,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 241
   name: operator_241
@@ -1692,7 +1692,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 96, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 242
   name: operator_242
   operator_type: batchnormalization
@@ -1733,7 +1733,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 248
   name: operator_248
@@ -1741,7 +1741,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 128, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 249
   name: operator_249
   operator_type: batchnormalization
@@ -1782,7 +1782,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 255
   name: operator_255
@@ -1797,7 +1797,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 257
   name: operator_257
   operator_type: batchnormalization
@@ -1838,7 +1838,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 263
   name: operator_263
@@ -1853,7 +1853,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 265
   name: operator_265
   operator_type: batchnormalization
@@ -1894,7 +1894,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 160, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 271
   name: operator_271
@@ -1902,7 +1902,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 272
   name: operator_272
   operator_type: batchnormalization
@@ -1943,7 +1943,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 278
   name: operator_278
@@ -1951,7 +1951,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 14, OY: 14, C: 128, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 279
   name: operator_279
   operator_type: batchnormalization
@@ -1992,7 +1992,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 160, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 285
   name: operator_285
@@ -2000,7 +2000,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 286
   name: operator_286
   operator_type: batchnormalization
@@ -2041,7 +2041,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 292
   name: operator_292
@@ -2049,7 +2049,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 14, OY: 14, C: 128, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 293
   name: operator_293
   operator_type: batchnormalization
@@ -2090,7 +2090,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 160, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 299
   name: operator_299
@@ -2098,7 +2098,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 14, OY: 14, C: 160, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 300
   name: operator_300
   operator_type: batchnormalization
@@ -2139,7 +2139,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 160, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 306
   name: operator_306
@@ -2154,7 +2154,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 308
   name: operator_308
   operator_type: batchnormalization
@@ -2195,7 +2195,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 314
   name: operator_314
@@ -2210,7 +2210,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 316
   name: operator_316
   operator_type: batchnormalization
@@ -2251,7 +2251,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 322
   name: operator_322
@@ -2259,7 +2259,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 323
   name: operator_323
   operator_type: batchnormalization
@@ -2300,7 +2300,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 329
   name: operator_329
@@ -2308,7 +2308,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 14, OY: 14, C: 128, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 330
   name: operator_330
   operator_type: batchnormalization
@@ -2349,7 +2349,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 192, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 336
   name: operator_336
@@ -2357,7 +2357,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 337
   name: operator_337
   operator_type: batchnormalization
@@ -2398,7 +2398,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 160, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 343
   name: operator_343
@@ -2406,7 +2406,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 14, OY: 14, C: 160, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 344
   name: operator_344
   operator_type: batchnormalization
@@ -2447,7 +2447,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 192, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 350
   name: operator_350
@@ -2455,7 +2455,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 14, OY: 14, C: 192, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 351
   name: operator_351
   operator_type: batchnormalization
@@ -2496,7 +2496,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 192, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 357
   name: operator_357
@@ -2511,7 +2511,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 359
   name: operator_359
   operator_type: batchnormalization
@@ -2552,7 +2552,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 365
   name: operator_365
@@ -2567,7 +2567,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 367
   name: operator_367
   operator_type: batchnormalization
@@ -2608,7 +2608,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 373
   name: operator_373
@@ -2616,7 +2616,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 7, OY: 7, C: 128, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 374
   name: operator_374
   operator_type: batchnormalization
@@ -2657,7 +2657,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 192, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 380
   name: operator_380
@@ -2665,7 +2665,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 381
   name: operator_381
   operator_type: batchnormalization
@@ -2706,7 +2706,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 192, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 387
   name: operator_387
@@ -2714,7 +2714,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 256, G: 1, OX: 14, OY: 14, C: 192, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 388
   name: operator_388
   operator_type: batchnormalization
@@ -2755,7 +2755,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 256, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 394
   name: operator_394
@@ -2763,7 +2763,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 256, G: 1, OX: 7, OY: 7, C: 256, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 395
   name: operator_395
   operator_type: batchnormalization
@@ -2804,7 +2804,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 256, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 401
   name: operator_401
@@ -2826,7 +2826,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 352, G: 1, OX: 7, OY: 7, C: 1024, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 404
   name: operator_404
   operator_type: batchnormalization
@@ -2867,7 +2867,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 352, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 410
   name: operator_410
@@ -2875,7 +2875,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 7, OY: 7, C: 1024, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 411
   name: operator_411
   operator_type: batchnormalization
@@ -2916,7 +2916,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 192, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 417
   name: operator_417
@@ -2924,7 +2924,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 320, G: 1, OX: 7, OY: 7, C: 192, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 418
   name: operator_418
   operator_type: batchnormalization
@@ -2965,7 +2965,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 320, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 424
   name: operator_424
@@ -2973,7 +2973,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 7, OY: 7, C: 1024, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 425
   name: operator_425
   operator_type: batchnormalization
@@ -3014,7 +3014,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 160, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 431
   name: operator_431
@@ -3022,7 +3022,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 224, G: 1, OX: 7, OY: 7, C: 160, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 432
   name: operator_432
   operator_type: batchnormalization
@@ -3063,7 +3063,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 224, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 438
   name: operator_438
@@ -3071,7 +3071,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 224, G: 1, OX: 7, OY: 7, C: 224, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 439
   name: operator_439
   operator_type: batchnormalization
@@ -3112,7 +3112,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 224, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 445
   name: operator_445
@@ -3127,7 +3127,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 7, OY: 7, C: 1024, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 447
   name: operator_447
   operator_type: batchnormalization
@@ -3168,7 +3168,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 453
   name: operator_453
@@ -3183,7 +3183,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 352, G: 1, OX: 7, OY: 7, C: 1024, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 455
   name: operator_455
   operator_type: batchnormalization
@@ -3224,7 +3224,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 352, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 461
   name: operator_461
@@ -3232,7 +3232,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 7, OY: 7, C: 1024, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 462
   name: operator_462
   operator_type: batchnormalization
@@ -3273,7 +3273,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 192, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 468
   name: operator_468
@@ -3281,7 +3281,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 320, G: 1, OX: 7, OY: 7, C: 192, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 469
   name: operator_469
   operator_type: batchnormalization
@@ -3322,7 +3322,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 320, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 475
   name: operator_475
@@ -3330,7 +3330,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 7, OY: 7, C: 1024, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 476
   name: operator_476
   operator_type: batchnormalization
@@ -3371,7 +3371,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 192, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 482
   name: operator_482
@@ -3379,7 +3379,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 224, G: 1, OX: 7, OY: 7, C: 192, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 483
   name: operator_483
   operator_type: batchnormalization
@@ -3420,7 +3420,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 224, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 489
   name: operator_489
@@ -3428,7 +3428,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 224, G: 1, OX: 7, OY: 7, C: 224, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 490
   name: operator_490
   operator_type: batchnormalization
@@ -3469,7 +3469,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 224, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 496
   name: operator_496
@@ -3484,7 +3484,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 7, OY: 7, C: 1024, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 16)]'
 - id: 498
   name: operator_498
   operator_type: batchnormalization
@@ -3525,7 +3525,7 @@ nodes:
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 504
   name: operator_504
@@ -3553,33 +3553,12 @@ nodes:
   operator_type: gemm
   equation: O[d][k] = I[d][c] * W[c][k]
   layer_dim_sizes: '{C: 1024, D: 1, K: 1000}'
-  inter_core_tiling: '[(H, ''*'')]'
+  inter_core_tiling: '[(K, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 508
-  name: operator_508-max/
-  operator_type: max
-  equation: O[k] = I[k][c] * W[]
-  layer_dim_sizes: '{K: 1, C: 1000}'
-  inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(D, ''all'')]'
-- id: 509
-  name: operator_508-exp/
-  operator_type: exp
-  equation: O[k][c] = I[k][c] + W[k]
-  layer_dim_sizes: '{K: 1, C: 1000}'
-  inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(D, ''all'')]'
-- id: 510
-  name: operator_508-sum/
-  operator_type: sum
-  equation: O[k] = I[k][c] * W[]
-  layer_dim_sizes: '{K: 1, C: 1000}'
-  inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(D, ''all'')]'
-- id: 511
-  name: operator_508-div/
-  operator_type: div
-  equation: O[k][c] = I[k][c] + W[k]
-  layer_dim_sizes: '{K: 1, C: 1000}'
-  inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(D, ''all'')]'
+  name: operator_508
+  operator_type: softmax
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'

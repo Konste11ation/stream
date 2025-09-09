@@ -1,13 +1,13 @@
-name: meta_proto_like_quad_core
+name: tpu_like_quad_core
 
 cores:
-  0: meta_prototype.yaml
-  1: meta_prototype.yaml
-  2: meta_prototype.yaml
-  3: meta_prototype.yaml
+  0: tpu_like.yaml
+  1: tpu_like.yaml
+  2: tpu_like.yaml
+  3: tpu_like.yaml
   4: pooling.yaml
   5: simd.yaml
-offchip_core: offchip_4d.yaml
+offchip_core: offchip.yaml
 
 core_connectivity:
   # 2D mesh

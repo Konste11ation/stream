@@ -1,0 +1,92 @@
+name: OS_OX32_K32
+
+memories:
+  rf_64B_2r2w_16b:
+    size: 512 # 64*8
+    r_bw: 8
+    w_bw: 8
+    r_cost: 0.1
+    w_cost: 0.1
+    area: 0
+    r_port: 2
+    w_port: 2
+    rw_port: 0
+    latency: 1
+    operands: [O]
+    ports:
+      - fh: w_port_1
+        tl: r_port_1
+        fl: w_port_2
+        th: r_port_2
+    served_dimensions: []
+
+  rf_512B_1r1w_8b:
+    size: 4096 # 512*8
+    r_bw: 8
+    w_bw: 8
+    r_cost: 0.296
+    w_cost: 0.326
+    area: 0
+    r_port: 1
+    w_port: 1
+    rw_port: 0
+    latency: 1
+    operands: [I2]
+    ports:
+      - fh: w_port_1
+        tl: r_port_1
+    served_dimensions: [D1]
+
+  sram_512KB_32_16KB_1r1w_32b:
+    size: 4194304 # 32 * 16 * 1024 * 8
+    r_bw: 1024 # 32*32
+    w_bw: 1024 # 2*64
+    r_cost: 175.04 # 32*5.47
+    w_cost: 101.44 # 32 * 3.17
+    area: 0
+    r_port: 1
+    w_port: 1
+    rw_port: 0
+    latency: 1
+    min_r_granularity : 32
+    min_w_granularity : 32
+    operands: [I2]
+    ports:
+      - fh: w_port_1
+        tl: r_port_1
+    served_dimensions: [D1,D2]
+
+  sram_512KB_32_16KB_1r1w_32b:
+    size: 4194304 # 32 * 16 * 1024 * 8
+    r_bw: 1024 # 32*32
+    w_bw: 1024 # 2*64
+    r_cost: 175.04 # 32*5.47
+    w_cost: 101.44 # 32 * 3.17
+    area: 0
+    r_port: 1
+    w_port: 1
+    rw_port: 0
+    latency: 1
+    min_r_granularity : 32
+    min_w_granularity : 32
+    operands: [I1, O]
+    ports:
+      - fh: w_port_1
+        tl: r_port_1
+      - fh: w_port_1
+        tl: r_port_1
+        fl: w_port_1
+        th: r_port_1
+    served_dimensions: [D1,D2]
+
+operational_array:
+  unit_energy: 0.04 # pJ
+  unit_area: 1 # unit
+  dimensions: [D1, D2]
+  sizes: [32, 32]
+
+dataflows:
+  D1:
+    - OX, 32
+  D2:
+    - K, 32

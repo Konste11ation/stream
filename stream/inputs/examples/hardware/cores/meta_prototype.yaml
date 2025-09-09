@@ -126,10 +126,10 @@ operational_array:
 
 dataflows:
   D1:
-    - C, 32
-  D2:
     - K, 32
+  D2:
+    - C, 2
   D3:
-    - C, 32
+    - OX, 4
   D4:
-    - K, 32    
+    - OY, 4    

@@ -10,6 +10,7 @@ def get_layer_stack(workload_name:str):
                         ] + list((i,) for i in range(45, 49))
     if workload_name == "fsrcnn":
         layer_stacks = list((i,) for i in range(0, 8))
+        # layer_stacks = [tuple(range(0,8))]
     if workload_name == "squeezenet":
         layer_stacks = [tuple(range(0, 9)),
                         tuple(range(9, 16)),
@@ -20,6 +21,12 @@ def get_layer_stack(workload_name:str):
                         tuple(range(46, 53)),
                         tuple(range(53, 60))
                         ] + list((i,) for i in range(60, 68))
+    if workload_name == "mobilebert":
+        layer_stacks = None
+    if workload_name == "tinyyolo2":
+        layer_stacks = None
+    if workload_name == "xception":
+        layer_stacks = None
     if workload_name == "mobilenetv2":
         layer_stacks = [tuple(range(0, 10)),
                         tuple(range(10, 16)),
@@ -116,6 +123,7 @@ def get_layer_stack(workload_name:str):
                         tuple(range(482, 489)),
                         tuple(range(489, 496)),
                         tuple(range(496, 504))
-                        ] + list((i,) for i in range(504, 512))        
+                        ] + list((i,) for i in range(504, 509))
+             
     return layer_stacks
 

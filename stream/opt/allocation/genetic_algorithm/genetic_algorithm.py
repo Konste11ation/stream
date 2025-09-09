@@ -183,6 +183,10 @@ class DvfsGeneticAlgorithm:
         num_individuals=64,
         pop=[],
     ) -> None:
+        if hasattr(creator, 'FitnessMulti'):
+            del creator.FitnessMulti
+        if hasattr(creator, 'Individual'):
+            del creator.Individual
         self.num_generations = num_generations  # number of generations
         self.num_individuals = num_individuals  # number of individuals in initial generation
         self.para_mu = int(num_individuals / 2)  # number of indiviuals taken from previous generation

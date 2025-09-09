@@ -3,8 +3,8 @@ name: pooling
 memories:
   sram_128KB_2rw:
     size: 1048576
-    r_bw: 512
-    w_bw: 512
+    r_bw: 1024
+    w_bw: 1024
     r_cost: 60
     w_cost: 75
     area: 0

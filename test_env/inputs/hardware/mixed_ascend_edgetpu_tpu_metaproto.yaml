@@ -1,9 +1,9 @@
-name: meta_proto_like_quad_core
+name: mixed_ascend_edgetpu_tpu_metaproto
 
 cores:
-  0: meta_prototype.yaml
-  1: meta_prototype.yaml
-  2: meta_prototype.yaml
+  0: ascend_like.yaml
+  1: edge_tpu_like.yaml
+  2: tpu_like.yaml
   3: meta_prototype.yaml
   4: pooling.yaml
   5: simd.yaml

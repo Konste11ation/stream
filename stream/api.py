@@ -21,7 +21,7 @@ from stream.stages.parsing.onnx_model_parser import ONNXModelParserStage as Stre
 from stream.stages.parsing.user_defined_model_parser import UserDefinedModelParserStage as StreamUserDefinedModelParserStage
 from stream.stages.set_fixed_allocation_performance import SetFixedAllocationPerformanceStage
 from stream.stages.stage import MainStage
-
+from stream.stages.optimization.dvfs_optimization import DvfsOptimizationStage
 _logging_level = _logging.INFO
 _logging_format = "%(asctime)s - %(funcName)s +%(lineno)s - %(levelname)s - %(message)s"
 _logging.basicConfig(level=_logging_level, format=_logging_format)
@@ -66,8 +66,13 @@ def optimize_allocation_ga(
     nb_ga_individuals: int,
     experiment_id: str,
     output_path: str,
+    dvfs_output_dir: str,
+    dvfs_cfg_path: str,
+    nb_ga_generations_dvfs: int,
+    nb_ga_individuals_dvfs: int,
+    dvfs_opt: bool = False,
     skip_if_exists: bool = False,
-) -> StreamCostModelEvaluation:
+) -> tuple[StreamCostModelEvaluation]:
     _sanity_check_inputs(hardware, workload, mapping, mode, output_path)
 
     # Create experiment_id path
@@ -76,6 +81,7 @@ def optimize_allocation_ga(
     # Output paths
     cost_lut_path = f"{output_path}/{experiment_id}/cost_lut.pickle"
     scme_path = f"{output_path}/{experiment_id}/scme.pickle"
+    dvfs_scme_path = f"{output_path}/{experiment_id}/dvfs_scme.pickle"
 
     # Get logger
     logger = _logging.getLogger(__name__)
@@ -83,6 +89,7 @@ def optimize_allocation_ga(
     # Load SCME if it exists and skip_if_exists is True
     if os.path.exists(scme_path) and skip_if_exists:
         scme = pickle_load(scme_path)
+        scme_dvfs_opt = pickle_load(dvfs_scme_path)
         logger.info(f"Loaded SCME from {scme_path}")
     else:
         mainstage = MainStage(
@@ -96,6 +103,7 @@ def optimize_allocation_ga(
                 SetFixedAllocationPerformanceStage,
                 SchedulingOrderGenerationStage,
                 GeneticAlgorithmAllocationStage,
+                DvfsOptimizationStage,
             ],
             accelerator=hardware,  # required by AcceleratorParserStage
             workload_path=workload,  # required by ModelParserStage
@@ -106,13 +114,20 @@ def optimize_allocation_ga(
             mode=mode,
             layer_stacks=layer_stacks,
             cost_lut_path=cost_lut_path,
+            dvfs_opt=dvfs_opt,
+            dvfs_output_dir=dvfs_output_dir,
+            dvfs_cfg_path=dvfs_cfg_path,
+            nb_ga_generations_dvfs=nb_ga_generations_dvfs,
+            nb_ga_individuals_dvfs=nb_ga_individuals_dvfs,
             operands_to_prefetch=[],  # required by GeneticAlgorithmAllocationStage
         )
         # Launch the MainStage
         answers = mainstage.run()
         scme = answers[0][0]
+        scme_dvfs_opt = answers[0][1]
         pickle_save(scme, scme_path)
-    return scme
+        pickle_save(scme_dvfs_opt, dvfs_scme_path)
+    return (scme, scme_dvfs_opt)
 
 
 def optimize_allocation_co(
@@ -149,30 +164,28 @@ def optimize_allocation_co(
     else:
         mainstage = MainStage(
             [  # Initializes the MainStage as entry point
-                AcceleratorParserStage,  # Parses the accelerator
-                # StreamUserDefinedModelParserStage,
-                StreamONNXModelParserStage,  # Parses the ONNX Model into the workload
-                LayerStacksGenerationStage,
-                TilingGenerationStage,
-                TiledWorkloadGenerationStage,
-                ZigZagCoreMappingEstimationStage,
+                AcceleratorParserStage,     # Parse the acc
+                StreamONNXModelParserStage, # Parse the workload
+                LayerStacksGenerationStage, # Generate Layer Stacks
+                TilingGenerationStage,      # Generate the tiling for inter/intra core 
+                TiledWorkloadGenerationStage, # Fine-grained workload generation 
+                ZigZagCoreMappingEstimationStage, # Single-Core Perf LUT based on Zigzag 
                 SetFixedAllocationPerformanceStage,
-                SchedulingOrderGenerationStage,
-                ConstraintOptimizationAllocationStage,
-                # TODO: Add the dvfs opt stage here
+                SchedulingOrderGenerationStage, 
+                ConstraintOptimizationAllocationStage, # WACO+COALA
             ],
-            accelerator=hardware,  # required by AcceleratorParserStage
-            workload_path=workload,  # required by ModelParserStage
-            mapping_path=mapping,  # required by ModelParserStage
-            dvfs_path=dvfs,    # required by DvfsOptStage
-            dvfs_opt=dvfs_opt,
-            loma_lpf_limit=6,  # required by LomaEngine
+            accelerator=hardware,  
+            workload_path=workload,  
+            mapping_path=mapping, 
+            dvfs_path=dvfs,            
+            dvfs_opt=dvfs_opt,         
+            loma_lpf_limit=6,  
             mode=mode,
             layer_stacks=layer_stacks,
             cost_lut_path=cost_lut_path,
             allocations_path=allocations_path,
             cost_lut_post_co_path=cost_lut_post_co_path,
-            operands_to_prefetch=[],  # required by ConstraintOptimizationAllocationStage
+            operands_to_prefetch=[],
         )
         # Launch the MainStage
         answers = mainstage.run()

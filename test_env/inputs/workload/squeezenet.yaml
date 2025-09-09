@@ -448,30 +448,9 @@ nodes:
   inter_core_tiling: '{}'
   intra_core_tiling: '{}'
 - id: 64
-  name: Softmax_nc_rename_64-max/
-  operator_type: max
-  equation: O[b][h][k] = I[b][h][k][c] * W[]
-  layer_dim_sizes: '{B: 1, H: 1000, K: 1, C: 1}'
-  inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(D, ''all'')]'
-- id: 65
-  name: Softmax_nc_rename_64-exp/
-  operator_type: exp
-  equation: O[b][h][k][c] = I[b][h][k][c] + W[b][h][k]
-  layer_dim_sizes: '{B: 1, H: 1000, K: 1, C: 1}'
-  inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(D, ''all'')]'
-- id: 66
-  name: Softmax_nc_rename_64-sum/
-  operator_type: sum
-  equation: O[b][h][k] = I[b][h][k][c] * W[]
-  layer_dim_sizes: '{B: 1, H: 1000, K: 1, C: 1}'
-  inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(D, ''all'')]'
-- id: 67
-  name: Softmax_nc_rename_64-div/
-  operator_type: div
-  equation: O[b][h][k][c] = I[b][h][k][c] + W[b][h][k]
-  layer_dim_sizes: '{B: 1, H: 1000, K: 1, C: 1}'
-  inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(D, ''all'')]'
+  name: Softmax_nc_rename_64
+  operator_type: softmax
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'

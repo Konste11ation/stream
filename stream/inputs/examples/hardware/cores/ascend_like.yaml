@@ -1,4 +1,4 @@
-name: meta_prototype
+name: ascend_like
 
 memories:
   rf_1B:
@@ -8,11 +8,11 @@ memories:
     r_cost: 0.01
     w_cost: 0.01
     area: 0
+    latency: 1
     r_port: 1
     w_port: 1
     rw_port: 0
     latency: 1
-    auto_cost_extraction: False
     operands: [I2]
     ports:
       - fh: w_port_1
@@ -26,70 +26,92 @@ memories:
     r_cost: 0.02
     w_cost: 0.02
     area: 0
+    latency: 1
     r_port: 2
     w_port: 2
     rw_port: 0
     latency: 1
     operands: [O]
     ports:
-      - fh: w_port_1
-        tl: r_port_1
-        fl: w_port_2
+      - tl: r_port_1
         th: r_port_2
+        fh: w_port_1
+        fl: w_port_2
     served_dimensions: [D2]
 
-  sram_64KB:
-    size: 524288
+  rf_64KB_I:
+    size: 65536
     r_bw: 512
     w_bw: 512
     r_cost: 26.56
-    w_cost: 30.8
+    w_cost: 30.72
     area: 0
+    latency: 1
     r_port: 1
     w_port: 1
     rw_port: 0
-    latency: 1
-    min_r_granularity: 64
-    min_w_granularity: 64
-    operands: [I2]
-    ports:
-      - fh: w_port_1
-        tl: r_port_1
-    served_dimensions: [D1, D2, D3, D4]
-
-  sram_32KB:
-    size: 262144
-    r_bw: 256
-    w_bw: 256
-    r_cost: 13.28
-    w_cost: 15.4
-    area: 0
-    r_port: 1
-    w_port: 1
-    rw_port: 0
-    latency: 1
     min_r_granularity: 64
     min_w_granularity: 64
     operands: [I1]
     ports:
-      - fh: w_port_1
-        tl: r_port_1
+      - tl: r_port_1
+        fh: w_port_1
+    served_dimensions: [D1, D2, D3, D4]
+
+  rf_64KB_W:
+    size: 65536
+    r_bw: 2048
+    w_bw: 2048
+    r_cost: 50.16
+    w_cost: 108.0
+    area: 0
+    latency: 1
+    r_port: 1
+    w_port: 1
+    rw_port: 0
+    min_r_granularity: 64
+    min_w_granularity: 64
+    operands: [I2]
+    ports:
+      - tl: r_port_1
+        fh: w_port_1
+    served_dimensions: [D1, D2, D3, D4]
+
+  sram_256KB_O:
+    size: 2097152
+    r_bw: 4096
+    w_bw: 4096
+    r_cost: 123.2
+    w_cost: 212.8
+    area: 0
+    latency: 1
+    r_port: 1
+    w_port: 1
+    rw_port: 0
+    operands: [O]
+    min_r_granularity: 64
+    min_w_granularity: 64
+    ports:
+      - tl: r_port_1
+        th: r_port_1
+        fh: w_port_1
+        fl: w_port_1
     served_dimensions: [D1, D2, D3, D4]
 
   sram_1MB_A:
     size: 8388608
-    r_bw: 1024
-    w_bw: 1024
-    r_cost: 208.08
-    w_cost: 189.2
+    r_bw: 4096
+    w_bw: 4096
+    r_cost: 465.6
+    w_cost: 825.6
     area: 0
+    latency: 1
     r_port: 1
     w_port: 1
     rw_port: 0
-    latency: 1
+    operands: [I1, O]
     min_r_granularity: 64
     min_w_granularity: 64
-    operands: [I1, O]
     ports:
       - fh: w_port_1
         tl: r_port_1
@@ -101,35 +123,33 @@ memories:
 
   sram_1MB_W:
     size: 8388608
-    r_bw: 1024
-    w_bw: 1024
-    r_cost: 208.08
-    w_cost: 189.2
+    r_bw: 4096
+    w_bw: 4096
+    r_cost: 465.6
+    w_cost: 825.6
     area: 0
+    latency: 1
     r_port: 1
     w_port: 1
     rw_port: 0
-    latency: 1
-    min_r_granularity: 64
-    min_w_granularity: 64
     operands: [I2]
     ports:
-      - fh: w_port_1
-        tl: r_port_1
+      - tl: r_port_1
+        fh: w_port_1
     served_dimensions: [D1, D2, D3, D4]
 
 operational_array:
+  input_precision: [8, 8]
   unit_energy: 0.04 # pJ
   unit_area: 1 # unit
   dimensions: [D1, D2, D3, D4]
-  sizes: [32, 2, 4, 4]
-
+  sizes: [16, 16, 2, 2]
 dataflows:
   D1:
-    - K, 32
+    - K, 16
   D2:
-    - C, 2
+    - C, 16
   D3:
-    - OX, 4
+    - OX, 2
   D4:
-    - OY, 4    
+    - OY, 2  

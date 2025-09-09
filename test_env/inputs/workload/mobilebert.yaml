@@ -1,0 +1,463 @@
+nodes:
+- id: 0
+  name: /mobilebert/encoder/layer.0/bottleneck/input/dense/MatMul
+  operator_type: matmul
+  equation: O[b][d][k] = I[b][d][c] * W[c][k]
+  layer_dim_sizes: '{C: 512, D: 128, K: 128, B: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 1
+  name: /mobilebert/encoder/layer.0/bottleneck/input/dense/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 2
+  name: /mobilebert/encoder/layer.0/bottleneck/input/LayerNorm/Mul
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 3
+  name: /mobilebert/encoder/layer.0/bottleneck/input/LayerNorm/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 4
+  name: /mobilebert/encoder/layer.0/attention/self/value/MatMul
+  operator_type: matmul
+  equation: O[b][d][k] = I[b][d][c] * W[c][k]
+  layer_dim_sizes: '{C: 512, D: 128, K: 128, B: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 5
+  name: /mobilebert/encoder/layer.0/attention/self/value/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 6
+  name: /mobilebert/encoder/layer.0/attention/self/Reshape_2
+  operator_type: reshape
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 7
+  name: /mobilebert/encoder/layer.0/attention/self/Transpose_1
+  operator_type: reshape
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 8
+  name: /mobilebert/encoder/layer.0/bottleneck/attention/dense/MatMul
+  operator_type: matmul
+  equation: O[b][d][k] = I[b][d][c] * W[c][k]
+  layer_dim_sizes: '{C: 512, D: 128, K: 128, B: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 9
+  name: /mobilebert/encoder/layer.0/bottleneck/attention/dense/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 10
+  name: /mobilebert/encoder/layer.0/bottleneck/attention/LayerNorm/Mul
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 11
+  name: /mobilebert/encoder/layer.0/bottleneck/attention/LayerNorm/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 12
+  name: /mobilebert/encoder/layer.0/attention/self/key/MatMul
+  operator_type: matmul
+  equation: O[b][d][k] = I[b][d][c] * W[c][k]
+  layer_dim_sizes: '{C: 128, D: 128, K: 128, B: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 13
+  name: /mobilebert/encoder/layer.0/attention/self/key/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 14
+  name: /mobilebert/encoder/layer.0/attention/self/Reshape_1
+  operator_type: reshape
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 15
+  name: /mobilebert/encoder/layer.0/attention/self/Transpose_2
+  operator_type: reshape
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 16
+  name: /mobilebert/encoder/layer.0/attention/self/query/MatMul
+  operator_type: matmul
+  equation: O[b][d][k] = I[b][d][c] * W[c][k]
+  layer_dim_sizes: '{C: 128, D: 128, K: 128, B: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 17
+  name: /mobilebert/encoder/layer.0/attention/self/query/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 18
+  name: /mobilebert/encoder/layer.0/attention/self/Reshape
+  operator_type: reshape
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 19
+  name: /mobilebert/encoder/layer.0/attention/self/Transpose
+  operator_type: reshape
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 20
+  name: /mobilebert/encoder/layer.0/attention/self/MatMul
+  operator_type: matmul
+  equation: O[b][h][d][k] = I[b][h][d][c] * W[b][h][c][k]
+  layer_dim_sizes: '{C: 32, D: 128, K: 128, B: 1, H: 4}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 21
+  name: /mobilebert/encoder/layer.0/attention/self/Div
+  operator_type: div
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 22
+  name: /mobilebert/encoder/layer.0/attention/self/Softmax
+  operator_type: softmax
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 23
+  name: /mobilebert/encoder/layer.0/attention/self/MatMul_1
+  operator_type: matmul
+  equation: O[b][h][d][k] = I[b][h][d][c] * W[b][h][c][k]
+  layer_dim_sizes: '{C: 128, D: 128, K: 32, B: 1, H: 4}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 24
+  name: /mobilebert/encoder/layer.0/attention/self/Transpose_3
+  operator_type: reshape
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 25
+  name: /mobilebert/encoder/layer.0/attention/self/Reshape_3
+  operator_type: reshape
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 26
+  name: /mobilebert/encoder/layer.0/attention/output/dense/MatMul
+  operator_type: matmul
+  equation: O[b][d][k] = I[b][d][c] * W[c][k]
+  layer_dim_sizes: '{C: 128, D: 128, K: 128, B: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 27
+  name: /mobilebert/encoder/layer.0/attention/output/dense/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 28
+  name: /mobilebert/encoder/layer.0/attention/output/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[b][d][k]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 29
+  name: /mobilebert/encoder/layer.0/attention/output/LayerNorm/Mul
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 30
+  name: /mobilebert/encoder/layer.0/attention/output/LayerNorm/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 31
+  name: /mobilebert/encoder/layer.0/ffn.0/intermediate/dense/MatMul
+  operator_type: matmul
+  equation: O[b][d][k] = I[b][d][c] * W[c][k]
+  layer_dim_sizes: '{C: 128, D: 128, K: 512, B: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 32
+  name: /mobilebert/encoder/layer.0/ffn.0/intermediate/dense/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 512}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 33
+  name: /mobilebert/encoder/layer.0/ffn.0/intermediate/intermediate_act_fn/Relu
+  operator_type: relu
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 512}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 34
+  name: /mobilebert/encoder/layer.0/ffn.0/output/dense/MatMul
+  operator_type: matmul
+  equation: O[b][d][k] = I[b][d][c] * W[c][k]
+  layer_dim_sizes: '{C: 512, D: 128, K: 128, B: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 35
+  name: /mobilebert/encoder/layer.0/ffn.0/output/dense/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 36
+  name: /mobilebert/encoder/layer.0/ffn.0/output/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[b][d][k]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 37
+  name: /mobilebert/encoder/layer.0/ffn.0/output/LayerNorm/Mul
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 38
+  name: /mobilebert/encoder/layer.0/ffn.0/output/LayerNorm/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 39
+  name: /mobilebert/encoder/layer.0/ffn.1/intermediate/dense/MatMul
+  operator_type: matmul
+  equation: O[b][d][k] = I[b][d][c] * W[c][k]
+  layer_dim_sizes: '{C: 128, D: 128, K: 512, B: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 40
+  name: /mobilebert/encoder/layer.0/ffn.1/intermediate/dense/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 512}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 41
+  name: /mobilebert/encoder/layer.0/ffn.1/intermediate/intermediate_act_fn/Relu
+  operator_type: relu
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 512}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 42
+  name: /mobilebert/encoder/layer.0/ffn.1/output/dense/MatMul
+  operator_type: matmul
+  equation: O[b][d][k] = I[b][d][c] * W[c][k]
+  layer_dim_sizes: '{C: 512, D: 128, K: 128, B: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 43
+  name: /mobilebert/encoder/layer.0/ffn.1/output/dense/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 44
+  name: /mobilebert/encoder/layer.0/ffn.1/output/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[b][d][k]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 45
+  name: /mobilebert/encoder/layer.0/ffn.1/output/LayerNorm/Mul
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 46
+  name: /mobilebert/encoder/layer.0/ffn.1/output/LayerNorm/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 47
+  name: /mobilebert/encoder/layer.0/ffn.2/intermediate/dense/MatMul
+  operator_type: matmul
+  equation: O[b][d][k] = I[b][d][c] * W[c][k]
+  layer_dim_sizes: '{C: 128, D: 128, K: 512, B: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 48
+  name: /mobilebert/encoder/layer.0/ffn.2/intermediate/dense/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 512}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 49
+  name: /mobilebert/encoder/layer.0/ffn.2/intermediate/intermediate_act_fn/Relu
+  operator_type: relu
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 512}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 50
+  name: /mobilebert/encoder/layer.0/ffn.2/output/dense/MatMul
+  operator_type: matmul
+  equation: O[b][d][k] = I[b][d][c] * W[c][k]
+  layer_dim_sizes: '{C: 512, D: 128, K: 128, B: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 51
+  name: /mobilebert/encoder/layer.0/ffn.2/output/dense/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 52
+  name: /mobilebert/encoder/layer.0/ffn.2/output/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[b][d][k]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 53
+  name: /mobilebert/encoder/layer.0/ffn.2/output/LayerNorm/Mul
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 54
+  name: /mobilebert/encoder/layer.0/ffn.2/output/LayerNorm/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 55
+  name: /mobilebert/encoder/layer.0/intermediate/dense/MatMul
+  operator_type: matmul
+  equation: O[b][d][k] = I[b][d][c] * W[c][k]
+  layer_dim_sizes: '{C: 128, D: 128, K: 512, B: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 56
+  name: /mobilebert/encoder/layer.0/intermediate/dense/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 512}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 57
+  name: /mobilebert/encoder/layer.0/intermediate/intermediate_act_fn/Relu
+  operator_type: relu
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 512}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 58
+  name: /mobilebert/encoder/layer.0/output/dense/MatMul
+  operator_type: matmul
+  equation: O[b][d][k] = I[b][d][c] * W[c][k]
+  layer_dim_sizes: '{C: 512, D: 128, K: 128, B: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 59
+  name: /mobilebert/encoder/layer.0/output/dense/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 60
+  name: /mobilebert/encoder/layer.0/output/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[b][d][k]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 61
+  name: /mobilebert/encoder/layer.0/output/LayerNorm/Mul
+  operator_type: mul
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 62
+  name: /mobilebert/encoder/layer.0/output/LayerNorm/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 128}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 63
+  name: /mobilebert/encoder/layer.0/output/bottleneck/dense/MatMul
+  operator_type: matmul
+  equation: O[b][d][k] = I[b][d][c] * W[c][k]
+  layer_dim_sizes: '{C: 128, D: 128, K: 512, B: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 64
+  name: /mobilebert/encoder/layer.0/output/bottleneck/dense/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 512}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 65
+  name: /mobilebert/encoder/layer.0/output/bottleneck/Add
+  operator_type: add
+  equation: O[b][d][k] = I[b][d][k] * W[]
+  layer_dim_sizes: '{B: 1, D: 128, K: 512}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'

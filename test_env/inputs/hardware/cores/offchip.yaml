@@ -1,4 +1,4 @@
-name: offchip_4d
+name: offchip
 
 memories:
   dram:
@@ -22,10 +22,10 @@ memories:
         tl: rw_port_1
         fl: rw_port_1
         th: rw_port_1
-    served_dimensions: [D1, D2, D3, D4]
+    served_dimensions: [D1, D2]
 
 operational_array:
   unit_energy: 0
   unit_area: 0
-  dimensions: [D1, D2, D3, D4]
-  sizes: [0, 0, 0, 0]
+  dimensions: [D1, D2]
+  sizes: [0, 0]

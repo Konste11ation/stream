@@ -5,13 +5,13 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 112, OY: 112, C: 3, FX: 7, FY: 7}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 1
   name: /relu/Relu
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 64, D: 112, K: 112}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 2
   name: /maxpool/MaxPool
@@ -26,13 +26,13 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 56, OY: 56, C: 64, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 4
   name: /layer1/layer1.0/relu/Relu
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 64, D: 56, K: 56}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 5
   name: /layer1/layer1.0/conv2/Conv
@@ -40,20 +40,20 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 56, OY: 56, C: 64, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 6
   name: /layer1/layer1.0/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 64, D: 56, K: 56}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 7
   name: /layer1/layer1.0/relu_1/Relu
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 64, D: 56, K: 56}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 8
   name: /layer1/layer1.1/conv1/Conv
@@ -61,13 +61,13 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 56, OY: 56, C: 64, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 9
   name: /layer1/layer1.1/relu/Relu
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 64, D: 56, K: 56}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 10
   name: /layer1/layer1.1/conv2/Conv
@@ -75,20 +75,20 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 56, OY: 56, C: 64, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 11
   name: /layer1/layer1.1/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 64, D: 56, K: 56}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 12
   name: /layer1/layer1.1/relu_1/Relu
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 64, D: 56, K: 56}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 13
   name: /layer2/layer2.0/conv1/Conv
@@ -96,13 +96,13 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 28, OY: 28, C: 64, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 14
   name: /layer2/layer2.0/relu/Relu
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 15
   name: /layer2/layer2.0/conv2/Conv
@@ -110,27 +110,27 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 28, OY: 28, C: 128, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 16
   name: /layer2/layer2.0/downsample/downsample.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 28, OY: 28, C: 64, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 17
   name: /layer2/layer2.0/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 128, D: 28, K: 28}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 18
   name: /layer2/layer2.0/relu_1/Relu
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 19
   name: /layer2/layer2.1/conv1/Conv
@@ -138,13 +138,13 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 28, OY: 28, C: 128, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 20
   name: /layer2/layer2.1/relu/Relu
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 21
   name: /layer2/layer2.1/conv2/Conv
@@ -152,20 +152,20 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 28, OY: 28, C: 128, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 22
   name: /layer2/layer2.1/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 128, D: 28, K: 28}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 23
   name: /layer2/layer2.1/relu_1/Relu
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 128, D: 28, K: 28}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 24
   name: /layer3/layer3.0/conv1/Conv
@@ -173,13 +173,13 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 256, G: 1, OX: 14, OY: 14, C: 128, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 25
   name: /layer3/layer3.0/relu/Relu
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 256, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 26
   name: /layer3/layer3.0/conv2/Conv
@@ -187,27 +187,27 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 256, G: 1, OX: 14, OY: 14, C: 256, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 27
   name: /layer3/layer3.0/downsample/downsample.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 256, G: 1, OX: 14, OY: 14, C: 128, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 28
   name: /layer3/layer3.0/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 256, D: 14, K: 14}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 29
   name: /layer3/layer3.0/relu_1/Relu
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 256, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 30
   name: /layer3/layer3.1/conv1/Conv
@@ -215,13 +215,13 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 256, G: 1, OX: 14, OY: 14, C: 256, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 31
   name: /layer3/layer3.1/relu/Relu
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 256, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 32
   name: /layer3/layer3.1/conv2/Conv
@@ -229,20 +229,20 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 256, G: 1, OX: 14, OY: 14, C: 256, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 33
   name: /layer3/layer3.1/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 256, D: 14, K: 14}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 34
   name: /layer3/layer3.1/relu_1/Relu
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 256, D: 14, K: 14}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 35
   name: /layer4/layer4.0/conv1/Conv
@@ -250,13 +250,13 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 512, G: 1, OX: 7, OY: 7, C: 256, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 36
   name: /layer4/layer4.0/relu/Relu
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 512, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 37
   name: /layer4/layer4.0/conv2/Conv
@@ -264,27 +264,27 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 512, G: 1, OX: 7, OY: 7, C: 512, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 38
   name: /layer4/layer4.0/downsample/downsample.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 512, G: 1, OX: 7, OY: 7, C: 256, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 39
   name: /layer4/layer4.0/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 512, D: 7, K: 7}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 40
   name: /layer4/layer4.0/relu_1/Relu
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 512, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 41
   name: /layer4/layer4.1/conv1/Conv
@@ -292,13 +292,13 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 512, G: 1, OX: 7, OY: 7, C: 512, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 42
   name: /layer4/layer4.1/relu/Relu
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 512, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 43
   name: /layer4/layer4.1/conv2/Conv
@@ -306,20 +306,20 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 512, G: 1, OX: 7, OY: 7, C: 512, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 44
   name: /layer4/layer4.1/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 512, D: 7, K: 7}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 45
   name: /layer4/layer4.1/relu_1/Relu
   operator_type: relu
   equation: O[b][h][d][k] = I[b][h][d][k] * W[]
   layer_dim_sizes: '{B: 1, H: 512, D: 7, K: 7}'
-  inter_core_tiling: '[(K, ''*'')]'
+  inter_core_tiling: '[(H, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'
 - id: 46
   name: /avgpool/GlobalAveragePool
@@ -340,5 +340,5 @@ nodes:
   operator_type: gemm
   equation: O[d][k] = I[d][c] * W[c][k]
   layer_dim_sizes: '{C: 512, D: 1, K: 1000}'
-  inter_core_tiling: '[(H, ''*'')]'
+  inter_core_tiling: '[(K, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'

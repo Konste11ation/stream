@@ -13,27 +13,29 @@ from stream.opt.allocation.genetic_algorithm.fitness_evaluator import DvfsFitnes
 from stream.opt.allocation.genetic_algorithm.genetic_algorithm import (
     DvfsGeneticAlgorithm,
 )
+from stream.cost_model.cost_model import StreamCostModelEvaluation
+from zigzag.utils import pickle_save
 logger = logging.getLogger(__name__)
 
 class DvfsOptimizationStage(Stage):
 
     def __init__(self, 
                  list_of_callables: list[StageCallable],
-                *,
-                workload: ComputationNodeWorkload,
-                accelerator: Accelerator,
-                scheduling_order: list[tuple[int, int]],
-                **kwargs
-                ):
+                 *,
+                 scme: "StreamCostModelEvaluation",
+                 **kwargs
+                 ):
         super().__init__(list_of_callables, **kwargs)
-        self.dvfs_output_fig_path = kwargs["dvfs_output_path"]
-        self.workload = workload
-        self.accelerator = accelerator
-        self.scheduling_order = scheduling_order
+        self.dvfs_output_dir = kwargs["dvfs_output_dir"]
+        self.scme = scme
+        self.workload = scme.workload
+        self.accelerator = scme.accelerator
+        self.scheduling_order = scme.scheduling_order
         self.dvfs_parser = DvfsParser(kwargs["dvfs_cfg_path"])
         self.dvfs_luts = {}
-        self.ga_nb_generations = kwargs["ga_nb_generations"]
-        self.ga_nb_individuals = kwargs["ga_nb_individuals"]
+        self.ga_nb_generations = kwargs["nb_ga_generations_dvfs"]
+        self.ga_nb_individuals = kwargs["nb_ga_individuals_dvfs"]
+
     def run(self):
         logger.info("Start DvfsOptimizationStage.")
         base_energy = self.get_energy()
@@ -45,10 +47,11 @@ class DvfsOptimizationStage(Stage):
         opt_energy = result[0]
         opt_latency = result[1]
         opt_scme = result[2]
+        print(f"Base Energy = {base_energy}, Base Latency = {base_latency}")
         print(f"Opt Energy = {opt_energy}, Opt Latency = {opt_latency}")
         logger.info("End DvfsOptimizationStage.")
-        self.plot_pareto(hof,base_energy,base_latency)
-        return opt_scme
+        self.plot_pareto(hof, base_energy, base_latency)
+        yield self.scme, opt_scme
 
     def parse_dvfs(self):
         self.dvfs_luts = self.dvfs_parser.run()
@@ -62,9 +65,11 @@ class DvfsOptimizationStage(Stage):
     def get_energy(self):
         energy = sum(n.get_onchip_energy() for n in self.workload.node_list)
         return energy
+
     def get_latency(self):
         latency = max(n.end for n in self.workload.node_list)
         return latency
+
     def compute_dvfs_level(self, runtime, slack):
         freq_lut = self.dvfs_luts["freq_lut"]
         sorted_levels = sorted(freq_lut.keys(), reverse=True)
@@ -74,6 +79,7 @@ class DvfsOptimizationStage(Stage):
             if runtime_dvfs <= runtime + slack:
                 return level
         return min(freq_lut.keys())
+
     def get_communication_dic(self):
         """
         Return all the output transfer event as a dic
@@ -94,15 +100,15 @@ class DvfsOptimizationStage(Stage):
                 runtime = end - start
                 tensors = event.tensors
                 node = event.tensors[0].origin
-                tensor_type =  event.tensors[0].memory_operand
-                node_id =  node.id
+                tensor_type = event.tensors[0].memory_operand
+                node_id = node.id
                 node_sub_id = node.sub_id
 
                 if runtime == 0:
                     continue
                 if not tensor_type.is_output():
                     continue
-                key = (node_id,node_sub_id)
+                key = (node_id, node_sub_id)
                 event_record = {
                     "Start": start,
                     "End": end,
@@ -111,6 +117,7 @@ class DvfsOptimizationStage(Stage):
                 }
                 node_events.setdefault(key, event_record)
         return node_events
+
     def get_start_time_per_core(self):
         """
         Retuen a dict to store the start_time per core per node
@@ -128,7 +135,8 @@ class DvfsOptimizationStage(Stage):
         for core in start_time_per_core:
             start_time_per_core[core].sort(key=lambda x: x[1])
         return start_time_per_core
-    def find_next_start_time_per_core(self,start_time_per_core, core, end_time):
+
+    def find_next_start_time_per_core(self, start_time_per_core, core, end_time):
         # Check if the core exist
         if core not in start_time_per_core:
             return float("nan")
@@ -141,6 +149,7 @@ class DvfsOptimizationStage(Stage):
             if(start_time>=end_time):
                 return start_time
         return float("nan")
+
     def brute_dvfs_opt(self):
         node_event_dic = self.get_communication_dic()
         start_time_per_core = self.get_start_time_per_core()
@@ -164,11 +173,12 @@ class DvfsOptimizationStage(Stage):
             est_core =  self.find_next_start_time_per_core(start_time_per_core,
                                                            cur_core,
                                                            cur_end)
-            deadline = min(est_successors-output_transfer_time,est_core)
+            deadline = min(est_successors - output_transfer_time,est_core)
             slack = deadline - cur_end
             if slack>0:
-                dvfs_level = self.compute_dvfs_level(cur_runtime,slack)
-                node.dvfs_level=dvfs_level
+                dvfs_level = self.compute_dvfs_level(cur_runtime, slack)
+                node.dvfs_level = dvfs_level
+
     def run_dvfs_opt(self):
         # We use the brute force dvfs as the initial guess
         self.brute_dvfs_opt()
@@ -192,11 +202,13 @@ class DvfsOptimizationStage(Stage):
         ) 
         pop, hof = genetic_alg.run()
         best_dvfs_level_allocation = hof[-1]
-        results = fitness_evaluator.get_fitness(best_dvfs_level_allocation, return_scme=True)
+        results = fitness_evaluator.get_fitness(best_dvfs_level_allocation, return_scme = True)
         return results, hof
 
-    def plot_pareto(self,hof,base_energy, base_latency):
-        filename = self.dvfs_output_fig_path
+    def plot_pareto(self, hof, base_energy, base_latency):
+        os.makedirs(self.dvfs_output_dir, exist_ok=True)
+        fig_filename = os.path.join(self.dvfs_output_dir, "pareto.png")
+        meta_filename = os.path.join(self.dvfs_output_dir, "dvfs_meta.pickle")
         plt.figure(figsize=(10, 6))
         pareto_front = hof
         if len(pareto_front) > 0:
@@ -215,11 +227,17 @@ class DvfsOptimizationStage(Stage):
         plt.title('Pareto Front Visualization', fontsize=14)
         plt.legend()
         plt.grid(True, linestyle='--', alpha=0.7)
-
-        if filename:
-            plt.savefig(filename, dpi=300, bbox_inches='tight', transparent=True)
+        if fig_filename:
+            plt.savefig(fig_filename, dpi=300, bbox_inches='tight', transparent = True)
         else:
             plt.show()
-
+        dvfs_meta = {
+            "pf_energy": pf_energy,
+            "pf_latency": pf_latency,
+            "base_energy": base_energy,
+            "base_latency": base_latency
+        }
+        pickle_save(dvfs_meta, meta_filename)
     def is_leaf(self):
         return True
+    

@@ -1,10 +1,10 @@
-name: meta_proto_like_quad_core
+name: ascend_quad_core
 
 cores:
-  0: meta_prototype.yaml
-  1: meta_prototype.yaml
-  2: meta_prototype.yaml
-  3: meta_prototype.yaml
+  0: ascend_like.yaml
+  1: ascend_like.yaml
+  2: ascend_like.yaml
+  3: ascend_like.yaml
   4: pooling.yaml
   5: simd.yaml
 offchip_core: offchip_4d.yaml

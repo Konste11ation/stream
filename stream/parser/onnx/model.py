@@ -43,7 +43,7 @@ class ONNXModelParser:
         "GlobalAveragePool": PoolingParser,
         "Add": SimdParser,
         "Mul": SimdParser,
-        "Softmax": SoftmaxParser,
+        # "Softmax": SoftmaxParser,
         "Relu": SimdParser,
         "Gelu": SimdParser,
         "Silu": SimdParser,
@@ -52,7 +52,7 @@ class ONNXModelParser:
         "Transpose": TransposeParser,
         "Reshape": ReshapeParser,
         "Flatten": FlattenParser,
-        "Concat": ConcatParser,
+        # "Concat": ConcatParser,
     }
 
     def __init__(
@@ -74,18 +74,17 @@ class ONNXModelParser:
     def get_parser_class(self, node: NodeProto):
         # A temporary fix an element-wise Add or Mul which has asymmetric input data -> treat it as a  DummyNode.
         # TODO support node with asymmetric input data.
-        if node.op_type in ["Add", "Mul"] and has_asymmetric_input_data(node, self.onnx_model):
-            in_shape_1, in_shape_2 = get_onnx_input_shapes(node, self.onnx_model)
-            # In case only the batch dimension is missing. Other cases are not supported for now
-            if abs(len(in_shape_1) - len(in_shape_2)) == 1:
-                return AsymmetricSimdParser
-            else:
+        if node.op_type in ["Add", "Mul", "Max", "Exp", "Div", "Sum"]:
+            if has_asymmetric_input_data(node, self.onnx_model):
                 return DefaultNodeParser
+            else:
+                return SimdParser
 
         parser_class = ONNXModelParser.OP_TYPE_TO_PARSER.get(node.op_type)
         if not parser_class:
             return DefaultNodeParser
         return parser_class
+
 
     def parse_workload(self):
         """
@@ -119,7 +118,6 @@ class ONNXModelParser:
             # If this node has no inputs, don't take it into consideration (e.g. Constant operator has no inputs)
             if not node.input:
                 continue
-
             nodes_inputs[node_id] = node.input
 
             parser_class = self.get_parser_class(node)

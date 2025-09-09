@@ -59,7 +59,7 @@ class GeneticAlgorithmAllocationStage(Stage):
         self.nb_individuals = nb_ga_individuals
         self.operands_to_prefetch = operands_to_prefetch
         self.scheduling_order = scheduling_order
-
+        self.dvfs_opt = kwargs["dvfs_opt"]
         # Determine the set of all (layer, group) combinations to be allocated separately
         self.layer_groups: list[tuple[int, int]] = sorted(set((n.id, n.group) for n in self.workload.node_list))
 
@@ -108,7 +108,7 @@ class GeneticAlgorithmAllocationStage(Stage):
         core_ids: list[int] = sorted([core.id for core in self.accelerator.cores.node_list])
         self.core_id_range = (min(core_ids), max(core_ids))
         self.nb_cores = max(core_ids) - min(core_ids) + 1  # Assuming they are incrementing with step size 1
-
+        
     def run(self):
         """Run the InterCoreMappingStage by checking if we have a fixed core_allocation.
         - if yes: evaluate fixed core allocation
@@ -137,8 +137,17 @@ class GeneticAlgorithmAllocationStage(Stage):
             best_core_allocations = hof[-1]
             results = self.fitness_evaluator.get_fitness(best_core_allocations, return_scme=True)
             scme = results[-1]
-            yield scme, None
-        logger.info("Finished GeneticAlgorithmAllocationStage.")
+            logger.info("Finished GeneticAlgorithmAllocationStage.")
+            kwargs = self.kwargs.copy()
+            sub_stage = self.list_of_callables[0](
+                self.list_of_callables[1:],
+                scme=scme,
+                **kwargs,
+            )            
+            for cme, extra_info in sub_stage.run():
+                yield cme, extra_info
 
     def is_leaf(self) -> bool:
-        return True
+        # when we have the dvfs_opt this is the last stage
+        # else we still have the dvfs stage
+        return False

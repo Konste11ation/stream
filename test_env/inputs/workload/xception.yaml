@@ -1,0 +1,638 @@
+nodes:
+- id: 0
+  name: conv1
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 32, G: 1, OX: 150, OY: 150, C: 3, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 1
+  name: conv2
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 150, OY: 150, C: 32, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 2
+  name: separable1_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 64, OX: 150, OY: 150, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 3
+  name: separable1_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 150, OY: 150, C: 64, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 4
+  name: separable2_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 128, OX: 150, OY: 150, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 5
+  name: separable2_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 150, OY: 150, C: 128, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 6
+  name: maxpool1
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, OX: 75, OY: 75, C: 128, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 7
+  name: pw_conv1
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 75, OY: 75, C: 64, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 8
+  name: add1
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 128, D: 75, K: 75}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 9
+  name: separable3_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 128, OX: 75, OY: 75, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 10
+  name: separable3_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 256, G: 1, OX: 75, OY: 75, C: 128, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 11
+  name: separable4_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 256, OX: 75, OY: 75, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 12
+  name: separable4_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 256, G: 1, OX: 75, OY: 75, C: 256, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 13
+  name: maxpool2
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 256, OX: 38, OY: 38, C: 256, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 14
+  name: pw_conv2
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 256, G: 1, OX: 38, OY: 38, C: 128, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 15
+  name: add2
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 256, D: 38, K: 38}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 16
+  name: separable5_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 256, OX: 38, OY: 38, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 17
+  name: separable5_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 38, OY: 38, C: 256, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 18
+  name: separable6_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 38, OY: 38, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 19
+  name: separable6_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 38, OY: 38, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 20
+  name: maxpool3
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, OX: 19, OY: 19, C: 728, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 21
+  name: pw_conv3
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 256, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 22
+  name: add3
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 728, D: 19, K: 19}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 23
+  name: middle_flow_1_depthwise_1_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 24
+  name: middle_flow_1_depthwise_1_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 25
+  name: middle_flow_1_depthwise_2_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 26
+  name: middle_flow_1_depthwise_2_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 27
+  name: middle_flow_1_depthwise_3_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 28
+  name: middle_flow_1_depthwise_3_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 29
+  name: middle_flow_1_add
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 728, D: 19, K: 19}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 30
+  name: middle_flow_2_depthwise_1_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 31
+  name: middle_flow_2_depthwise_1_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 32
+  name: middle_flow_2_depthwise_2_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 33
+  name: middle_flow_2_depthwise_2_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 34
+  name: middle_flow_2_depthwise_3_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 35
+  name: middle_flow_2_depthwise_3_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 36
+  name: middle_flow_2_add
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 728, D: 19, K: 19}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 37
+  name: middle_flow_3_depthwise_1_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 38
+  name: middle_flow_3_depthwise_1_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 39
+  name: middle_flow_3_depthwise_2_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 40
+  name: middle_flow_3_depthwise_2_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 41
+  name: middle_flow_3_depthwise_3_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 42
+  name: middle_flow_3_depthwise_3_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 43
+  name: middle_flow_3_add
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 728, D: 19, K: 19}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 44
+  name: middle_flow_4_depthwise_1_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 45
+  name: middle_flow_4_depthwise_1_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 46
+  name: middle_flow_4_depthwise_2_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 47
+  name: middle_flow_4_depthwise_2_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 48
+  name: middle_flow_4_depthwise_3_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 49
+  name: middle_flow_4_depthwise_3_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 50
+  name: middle_flow_4_add
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 728, D: 19, K: 19}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 51
+  name: middle_flow_5_depthwise_1_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 52
+  name: middle_flow_5_depthwise_1_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 53
+  name: middle_flow_5_depthwise_2_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 54
+  name: middle_flow_5_depthwise_2_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 55
+  name: middle_flow_5_depthwise_3_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 56
+  name: middle_flow_5_depthwise_3_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 57
+  name: middle_flow_5_add
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 728, D: 19, K: 19}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 58
+  name: middle_flow_6_depthwise_1_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 59
+  name: middle_flow_6_depthwise_1_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 60
+  name: middle_flow_6_depthwise_2_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 61
+  name: middle_flow_6_depthwise_2_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 62
+  name: middle_flow_6_depthwise_3_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 63
+  name: middle_flow_6_depthwise_3_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 64
+  name: middle_flow_6_add
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 728, D: 19, K: 19}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 65
+  name: middle_flow_7_depthwise_1_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 66
+  name: middle_flow_7_depthwise_1_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 67
+  name: middle_flow_7_depthwise_2_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 68
+  name: middle_flow_7_depthwise_2_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 69
+  name: middle_flow_7_depthwise_3_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 70
+  name: middle_flow_7_depthwise_3_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 71
+  name: middle_flow_7_add
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 728, D: 19, K: 19}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 72
+  name: middle_flow_8_depthwise_1_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 73
+  name: middle_flow_8_depthwise_1_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 74
+  name: middle_flow_8_depthwise_2_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 75
+  name: middle_flow_8_depthwise_2_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 76
+  name: middle_flow_8_depthwise_3_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 77
+  name: middle_flow_8_depthwise_3_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 78
+  name: middle_flow_8_add
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 728, D: 19, K: 19}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 79
+  name: separable7_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 80
+  name: separable7_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 728, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 81
+  name: separable8_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 728, OX: 19, OY: 19, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 82
+  name: separable8_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1024, G: 1, OX: 19, OY: 19, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 83
+  name: maxpool4
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1024, OX: 10, OY: 10, C: 1024, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 84
+  name: pw_conv4
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1024, G: 1, OX: 10, OY: 10, C: 728, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 85
+  name: add4
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 1024, D: 10, K: 10}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 86
+  name: separable9_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 1024, OX: 10, OY: 10, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 87
+  name: separable9_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1536, G: 1, OX: 10, OY: 10, C: 1024, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 88
+  name: separable10_depthwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 1, G: 1536, OX: 10, OY: 10, C: 1, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 89
+  name: separable10_pointwise
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 2048, G: 1, OX: 10, OY: 10, C: 1536, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, 16)]'
+- id: 90
+  name: global_average_pool
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 2048, OX: 1, OY: 1, C: 2048, FX: 10, FY: 10}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'

@@ -5,7 +5,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 32, G: 1, OX: 112, OY: 112, C: 3, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 1
   name: /features/features.0/features.0.2/Clip
   operator_type: clip
@@ -19,7 +19,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1, G: 32, OX: 112, OY: 112, C: 1, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 3
   name: /features/features.1/conv/conv.0/conv.0.2/Clip
   operator_type: clip
@@ -33,14 +33,14 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 16, G: 1, OX: 112, OY: 112, C: 32, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 5
   name: /features/features.2/conv/conv.0/conv.0.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 112, OY: 112, C: 16, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 6
   name: /features/features.2/conv/conv.0/conv.0.2/Clip
   operator_type: clip
@@ -54,7 +54,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1, G: 96, OX: 56, OY: 56, C: 1, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 8
   name: /features/features.2/conv/conv.1/conv.1.2/Clip
   operator_type: clip
@@ -68,14 +68,14 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 24, G: 1, OX: 56, OY: 56, C: 96, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 10
   name: /features/features.3/conv/conv.0/conv.0.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 144, G: 1, OX: 56, OY: 56, C: 24, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 11
   name: /features/features.3/conv/conv.0/conv.0.2/Clip
   operator_type: clip
@@ -89,7 +89,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1, G: 144, OX: 56, OY: 56, C: 1, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 13
   name: /features/features.3/conv/conv.1/conv.1.2/Clip
   operator_type: clip
@@ -103,21 +103,21 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 24, G: 1, OX: 56, OY: 56, C: 144, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 15
   name: /features/features.3/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 24, D: 56, K: 56}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 16
   name: /features/features.4/conv/conv.0/conv.0.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 144, G: 1, OX: 56, OY: 56, C: 24, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 17
   name: /features/features.4/conv/conv.0/conv.0.2/Clip
   operator_type: clip
@@ -131,7 +131,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1, G: 144, OX: 28, OY: 28, C: 1, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 19
   name: /features/features.4/conv/conv.1/conv.1.2/Clip
   operator_type: clip
@@ -145,14 +145,14 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 32, G: 1, OX: 28, OY: 28, C: 144, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 21
   name: /features/features.5/conv/conv.0/conv.0.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 28, OY: 28, C: 32, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 22
   name: /features/features.5/conv/conv.0/conv.0.2/Clip
   operator_type: clip
@@ -166,7 +166,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1, G: 192, OX: 28, OY: 28, C: 1, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 24
   name: /features/features.5/conv/conv.1/conv.1.2/Clip
   operator_type: clip
@@ -180,21 +180,21 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 32, G: 1, OX: 28, OY: 28, C: 192, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 26
   name: /features/features.5/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 32, D: 28, K: 28}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 27
   name: /features/features.6/conv/conv.0/conv.0.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 28, OY: 28, C: 32, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 28
   name: /features/features.6/conv/conv.0/conv.0.2/Clip
   operator_type: clip
@@ -208,7 +208,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1, G: 192, OX: 28, OY: 28, C: 1, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 30
   name: /features/features.6/conv/conv.1/conv.1.2/Clip
   operator_type: clip
@@ -222,21 +222,21 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 32, G: 1, OX: 28, OY: 28, C: 192, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 32
   name: /features/features.6/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 32, D: 28, K: 28}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 33
   name: /features/features.7/conv/conv.0/conv.0.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 192, G: 1, OX: 28, OY: 28, C: 32, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 34
   name: /features/features.7/conv/conv.0/conv.0.2/Clip
   operator_type: clip
@@ -250,7 +250,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1, G: 192, OX: 14, OY: 14, C: 1, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 36
   name: /features/features.7/conv/conv.1/conv.1.2/Clip
   operator_type: clip
@@ -264,14 +264,14 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 14, OY: 14, C: 192, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 38
   name: /features/features.8/conv/conv.0/conv.0.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 384, G: 1, OX: 14, OY: 14, C: 64, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 39
   name: /features/features.8/conv/conv.0/conv.0.2/Clip
   operator_type: clip
@@ -285,7 +285,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1, G: 384, OX: 14, OY: 14, C: 1, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 41
   name: /features/features.8/conv/conv.1/conv.1.2/Clip
   operator_type: clip
@@ -299,21 +299,21 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 14, OY: 14, C: 384, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 43
   name: /features/features.8/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 64, D: 14, K: 14}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 44
   name: /features/features.9/conv/conv.0/conv.0.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 384, G: 1, OX: 14, OY: 14, C: 64, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 45
   name: /features/features.9/conv/conv.0/conv.0.2/Clip
   operator_type: clip
@@ -327,7 +327,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1, G: 384, OX: 14, OY: 14, C: 1, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 47
   name: /features/features.9/conv/conv.1/conv.1.2/Clip
   operator_type: clip
@@ -341,21 +341,21 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 14, OY: 14, C: 384, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 49
   name: /features/features.9/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 64, D: 14, K: 14}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 50
   name: /features/features.10/conv/conv.0/conv.0.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 384, G: 1, OX: 14, OY: 14, C: 64, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 51
   name: /features/features.10/conv/conv.0/conv.0.2/Clip
   operator_type: clip
@@ -369,7 +369,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1, G: 384, OX: 14, OY: 14, C: 1, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 53
   name: /features/features.10/conv/conv.1/conv.1.2/Clip
   operator_type: clip
@@ -383,21 +383,21 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 14, OY: 14, C: 384, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 55
   name: /features/features.10/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 64, D: 14, K: 14}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 56
   name: /features/features.11/conv/conv.0/conv.0.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 384, G: 1, OX: 14, OY: 14, C: 64, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 57
   name: /features/features.11/conv/conv.0/conv.0.2/Clip
   operator_type: clip
@@ -411,7 +411,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1, G: 384, OX: 14, OY: 14, C: 1, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 59
   name: /features/features.11/conv/conv.1/conv.1.2/Clip
   operator_type: clip
@@ -425,14 +425,14 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 384, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 61
   name: /features/features.12/conv/conv.0/conv.0.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 576, G: 1, OX: 14, OY: 14, C: 96, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 62
   name: /features/features.12/conv/conv.0/conv.0.2/Clip
   operator_type: clip
@@ -446,7 +446,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1, G: 576, OX: 14, OY: 14, C: 1, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 64
   name: /features/features.12/conv/conv.1/conv.1.2/Clip
   operator_type: clip
@@ -460,21 +460,21 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 66
   name: /features/features.12/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 67
   name: /features/features.13/conv/conv.0/conv.0.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 576, G: 1, OX: 14, OY: 14, C: 96, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 68
   name: /features/features.13/conv/conv.0/conv.0.2/Clip
   operator_type: clip
@@ -488,7 +488,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1, G: 576, OX: 14, OY: 14, C: 1, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 70
   name: /features/features.13/conv/conv.1/conv.1.2/Clip
   operator_type: clip
@@ -502,21 +502,21 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 96, G: 1, OX: 14, OY: 14, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 72
   name: /features/features.13/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 96, D: 14, K: 14}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 73
   name: /features/features.14/conv/conv.0/conv.0.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 576, G: 1, OX: 14, OY: 14, C: 96, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 74
   name: /features/features.14/conv/conv.0/conv.0.2/Clip
   operator_type: clip
@@ -530,7 +530,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1, G: 576, OX: 7, OY: 7, C: 1, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 76
   name: /features/features.14/conv/conv.1/conv.1.2/Clip
   operator_type: clip
@@ -544,14 +544,14 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 7, OY: 7, C: 576, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 78
   name: /features/features.15/conv/conv.0/conv.0.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 960, G: 1, OX: 7, OY: 7, C: 160, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 79
   name: /features/features.15/conv/conv.0/conv.0.2/Clip
   operator_type: clip
@@ -565,7 +565,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1, G: 960, OX: 7, OY: 7, C: 1, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 81
   name: /features/features.15/conv/conv.1/conv.1.2/Clip
   operator_type: clip
@@ -579,21 +579,21 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 7, OY: 7, C: 960, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 83
   name: /features/features.15/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 160, D: 7, K: 7}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 84
   name: /features/features.16/conv/conv.0/conv.0.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 960, G: 1, OX: 7, OY: 7, C: 160, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 85
   name: /features/features.16/conv/conv.0/conv.0.2/Clip
   operator_type: clip
@@ -607,7 +607,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1, G: 960, OX: 7, OY: 7, C: 1, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 87
   name: /features/features.16/conv/conv.1/conv.1.2/Clip
   operator_type: clip
@@ -621,21 +621,21 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 160, G: 1, OX: 7, OY: 7, C: 960, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 89
   name: /features/features.16/Add
   operator_type: add
-  equation: null
-  layer_dim_sizes: '{}'
-  inter_core_tiling: '{}'
-  intra_core_tiling: '{}'
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 160, D: 7, K: 7}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
 - id: 90
   name: /features/features.17/conv/conv.0/conv.0.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 960, G: 1, OX: 7, OY: 7, C: 160, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 91
   name: /features/features.17/conv/conv.0/conv.0.2/Clip
   operator_type: clip
@@ -649,7 +649,7 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[g][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1, G: 960, OX: 7, OY: 7, C: 1, FX: 3, FY: 3}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 93
   name: /features/features.17/conv/conv.1/conv.1.2/Clip
   operator_type: clip
@@ -663,14 +663,14 @@ nodes:
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 320, G: 1, OX: 7, OY: 7, C: 960, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 95
   name: /features/features.18/features.18.0/Conv
   operator_type: conv
   equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
   layer_dim_sizes: '{B: 1, K: 1280, G: 1, OX: 7, OY: 7, C: 320, FX: 1, FY: 1}'
   inter_core_tiling: '[(K, ''*'')]'
-  intra_core_tiling: '[(OY, ''all'')]'
+  intra_core_tiling: '[(OY, 64)]'
 - id: 96
   name: /features/features.18/features.18.2/Clip
   operator_type: clip
@@ -697,5 +697,5 @@ nodes:
   operator_type: gemm
   equation: O[d][k] = I[d][c] * W[c][k]
   layer_dim_sizes: '{C: 1280, D: 1, K: 1000}'
-  inter_core_tiling: '[(H, ''*'')]'
+  inter_core_tiling: '[(K, ''*'')]'
   intra_core_tiling: '[(D, ''all'')]'

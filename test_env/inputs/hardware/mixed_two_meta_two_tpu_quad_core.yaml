@@ -1,10 +1,10 @@
-name: meta_proto_like_quad_core
+name: mixed_two_meta_two_tpu_quad_core
 
 cores:
   0: meta_prototype.yaml
   1: meta_prototype.yaml
-  2: meta_prototype.yaml
-  3: meta_prototype.yaml
+  2: tpu_like.yaml
+  3: tpu_like.yaml
   4: pooling.yaml
   5: simd.yaml
 offchip_core: offchip_4d.yaml
@@ -26,5 +26,5 @@ core_connectivity:
   - 2, 5
   - 3, 5
 
-bandwidth: 256
+bandwidth: 64
 unit_energy_cost: 0

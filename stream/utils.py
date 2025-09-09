@@ -40,8 +40,10 @@ def dump_workload_to_yaml(workload: ONNXWorkload, workload_path:str):
         yaml.dump(
             yaml_data,
             f,
-            default_flow_style=True,  
-            sort_keys=False
+            default_flow_style=False,  
+            sort_keys=False,
+            indent=2,
+            allow_unicode=True
         )
 def get_onnx_input_shapes(node: NodeProto, onnx_model: ModelProto) -> tuple[list[int], list[int]]:
     if len(node.input) != 2:

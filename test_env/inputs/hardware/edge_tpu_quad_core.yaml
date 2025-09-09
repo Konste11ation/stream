@@ -1,10 +1,10 @@
-name: meta_proto_like_quad_core
+name: edge_tpu_like_quad_core
 
 cores:
-  0: meta_prototype.yaml
-  1: meta_prototype.yaml
-  2: meta_prototype.yaml
-  3: meta_prototype.yaml
+  0: edge_tpu_like.yaml
+  1: edge_tpu_like.yaml
+  2: edge_tpu_like.yaml
+  3: edge_tpu_like.yaml
   4: pooling.yaml
   5: simd.yaml
 offchip_core: offchip_4d.yaml
