@@ -1,456 +1,344 @@
-- id: 0 # conv1 stride 2
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=2*ox+1*fx, iy=2*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 64, 3, 112, 112, 7, 7]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 0
-    W: 0
-
-- id: 1 # max pool, stride 2
-  operator_type: Pooling
-  equation: O[b][g][oy][ox]+=W[fx][fy]*I[b][g][iy][ix]
-  dimension_relations: [ix=2*ox+1*fx, iy=2*oy+1*fy]
-  loop_dims: [B, G, OY, OX, FX, FY]
-  loop_sizes: [1, 64, 56, 56, 3, 3]
-  operand_precision:
-    I: 8
-    W: 0
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 0
-    W: 1 # Constant operand
-
-- id: 2 # conv2_1
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=1*ox+1*fx, iy=1*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 64, 64, 56, 56, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 1
-    W: 2
-
-- id: 3 # conv2_2
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=1*ox+1*fx, iy=1*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 64, 64, 56, 56, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 2
-    W: 3
-
-- id: 4 # Addition of layer 1 (residual path) and layer 3 (main path)
-  operator_type: Add
-  equation: O[b][g][oy][ox]=W[b][g][oy][ox]+I[b][g][oy][ox]
-  loop_dims: [B, G, OY, OX]
-  loop_sizes: [1, 64, 56, 56]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    W: 1
-    I: 3
-
-- id: 5 # conv2_3
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=1*ox+1*fx, iy=1*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 64, 64, 56, 56, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 4
-    W: 5
-
-- id: 6 # conv2_4
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=1*ox+1*fx, iy=1*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 64, 64, 56, 56, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 5
-    W: 6
-
-- id: 7 # Addition of layer 4 (residual connection) and layer 6 (main path)
-  operator_type: Add
-  equation: O[b][g][oy][ox]=W[b][g][oy][ox]+I[b][g][oy][ox]
-  loop_dims: [B, G, OY, OX]
-  loop_sizes: [1, 64, 56, 56]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    W: 4
-    I: 6
-
-- id: 8 # conv3_1 stride 2
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=2*ox+1*fx, iy=2*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 128, 64, 28, 28, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 7
-    W: 8
-
-- id: 9 # conv3_2
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=1*ox+1*fx, iy=1*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 128, 128, 28, 28, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 8
-    W: 9
-
-- id: 10 # conv downsample of layer 7
-  operator_type: Conv_downsample
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=2*ox+1*fx, iy=2*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 128, 64, 28, 28, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 7
-    W: 10
-
-- id: 11 # Addition of layer 10 (residual connection) and layer 9 (main path)
-  operator_type: Add
-  equation: O[b][g][oy][ox]=W[b][g][oy][ox]+I[b][g][oy][ox]
-  loop_dims: [B, G, OY, OX]
-  loop_sizes: [1, 128, 28, 28]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    W: 10
-    I: 9
-
-- id: 12 # conv3_3
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=1*ox+1*fx, iy=1*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 128, 128, 28, 28, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 11
-    W: 12
-
-- id: 13 # conv3_4
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=1*ox+1*fx, iy=1*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 128, 128, 28, 28, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 12
-    W: 13
-
-- id: 14 # Addition of layer 11 (residual connection) and layer 13 (main path)
-  operator_type: Add
-  equation: O[b][g][oy][ox]=W[b][g][oy][ox]+I[b][g][oy][ox]
-  loop_dims: [B, G, OY, OX]
-  loop_sizes: [1, 128, 28, 28]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    W: 11
-    I: 13
-
-- id: 15 # conv4_1 stride 2
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=2*ox+1*fx, iy=2*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 256, 128, 14, 14, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 14
-    W: 15
-
-- id: 16 # conv4_2
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=1*ox+1*fx, iy=1*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 256, 256, 14, 14, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 15
-    W: 16
-
-- id: 17 # conv downsample of layer 14
-  operator_type: Conv_downsample
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=2*ox+1*fx, iy=2*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 256, 128, 14, 14, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 14
-    W: 17
-
-- id: 18 # Addition of layer 17 (residual connection) and layer 16 (main path)
-  operator_type: Add
-  equation: O[b][g][oy][ox]=W[b][g][oy][ox]+I[b][g][oy][ox]
-  loop_dims: [B, G, OY, OX]
-  loop_sizes: [1, 256, 14, 14]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    W: 17
-    I: 16
-
-- id: 19 # conv4_3
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=1*ox+1*fx, iy=1*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 256, 256, 14, 14, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 18
-    W: 19
-
-- id: 20 # conv4_4
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=1*ox+1*fx, iy=1*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 256, 256, 14, 14, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 19
-    W: 20
-
-- id: 21 # Addition of layer 18 (residual connection) and layer 20 (main path)
-  operator_type: Add
-  equation: O[b][g][oy][ox]=W[b][g][oy][ox]+I[b][g][oy][ox]
-  loop_dims: [B, G, OY, OX]
-  loop_sizes: [1, 256, 14, 14]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    W: 18
-    I: 20
-
-- id: 22 # conv5_1 stride 2
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=2*ox+1*fx, iy=2*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 512, 256, 7, 7, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 21
-    W: 22
-
-- id: 23 # conv5_2
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=1*ox+1*fx, iy=1*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 512, 512, 7, 7, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 22
-    W: 23
-
-- id: 24 # conv downsample of layer 21
-  operator_type: Conv_downsample
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=2*ox+1*fx, iy=2*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 512, 256, 7, 7, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 21
-    W: 24
-
-- id: 25 # Addition of layer 24 (residual connection) and layer 23 (main path)
-  operator_type: Add
-  equation: O[b][g][oy][ox]=W[b][g][oy][ox]+I[b][g][oy][ox]
-  loop_dims: [B, G, OY, OX]
-  loop_sizes: [1, 512, 7, 7]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    W: 24
-    I: 23
-
-- id: 26 # conv5_3
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=1*ox+1*fx, iy=1*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 512, 512, 7, 7, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 25
-    W: 26
-
-- id: 27 # conv4_4
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=1*ox+1*fx, iy=1*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 512, 512, 7, 7, 3, 3]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 26
-    W: 27
-
-- id: 28 # Addition of layer 25 (residual connection) and layer 27 (main path)
-  operator_type: Add
-  equation: O[b][g][oy][ox]=W[b][g][oy][ox]+I[b][g][oy][ox]
-  loop_dims: [B, G, OY, OX]
-  loop_sizes: [1, 512, 7, 7]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    W: 25
-    I: 27
-
-- id: 29 # aver pool
-  operator_type: Pooling
-  equation: O[b][g][oy][ox]+=W[fx][fy]*I[b][g][iy][ix]
-  dimension_relations: [ix=1*ox+1*fx, iy=1*oy+1*fy]
-  loop_dims: [B, G, OY, OX, FX, FY]
-  loop_sizes: [1, 512, 1, 1, 7, 7]
-  operand_precision:
-    I: 8
-    W: 0
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 28
-    W: 29
-
-- id: 30 # fc
-  operator_type: Conv
-  equation: O[b][k][oy][ox]+=W[k][c][fy][fx]*I[b][c][iy][ix]
-  dimension_relations: [ix=1*ox+1*fx, iy=1*oy+1*fy]
-  loop_dims: [B, K, C, OY, OX, FY, FX]
-  loop_sizes: [1, 1000, 512, 1, 1, 1, 1]
-  operand_precision:
-    W: 8
-    I: 8
-    O: 16
-    O_final: 8
-  operand_source:
-    I: 29
-    W: 30
+nodes:
+- id: 0
+  name: /conv1/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 112, OY: 112, C: 3, FX: 7, FY: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 1
+  name: /relu/Relu
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 64, D: 112, K: 112}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 2
+  name: /maxpool/MaxPool
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, OX: 56, OY: 56, C: 64, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 3
+  name: /layer1/layer1.0/conv1/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 56, OY: 56, C: 64, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 4
+  name: /layer1/layer1.0/relu/Relu
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 64, D: 56, K: 56}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 5
+  name: /layer1/layer1.0/conv2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 56, OY: 56, C: 64, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 6
+  name: /layer1/layer1.0/Add
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 64, D: 56, K: 56}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 7
+  name: /layer1/layer1.0/relu_1/Relu
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 64, D: 56, K: 56}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 8
+  name: /layer1/layer1.1/conv1/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 56, OY: 56, C: 64, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 9
+  name: /layer1/layer1.1/relu/Relu
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 64, D: 56, K: 56}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 10
+  name: /layer1/layer1.1/conv2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 64, G: 1, OX: 56, OY: 56, C: 64, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 11
+  name: /layer1/layer1.1/Add
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 64, D: 56, K: 56}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 12
+  name: /layer1/layer1.1/relu_1/Relu
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 64, D: 56, K: 56}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 13
+  name: /layer2/layer2.0/conv1/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 28, OY: 28, C: 64, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 14
+  name: /layer2/layer2.0/relu/Relu
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 15
+  name: /layer2/layer2.0/conv2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 28, OY: 28, C: 128, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 16
+  name: /layer2/layer2.0/downsample/downsample.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 28, OY: 28, C: 64, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 17
+  name: /layer2/layer2.0/Add
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 128, D: 28, K: 28}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 18
+  name: /layer2/layer2.0/relu_1/Relu
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 19
+  name: /layer2/layer2.1/conv1/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 28, OY: 28, C: 128, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 20
+  name: /layer2/layer2.1/relu/Relu
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 21
+  name: /layer2/layer2.1/conv2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 128, G: 1, OX: 28, OY: 28, C: 128, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 22
+  name: /layer2/layer2.1/Add
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 128, D: 28, K: 28}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 23
+  name: /layer2/layer2.1/relu_1/Relu
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 128, D: 28, K: 28}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 24
+  name: /layer3/layer3.0/conv1/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 256, G: 1, OX: 14, OY: 14, C: 128, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 25
+  name: /layer3/layer3.0/relu/Relu
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 256, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 26
+  name: /layer3/layer3.0/conv2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 256, G: 1, OX: 14, OY: 14, C: 256, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 27
+  name: /layer3/layer3.0/downsample/downsample.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 256, G: 1, OX: 14, OY: 14, C: 128, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 28
+  name: /layer3/layer3.0/Add
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 256, D: 14, K: 14}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 29
+  name: /layer3/layer3.0/relu_1/Relu
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 256, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 30
+  name: /layer3/layer3.1/conv1/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 256, G: 1, OX: 14, OY: 14, C: 256, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 31
+  name: /layer3/layer3.1/relu/Relu
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 256, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 32
+  name: /layer3/layer3.1/conv2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 256, G: 1, OX: 14, OY: 14, C: 256, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 33
+  name: /layer3/layer3.1/Add
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 256, D: 14, K: 14}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 34
+  name: /layer3/layer3.1/relu_1/Relu
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 256, D: 14, K: 14}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 35
+  name: /layer4/layer4.0/conv1/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 512, G: 1, OX: 7, OY: 7, C: 256, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 36
+  name: /layer4/layer4.0/relu/Relu
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 512, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 37
+  name: /layer4/layer4.0/conv2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 512, G: 1, OX: 7, OY: 7, C: 512, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 38
+  name: /layer4/layer4.0/downsample/downsample.0/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 512, G: 1, OX: 7, OY: 7, C: 256, FX: 1, FY: 1}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 39
+  name: /layer4/layer4.0/Add
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 512, D: 7, K: 7}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 40
+  name: /layer4/layer4.0/relu_1/Relu
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 512, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 41
+  name: /layer4/layer4.1/conv1/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 512, G: 1, OX: 7, OY: 7, C: 512, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 42
+  name: /layer4/layer4.1/relu/Relu
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 512, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 43
+  name: /layer4/layer4.1/conv2/Conv
+  operator_type: conv
+  equation: O[b][g][k][oy][ox] = W[k][c][fy][fx] * I[b][g][c][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 512, G: 1, OX: 7, OY: 7, C: 512, FX: 3, FY: 3}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 44
+  name: /layer4/layer4.1/Add
+  operator_type: add
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[b][h][d][k]
+  layer_dim_sizes: '{B: 1, H: 512, D: 7, K: 7}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 45
+  name: /layer4/layer4.1/relu_1/Relu
+  operator_type: relu
+  equation: O[b][h][d][k] = I[b][h][d][k] * W[]
+  layer_dim_sizes: '{B: 1, H: 512, D: 7, K: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'
+- id: 46
+  name: /avgpool/GlobalAveragePool
+  operator_type: pooling
+  equation: O[b][k][oy][ox] = W[fy][fx] * I[b][k][iy][ix]
+  layer_dim_sizes: '{B: 1, K: 512, OX: 1, OY: 1, C: 512, FX: 7, FY: 7}'
+  inter_core_tiling: '[(K, ''*'')]'
+  intra_core_tiling: '[(OY, ''all'')]'
+- id: 47
+  name: /Flatten
+  operator_type: flatten
+  equation: null
+  layer_dim_sizes: '{}'
+  inter_core_tiling: '{}'
+  intra_core_tiling: '{}'
+- id: 48
+  name: /fc/Gemm
+  operator_type: gemm
+  equation: O[d][k] = I[d][c] * W[c][k]
+  layer_dim_sizes: '{C: 512, D: 1, K: 1000}'
+  inter_core_tiling: '[(H, ''*'')]'
+  intra_core_tiling: '[(D, ''all'')]'

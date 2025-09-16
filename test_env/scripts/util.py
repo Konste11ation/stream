@@ -126,4 +126,3 @@ def get_layer_stack(workload_name:str):
                         ] + list((i,) for i in range(504, 509))
              
     return layer_stacks
-

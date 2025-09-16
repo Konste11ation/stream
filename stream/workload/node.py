@@ -81,6 +81,11 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
         freq_factor = self.freq_lut[self.dvfs_level]
         runtime = int(self.runtime/freq_factor)
         return runtime
+    def get_worst_runtime(self):
+        """Get the worst case runtime of running this node."""
+        min_freq_factor = min(self.freq_lut.values())
+        worst_runtime = int(self.runtime/min_freq_factor)
+        return worst_runtime
     def get_vdd(self):
          """Get the vdd of running this node."""
          vdd = self.vdd_lut[self.dvfs_level]

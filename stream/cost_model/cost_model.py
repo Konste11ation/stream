@@ -19,6 +19,9 @@ class StreamCostModelEvaluation:
         accelerator: Accelerator,
         operands_to_prefetch: list[LayerOperand],
         scheduling_order: list[tuple[int, int]],
+        system_clock_freq: float = 1.0,        # in GHz
+        dvfs_switching_latency: float = 1.0,   # in ms
+        dvfs_allocations: dict[int, dict[int, int]] | None = None,
     ) -> None:
         # Initialize the SCME by setting the workload graph to be scheduled
         self.workload = workload
@@ -39,6 +42,9 @@ class StreamCostModelEvaluation:
         self.core_timesteps_delta_cumsums = None
         self.operands_to_prefetch = operands_to_prefetch
         self.scheduling_order = scheduling_order
+        self.system_clock_freq = system_clock_freq
+        self.dvfs_switching_latency = dvfs_switching_latency
+        self.dvfs_allocations = dvfs_allocations
 
     def __str__(self):
         return f"SCME(energy={self.energy:.2e}, latency={self.latency:.2e})"
@@ -54,6 +60,9 @@ class StreamCostModelEvaluation:
             self.accelerator,
             operands_to_prefetch=self.operands_to_prefetch,
             scheduling_order=self.scheduling_order,
+            system_clock_freq=self.system_clock_freq,
+            dvfs_switching_latency=self.dvfs_switching_latency,
+            dvfs_allocations=self.dvfs_allocations,
         )
         self.latency = results[0]
         self.total_cn_onchip_energy = results[1]

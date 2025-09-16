@@ -24,3 +24,7 @@ dvfs_level:
     - vdd: 0.5
     - freq: 0.5
     - energy: 0.25
+# Minimum latency (in ms) to switch between DVFS levels
+min_dvfs_switch_latency: 1.0
+# system clock frequency (in GHz)
+system_clock_freq: 1.0

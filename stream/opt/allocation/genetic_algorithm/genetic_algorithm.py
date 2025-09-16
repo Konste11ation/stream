@@ -177,7 +177,8 @@ class DvfsGeneticAlgorithm:
     def __init__(
         self,
         fitness_evaluator,
-        individual_length,
+        num_cores,
+        num_time_windows,
         valid_allocations,
         num_generations=250,
         num_individuals=64,
@@ -194,8 +195,9 @@ class DvfsGeneticAlgorithm:
         self.prob_crossover = 0.3  # probablility to perform corssover
         self.prob_mutation = 0.7  # probablility to perform mutation
         self.valid_allocations = valid_allocations
-
-        self.individual_length = individual_length
+        self.num_cores = num_cores
+        self.num_time_windows = num_time_windows
+        self.individual_length = num_cores * num_time_windows
 
         self.fitness_evaluator = fitness_evaluator  # class to evaluate fitness of each indiviual
         # class to track statistics of certain generations
@@ -211,8 +213,9 @@ class DvfsGeneticAlgorithm:
 
         # attribute generator
         self.toolbox.register(
-            "attr_int", random.randint, valid_allocations[0], valid_allocations[1]
-        )  # single attribute of indiviuals can encode core allocation for HW
+            "attr_int", random.choice, valid_allocations
+        )
+
 
         # structure initializers
         self.toolbox.register(
@@ -220,20 +223,20 @@ class DvfsGeneticAlgorithm:
             tools.initRepeat, 
             creator.Individual, 
             self.toolbox.attr_int, 
-            n=individual_length
+            n=self.individual_length
         )
         self.toolbox.register(
             "population", tools.initRepeat, list, self.toolbox.individual
         )  # define polulation based on indiviudal
 
         # link user defined fitness function to toolbox
-        self.toolbox.register("evaluate", self.fitness_evaluator.get_fitness)
+        self.toolbox.register("evaluate", self.evaluate)
         if self.individual_length > 10:
             self.toolbox.register("mate", tools.cxOrdered)  # for big graphs use cxOrdered crossover function
         else:
             self.toolbox.register("mate", tools.cxTwoPoint)  # for small graphs use two point crossover function
 
-        self.toolbox.register("mutate", tools.mutUniformInt, low=valid_allocations[0], up=valid_allocations[1], indpb=0.1)
+        self.toolbox.register("mutate", tools.mutUniformInt, low=min(valid_allocations), up=max(valid_allocations), indpb=0.1)
         # use non-dominated sorting genetic algorithm for multi-objective optimization
         self.toolbox.register("select", tools.selNSGA2)
 
@@ -242,12 +245,22 @@ class DvfsGeneticAlgorithm:
 
         # replace sub part of initial generation with user provided individuals
         for indv_index in range(len(pop)):
-            for i in range(self.fitness_evaluator.workload.number_of_nodes()):
-                self.pop[indv_index][i] = pop[indv_index][i]
-
-            # don't bias initial population too much
-            if indv_index >= self.num_individuals / 4:
+            if indv_index >= len(self.pop):
                 break
+            for i in range(min(len(pop[indv_index]), self.individual_length)):
+                self.pop[indv_index][i] = pop[indv_index][i]
+    def evaluate(self, individual):
+        """Evaluate the fitness of an individual."""
+        # Convert the 1D array to an allocation dictionary
+        allocation = {}
+        idx = 0
+        for core in range(self.num_cores):
+            allocation[core] = {}
+            for time_window in range(self.num_time_windows):
+                allocation[core][time_window] = individual[idx]
+                idx += 1
+        
+        return self.fitness_evaluator.get_fitness(allocation)
 
     def run(self):
         # plot statistics during evolution

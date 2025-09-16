@@ -227,12 +227,51 @@ def check_for_removal(
                 )
 
 
+def set_dvfs_level_for_node(
+    node: ComputationNode,
+    system_clock_freq: float,
+    dvfs_switching_latency: float,
+    dvfs_allocations: dict[int, dict[int, int]]
+):
+    """Set the DVFS level for a specific node.
+
+    Args:
+        node (ComputationNode): The node to set the DVFS level for.
+        system_clock_freq (float): The system clock frequency in GHz.
+        dvfs_switching_latency (float): The DVFS switching latency in ms.
+        dvfs_allocations (dict[int, dict[int, int]]): The DVFS allocations for each core. {core_id: {time_window_id: dvfs_level}}
+    """
+    if dvfs_allocations is None:
+        node.dvfs_level = 0  # Default DVFS level if no allocations provided
+    else:
+        assert node.chosen_core_allocation is not None, "Core should be allocated"
+        assert dvfs_allocations is not None, "DVFS allocations should be provided"
+        core_id = node.chosen_core_allocation
+        if core_id in dvfs_allocations:
+            dvfs_allocation_for_core = dvfs_allocations[core_id]
+            assert node.start is not None, "Node start time should be set"
+            # Determine the time window id based on the node's start time and the DVFS switching latency
+            start_ms = node.start / (system_clock_freq * 1e6)  # Convert cycles to ms
+            time_window_id = int(start_ms // dvfs_switching_latency)
+            if time_window_id in dvfs_allocation_for_core:
+                dvfs_level = dvfs_allocation_for_core[time_window_id]
+            else:
+                # If no specific allocation for this time window，assert
+                raise ValueError(f"No DVFS allocation for core {core_id} at time window {time_window_id}")
+
+        node.dvfs_level = dvfs_level
+
+
+
 def schedule_graph(
     G: ComputationNodeWorkload,
     accelerator: "Accelerator",
     cores_idle_from: dict[int, int] | None = None,
     operands_to_prefetch: list[LayerOperand] = [],
     scheduling_order: list[tuple[int, int]] | None = None,
+    system_clock_freq: float = 1.0,        # in GHz
+    dvfs_switching_latency: float = 1.0,   # in ms
+    dvfs_allocations: dict[int, dict[int, int]] | None = None,
 ) -> tuple[int, float, float, float, float, float, float, float, float, float]:
     """Schedule the nodes of graph G across the cores in the system.
     Each node should have a core_allocation and runtime set.
@@ -370,11 +409,13 @@ def schedule_graph(
         # Check if we had any operands that were too large to store in the core's memory, block the relevant off-chip
         # link for the duration
         # This might again delay the execution if the offchip link was already blocked by another core
+        
+        # here the dvfs level is not setted yet, we assume the worst case that the dvfs level is the lowest one
         timestep = accelerator.block_offchip_links(
             best_candidate.too_large_operands,
             core_id,
             timestep,
-            best_candidate.get_runtime(),
+            best_candidate.get_worst_runtime(),
             best_candidate,
         )
 
@@ -403,6 +444,16 @@ def schedule_graph(
         total_eviction_to_offchip_link_energy += eviction_link_energy_cost
         total_eviction_to_offchip_memory_energy += eviction_memory_energy_cost
         start = evictions_complete_timestep
+        best_candidate.set_start(start)
+        # Here we use the dvfs_allocation for this core at the time window in which the node starts
+        # to retrieve the dvfs_level for the current node
+        set_dvfs_level_for_node(
+            best_candidate,
+            system_clock_freq,
+            dvfs_switching_latency,
+            dvfs_allocations
+        )
+        # Now that we have the dvfs level, we can get the actual runtime of this node
         end = start + best_candidate.get_runtime()
         accelerator.spawn(
             output_tensor,
@@ -414,7 +465,6 @@ def schedule_graph(
 
         # Step 5
         # Update the start and end time of the node
-        best_candidate.set_start(start)
         best_candidate.set_end(end)
         cores_idle_from[core_id] = end
 
