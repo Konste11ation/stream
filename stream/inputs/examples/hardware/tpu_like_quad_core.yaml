@@ -26,5 +26,5 @@ core_connectivity:
   - 2, 5
   - 3, 5
 
-bandwidth: 32
+bandwidth: 512
 unit_energy_cost: 0

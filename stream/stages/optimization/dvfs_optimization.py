@@ -14,8 +14,10 @@ from stream.opt.allocation.genetic_algorithm.fitness_evaluator import DvfsFitnes
 from stream.opt.allocation.genetic_algorithm.genetic_algorithm import (
     DvfsGeneticAlgorithm,
 )
+from stream.cost_model.scheduler import accumulate_core_leakage_energy
 from stream.cost_model.cost_model import StreamCostModelEvaluation
 from zigzag.utils import pickle_save
+from zigzag.utils import pickle_deepcopy
 logger = logging.getLogger(__name__)
 
 
@@ -53,11 +55,11 @@ class DvfsOptimizationStage(Stage):
 
     def run(self):
         logger.info("Start DvfsOptimizationStage.")
-        base_energy = self.get_energy()
-        base_latency = self.get_latency()
-
+        origin_scme = pickle_deepcopy(self.scme)
         self.parse_dvfs()
         self.update_dvfs_info()
+        base_energy = self.get_base_energy()
+        base_latency = self.get_base_latency()
         result, hof = self.run_dvfs_opt()
         opt_energy = result[0]
         opt_latency = result[1]
@@ -68,7 +70,7 @@ class DvfsOptimizationStage(Stage):
         if hof:
             self.plot_pareto(hof, base_energy, base_latency)
             self.plot_dvfs_schedule(hof)
-        yield self.scme, opt_scme
+        yield origin_scme, opt_scme
 
 
     def parse_dvfs(self):
@@ -78,7 +80,7 @@ class DvfsOptimizationStage(Stage):
         self.dvfs_switching_latency = self.dvfs_luts['min_dvfs_switch_latency']
         self.system_clock_freq = self.dvfs_luts['system_clock_freq']
         
-        max_latency_in_CC = int(self.get_latency() / min(self.dvfs_luts["freq_lut"].values()))
+        max_latency_in_CC = int(self.get_base_latency() / min(self.dvfs_luts["freq_lut"].values()))
         dvfs_switching_latency_in_CC = int(self.dvfs_switching_latency * self.system_clock_freq * 1e6)
         if max_latency_in_CC < dvfs_switching_latency_in_CC:
             print("The workload latency is smaller than the dvfs switching latency, no dvfs optimization is performed")
@@ -89,25 +91,44 @@ class DvfsOptimizationStage(Stage):
         self.num_cores = len(core_ids)
         
         for node in self.workload.node_list:
-            node.dvfs_level = 0
             node.set_vdd_lut(self.dvfs_luts["vdd_lut"])
             node.set_freq_lut(self.dvfs_luts["freq_lut"])
-            node.set_energy_lut(self.dvfs_luts["energy_lut"])
+            node.set_energy_lut(self.dvfs_luts["dyn_energy_lut"])
+        # set the static energy info to the accelerator
+        self.accelerator.set_sta_energy_lut(self.dvfs_luts["sta_energy_lut"])
+        # Now we set the default static power per core
+        # currently we assume all the cores have the same static power
+        # TODO: Directly parse the static power per core from the zigzag architecture spec
+        default_core_uW = 100.0
+        sta_power_per_core_uW = {core_id: default_core_uW for core_id in core_ids}
+        self.accelerator.set_sta_power_per_core_uW(sta_power_per_core_uW)
 
-    def get_energy(self):
-        energy = sum(n.get_onchip_energy() for n in self.workload.node_list)
-        return energy
-
-    def get_latency(self):
+    def get_base_latency(self):
         latency = max(n.end for n in self.workload.node_list)
         return latency
-
     def get_core_ids(self):
         core_ids = set()
         for node in self.workload.node_list:
             if node.chosen_core_allocation is not None:
                 core_ids.add(node.chosen_core_allocation)
         return list(core_ids)
+    def get_base_energy(self):
+        latency_base = self.get_base_latency()
+        
+        energy_dyn = sum(n.get_onchip_energy() for n in self.workload.node_list)
+        energy_sta = accumulate_core_leakage_energy(
+            latency_cc=int(latency_base),
+            system_clock_freq_ghz=self.system_clock_freq,
+            dvfs_switching_latency_ms=self.dvfs_switching_latency,
+            dvfs_allocations=None,
+            sta_energy_lut=self.accelerator.get_sta_energy_lut(),
+            static_power_per_core_uW=self.accelerator.get_sta_power_per_core_uW(),
+            default_core_uW=100.0,
+            default_dvfs_level=0,
+        )
+        base_energy = energy_dyn + energy_sta
+        return base_energy
+
 
     def compute_dvfs_level(self, runtime, slack):
         freq_lut = self.dvfs_luts["freq_lut"]
@@ -219,14 +240,15 @@ class DvfsOptimizationStage(Stage):
                 node.dvfs_level = dvfs_level
 
     def run_dvfs_opt(self):
-        fitness_evaluator = DvfsFitnessEvaluator(self.workload,
-                                                 self.accelerator,
-                                                 [],
-                                                 [],
-                                                 self.scheduling_order,
-                                                 self.dvfs_switching_latency,
-                                                 self.system_clock_freq)
-        
+        fitness_evaluator = DvfsFitnessEvaluator(workload=self.workload,
+                                                 accelerator=self.accelerator,
+                                                 cost_lut=[],
+                                                 operands_to_prefetch=[],
+                                                 scheduling_order=self.scheduling_order,
+                                                 dvfs_switching_latency=self.dvfs_switching_latency,
+                                                 system_clock_freq=self.system_clock_freq,
+                                                 vdd_lut=self.dvfs_luts["vdd_lut"])
+
         # determine the number of time slots
 
         valid_allocations = list(self.dvfs_luts["vdd_lut"].keys())
@@ -240,7 +262,7 @@ class DvfsOptimizationStage(Stage):
             valid_allocations=valid_allocations,
             num_generations=self.nb_ga_generations,
             num_individuals=self.nb_ga_individuals,
-            pop=pop_init
+            pop_init=pop_init
         )
         pop, hof = genetic_alg.run()
         best_individual = hof[-1]
@@ -248,25 +270,102 @@ class DvfsOptimizationStage(Stage):
 
         results = fitness_evaluator.get_fitness(best_allocation, return_scme=True)
         return results, hof
-    
-
 
 
     def create_initial_population(self, individual_length):
-        """Create an initial population for the genetic algorithm."""
-        pop_init = []
+        """Create a diverse initial population for the genetic algorithm.
 
-        # Create an individual where all cores use the middle DVFS level for all time windows
-        min_dvfs_level = min(self.dvfs_luts["vdd_lut"].keys())
-        max_dvfs_level = max(self.dvfs_luts["vdd_lut"].keys())
-        mid_dvfs_level = (min_dvfs_level + max_dvfs_level) // 2
-        individual = [mid_dvfs_level] * individual_length
-        pop_init.append(individual)
+        Genome layout:
+        - Individual is a flat list of length = num_cores * num_time_windows
+        - Gene at index (core * num_time_windows + tw) is a DVFS level (int)
 
-        # More heuristic initial individuals can be added here
-        # For example, based on the results of a brute-force DVFS optimization
+        Composition (in order; deduplicated; trimmed/padded to nb_ga_individuals):
+        1) All-mid baseline
+        2) All-min and all-max extremes
+        3) Uniform-random individuals (per gene uniform over valid levels)
+        4) Patterned individuals (staircase/zigzag per core)
+        5) Heuristic-seeded individual (if feasible info absent, use balanced bias pattern)
+        """
+        pop_init: list[list[int]] = []
+        valid_levels = sorted(self.dvfs_luts["vdd_lut"].keys())
+        min_lvl = valid_levels[0]
+        max_lvl = valid_levels[-1]
+        mid_lvl = valid_levels[len(valid_levels) // 2]
+        num_levels = len(valid_levels)
+        rng = random.Random()
+        # 1) mid baseline
+        pop_init.append([mid_lvl] * individual_length)
+        # 2) extremes
+        pop_init.append([min_lvl] * individual_length)
+        pop_init.append([max_lvl] * individual_length)
+        # Helper to index (core, tw) -> flat idx
+        def idx_of(core: int, tw: int) -> int:
+            return core * self.num_time_windows + tw
+        # 3) random individuals (50–70% of population target)
+        target_pop = self.nb_ga_individuals
+        remaining_slots = max(0, target_pop - len(pop_init) - 3)  # reserve for patterns + heuristic
+        rand_count = max(4, remaining_slots // 2)  # ensure several randoms
 
-        return pop_init
+        for _ in range(rand_count):
+            individual = [rng.choice(valid_levels) for _ in range(individual_length)]
+            pop_init.append(individual)
+        # 4) patterned individuals to diversify linkage structure
+        # 4.a Staircase decreasing over time windows per core
+        stair_down = [mid_lvl] * individual_length
+        for core in range(self.num_cores):
+            for tw in range(self.num_time_windows):
+                # map tw to a level index descending
+                level_idx = max(0, num_levels - 1 - (tw * num_levels) // max(1, self.num_time_windows))
+                stair_down[idx_of(core, tw)] = valid_levels[level_idx]
+        pop_init.append(stair_down)
+        # 4.b Staircase increasing
+        stair_up = [mid_lvl] * individual_length
+        for core in range(self.num_cores):
+            for tw in range(self.num_time_windows):
+                level_idx = min(num_levels - 1, (tw * num_levels) // max(1, self.num_time_windows))
+                stair_up[idx_of(core, tw)] = valid_levels[level_idx]
+        pop_init.append(stair_up)
+        # 4.c Zigzag alternating low/high
+        zigzag = [mid_lvl] * individual_length
+        for core in range(self.num_cores):
+            for tw in range(self.num_time_windows):
+                zigzag[idx_of(core, tw)] = min_lvl if (tw % 2 == 0) else max_lvl
+        pop_init.append(zigzag)
+        # 4.d Checkerboard pattern across cores and time windows
+        checker = [mid_lvl] * individual_length
+        for core in range(self.num_cores):
+            for tw in range(self.num_time_windows):
+                if (core + tw) % 2 == 0:
+                    checker[idx_of(core, tw)] = valid_levels[(num_levels // 3) if num_levels >= 3 else 0]
+                else:
+                    checker[idx_of(core, tw)] = valid_levels[(2 * num_levels // 3) if num_levels >= 3 else -1]
+        pop_init.append(checker)
+        # 5) heuristic-seeded individual
+        heuristic = [mid_lvl] * individual_length
+        for core in range(self.num_cores):
+            for tw in range(self.num_time_windows):
+                # bias: earlier windows lower levels, later windows higher levels
+                if tw < self.num_time_windows // 2:
+                    # choose from lower half
+                    upper = max(1, num_levels // 2)
+                    heuristic[idx_of(core, tw)] = rng.choice(valid_levels[:upper])
+                else:
+                    # choose from upper half
+                    lower = max(1, num_levels // 2)
+                    heuristic[idx_of(core, tw)] = rng.choice(valid_levels[lower:])
+        pop_init.append(heuristic)
+        # Deduplicate while preserving order
+        seen = set() 
+        unique_pop = []
+        for ind in pop_init:
+            t = tuple(ind)
+            if t not in seen:
+                unique_pop.append(ind)
+                seen.add(t)
+        # Truncate if too many
+        if len(unique_pop) > self.nb_ga_individuals:
+            unique_pop = unique_pop[: self.nb_ga_individuals]
+        return unique_pop
 
     def convert_individual_to_allocation(self, individual):
         """Convert a 1D array to an allocation dictionary."""
@@ -279,36 +378,42 @@ class DvfsOptimizationStage(Stage):
                 idx += 1
         return allocation
 
-    def plot_pareto(self, hof, base_energy, base_latency):
+    def plot_pareto(self, hof, base_energy_pJ, base_latency_cc):
         os.makedirs(self.dvfs_output_dir, exist_ok=True)
         fig_filename = os.path.join(self.dvfs_output_dir, "pareto.png")
         meta_filename = os.path.join(self.dvfs_output_dir, "dvfs_meta.pickle")
         plt.figure(figsize=(10, 6))
+
         pareto_front = hof
+
+        # cycles -> ms: ms = cycles / (GHz * 1e6)
+        denom_cc_to_ms = max(self.system_clock_freq * 1e6, 1e-9)
+
+        # pJ -> mJ: mJ = pJ * 1e-9
+        pj_to_mj = 1e-9
+
+        pf_energy_mJ, pf_latency_ms = [], []
         if len(pareto_front) > 0:
             print(f"Plotting {len(pareto_front)} Points to Pareto Front")
-            pf_energy = [ind.fitness.values[0] for ind in pareto_front]
-            pf_latency = [ind.fitness.values[1] for ind in pareto_front]
-            plt.scatter(pf_energy, pf_latency, 
+            pf_energy_pJ = [ind.fitness.values[0] for ind in pareto_front]
+            pf_latency_cc = [ind.fitness.values[1] for ind in pareto_front]
+
+            pf_energy_mJ = [e * pj_to_mj for e in pf_energy_pJ]
+            pf_latency_ms = [lat / denom_cc_to_ms for lat in pf_latency_cc]
+
+            plt.scatter(pf_energy_mJ, pf_latency_ms,
                         c='red', s=80, edgecolors='black',
-                        label='Pareto Front', zorder=2) 
-        # now plot the naive points
-        dvfs_levels = sorted(self.dvfs_luts["vdd_lut"].keys())
+                        label='Pareto Front', zorder=2)
 
-        naive_dvfs_energy = [base_energy * self.dvfs_luts["energy_lut"][level] for level in dvfs_levels]
-        naive_dvfs_latency = [int(base_latency / self.dvfs_luts["freq_lut"][level]) for level in dvfs_levels]
+        base_energy_mJ = base_energy_pJ * pj_to_mj
+        base_latency_ms = base_latency_cc / denom_cc_to_ms
 
-        plt.scatter(naive_dvfs_energy, naive_dvfs_latency,
+        plt.scatter(base_energy_mJ, base_latency_ms,
                     c='blue', s=80, linewidths=2,
-                    marker='x', label='Naive DVFS Levels', zorder=3)
+                    marker='x', label='Baseline', zorder=3)
 
-        plt.scatter(base_energy, base_latency,
-                    c='green', s=80, edgecolors='black', linewidths=2,
-                    marker='o', label='Base', zorder=4,
-                    path_effects=[pe.withStroke(linewidth=3, foreground="black")])
-
-        plt.xlabel('Energy Consumption', fontsize=12)
-        plt.ylabel('Latency', fontsize=12)
+        plt.xlabel('Energy (mJ)', fontsize=12)
+        plt.ylabel('Latency (ms)', fontsize=12)
 
         plt.title('Pareto Front Visualization', fontsize=14)
         plt.legend()
@@ -317,11 +422,12 @@ class DvfsOptimizationStage(Stage):
             plt.savefig(fig_filename, dpi=300, bbox_inches='tight')
         else:
             plt.show()
+
         dvfs_meta = {
-            "pf_energy": pf_energy,
-            "pf_latency": pf_latency,
-            "base_energy": base_energy,
-            "base_latency": base_latency
+            "pf_energy_mJ": pf_energy_mJ,
+            "pf_latency_ms": pf_latency_ms,
+            "base_energy_mJ": base_energy_mJ,
+            "base_latency_ms": base_latency_ms
         }
         pickle_save(dvfs_meta, meta_filename)
         

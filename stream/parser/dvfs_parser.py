@@ -17,18 +17,21 @@ class DvfsParser:
         dvfs_levels = dvfs_data['dvfs_level']
         vdd_lut = {}
         freq_lut = {}
-        energy_lut = {}
+        dyn_energy_lut = {}
+        sta_energy_lut = {}
         for level, entries in dvfs_levels.items():
             combined = {}
             for entry in entries:
                 combined.update(entry)
             vdd_lut[level] = combined['vdd']
             freq_lut[level] = combined['freq']
-            energy_lut[level] = combined['energy']
+            dyn_energy_lut[level] = combined['dyn_energy']
+            sta_energy_lut[level] = combined['sta_energy']
         dvfs_luts = {
             'vdd_lut': vdd_lut,
             'freq_lut': freq_lut,
-            'energy_lut': energy_lut,
+            'dyn_energy_lut': dyn_energy_lut,
+            'sta_energy_lut': sta_energy_lut,
             'min_dvfs_switch_latency': min_dvfs_switch_latency,
             'system_clock_freq': system_clock_freq
         }

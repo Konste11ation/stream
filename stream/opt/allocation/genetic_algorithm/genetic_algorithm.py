@@ -182,7 +182,7 @@ class DvfsGeneticAlgorithm:
         valid_allocations,
         num_generations=250,
         num_individuals=64,
-        pop=[],
+        pop_init=[],
     ) -> None:
         if hasattr(creator, 'FitnessMulti'):
             del creator.FitnessMulti
@@ -238,17 +238,49 @@ class DvfsGeneticAlgorithm:
 
         self.toolbox.register("mutate", tools.mutUniformInt, low=min(valid_allocations), up=max(valid_allocations), indpb=0.1)
         # use non-dominated sorting genetic algorithm for multi-objective optimization
+        
         self.toolbox.register("select", tools.selNSGA2)
-
-        # populate random initial generation
-        self.pop = self.toolbox.population(n=self.num_individuals)
-
-        # replace sub part of initial generation with user provided individuals
-        for indv_index in range(len(pop)):
-            if indv_index >= len(self.pop):
+        # Init the population
+        # 1) build a fresh random population as fallback
+        rand_pop = self.toolbox.population(n=self.num_individuals)
+        # 2) convert external pop to DEAP Individuals
+        ext_pop = []
+        min_lvl, max_lvl = min(self.valid_allocations), max(self.valid_allocations)
+        for genome in pop_init:
+            # clamp values to valid range
+            g = [min(max(int(x), min_lvl), max_lvl) for x in genome]
+            # wrap as DEAP Individual
+            ind = creator.Individual(array.array("i", g))
+            # invalidate fitness to force evaluation on first generation
+            if hasattr(ind.fitness, "values"):
+                try:
+                    del ind.fitness.values
+                except Exception:
+                    ind.fitness.values = ()
+            ext_pop.append(ind)
+        # 3) merge: prioritize external seeds, then fill with randoms to reach desired size
+        merged = []
+        # add external seeds first (avoid duplicates optionally)
+        seen = set()
+        for ind in ext_pop:
+            t = tuple(ind)
+            if t not in seen:
+                merged.append(ind)
+                seen.add(t)
+        # fill up to target size with randoms
+        for ind in rand_pop:
+            if len(merged) >= self.num_individuals:
                 break
-            for i in range(min(len(pop[indv_index]), self.individual_length)):
-                self.pop[indv_index][i] = pop[indv_index][i]
+            t = tuple(ind)
+            if t not in seen:
+                # also invalidate randoms to be safe
+                try:
+                    del ind.fitness.values
+                except Exception:
+                    ind.fitness.values = ()
+                merged.append(ind)
+                seen.add(t)
+        self.pop = merged[: self.num_individuals]
     def evaluate(self, individual):
         """Evaluate the fitness of an individual."""
         # Convert the 1D array to an allocation dictionary

@@ -16,11 +16,11 @@ print("Saved Variables Path:", saved_vars_path)
 with open(saved_vars_path, "rb") as file:
     scme_original = pickle.load(file)
 
-dvfs_cfg_path = "stream/inputs/examples/hardware/fine_dvfs.yaml"
+dvfs_cfg_path = "dvfs_dev/inputs/fine_dvfs_1ms.yaml"
 dvfs_output_dir = "dvfs_dev/outputs"
 dvfs_json_path = "dvfs_dev/outputs/dvfs_scme.json"
-nb_ga_generations_dvfs = 16
-nb_ga_individuals_dvfs = 64
+nb_ga_generations_dvfs = 8
+nb_ga_individuals_dvfs = 32
 
 
 

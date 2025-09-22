@@ -37,9 +37,18 @@ class Accelerator:
         self.name = name
         self.cores = cores
         self.offchip_core_id = offchip_core_id
+        self.sta_power_per_core_uW: dict[int, float] = {}
+        self.sta_energy_lut: dict[int, float] = {}
         self.memory_manager = MemoryManager(self)
         self.communication_manager = CommunicationManager(self)
-
+    def set_sta_power_per_core_uW(self, sta_power_per_core_uW: dict[int, float]):
+        self.sta_power_per_core_uW = sta_power_per_core_uW
+    def set_sta_energy_lut(self, sta_energy_lut: dict[int, float]):
+        self.sta_energy_lut = sta_energy_lut
+    def get_sta_power_per_core_uW(self) -> dict[int, float]:
+        return self.sta_power_per_core_uW
+    def get_sta_energy_lut(self) -> dict[int, float]:
+        return self.sta_energy_lut
     def __str__(self) -> str:
         return f"Accelerator({self.name})"
 

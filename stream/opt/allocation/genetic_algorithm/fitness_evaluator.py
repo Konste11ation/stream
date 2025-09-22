@@ -125,8 +125,13 @@ class DvfsFitnessEvaluator(FitnessEvaluator):
         cost_lut: CostModelEvaluationLUT,
         operands_to_prefetch: list[LayerOperand],
         scheduling_order: list[tuple[int, int]],
+        #  DVFS related parameters
         dvfs_switching_latency: float = 1.0,   # in ms
         system_clock_freq: float = 1.0,        # in GHz
+        Cb_uF_per_core: dict[int, float] = {0: 20.0},  # uF, Core equivalent capacitance
+        eta_up: float = 0.9,                   # converter efficiency for up-scaling (0<eta<=1)
+        gamma_drop: float = 1.0,               # fraction of down-scaling stored energy treated as loss (CCM≈1, DCM≈0)
+        vdd_lut: dict[int, float] = {0: 1.0}   # DVFS level to voltage mapping
     ) -> None:
         super().__init__(workload, accelerator, cost_lut)
 
@@ -136,6 +141,10 @@ class DvfsFitnessEvaluator(FitnessEvaluator):
         self.scheduling_order = scheduling_order
         self.dvfs_switching_latency = dvfs_switching_latency
         self.system_clock_freq = system_clock_freq
+        self.Cb_uF_per_core = Cb_uF_per_core
+        self.eta_up = eta_up
+        self.gamma_drop = gamma_drop
+        self.vdd_lut = vdd_lut  # {dvfs_level: voltage}
 
     def get_fitness(self, dvfs_allocations: dict[int, dict[int, int]], return_scme: bool = False):
         """Get the fitness of the given core_allocations
@@ -154,8 +163,89 @@ class DvfsFitnessEvaluator(FitnessEvaluator):
             dvfs_allocations,
         )
         scme.run()
-        energy = sum(n.get_onchip_energy() for n in scme.workload.node_list)
-        latency = scme.latency
+
+        energy_dyn = sum(n.get_onchip_dvfs_energy() for n in scme.workload.node_list)
+        latency = scme.latency  # baseline cycles (at nominal freq)
+
+        # Only count switching boundaries that occur before this latency
+        dvfs_window_cc = int(self.dvfs_switching_latency * self.system_clock_freq * 1e6)
+        if dvfs_window_cc <= 0:
+            dvfs_window_cc = 1
+        # The boundary between window j and j+1 occurs at time (j+1)*dvfs_window_cc
+        # We include boundary j if (j+1)*dvfs_window_cc <= latency
+        j_max_inclusive = max(int(latency // dvfs_window_cc) - 1, -1)
+
+        energy_dvfs_switch = self.accumulate_switching_energy_for_allocation(
+            dvfs_allocations,
+            j_max_inclusive=j_max_inclusive,
+        )
+
+        energy = energy_dyn + energy_dvfs_switch
         if not return_scme:
             return energy, latency
         return energy, latency, scme
+
+    def compute_dvfs_switch_energy(
+        self,
+        Vs: float,
+        Ve: float,
+        core_id: int = 0
+    ) -> float:
+        """
+        Compute DVFS voltage switching energy from Vs to Ve.
+
+        Model:
+        - Upscaling: need to add energy to raise the bulk cap voltage.
+            E_cap = 0.5 * Cb * (Ve^2 - Vs^2)
+            E_conv = E_cap / eta_up
+        - Downscaling: stored energy mostly dissipated (if no recovery).
+            E_drop = 0.5 * Cb * (Vs^2 - Ve^2)
+            E_conv = gamma_drop * E_drop
+        Reference macro-models: Pedram et al., ISLPED/TCAD DVFS overhead modeling.
+        """
+        Cb = self.Cb_uF_per_core.get(core_id, 20.0) * 1e-6  # convert to Farad
+        if Ve == Vs:
+            return 0.0
+
+        if Ve > Vs:
+            # Up-scaling energy to charge the bulk capacitor, include converter efficiency
+            E_cap = 0.5 * Cb * (Ve * Ve - Vs * Vs)
+            E_conv = E_cap / max(min(self.eta_up, 1.0), 1e-3)  # clamp eta to (1e-3,1]
+        else:
+            # Down-scaling: treat stored energy as loss with tunable fraction gamma_drop
+            E_drop = 0.5 * Cb * (Vs * Vs - Ve * Ve)
+            E_conv = max(self.gamma_drop, 0.0) * E_drop
+        E_conv_pJ = E_conv * 1e12  # convert to pico-Joule
+        return E_conv_pJ
+    
+    def accumulate_switching_energy_for_allocation(
+        self,
+        dvfs_allocations: dict[int, dict[int, int]],
+        j_max_inclusive: int,
+    ) -> float:
+        """
+        Sum switching energy for each core across adjacent time-window boundaries (j -> j+1)
+        where DVFS level changes, but only for boundaries that occur before the makespan.
+        A boundary j is counted only if (j+1) * dvfs_window_cc <= latency, which is
+        equivalent to j <= j_max_inclusive.
+        """
+        total_E_pJ = 0.0
+        for core, tw_map in dvfs_allocations.items():
+            if not tw_map:
+                continue
+            # Iterate j in sorted time windows, but stop at j_max_inclusive
+            tw_ids = sorted(tw_map.keys())
+            for j_idx in range(len(tw_ids) - 1):
+                j = tw_ids[j_idx]
+                if j > j_max_inclusive:
+                    break
+                jn = tw_ids[j_idx + 1]
+                l1 = tw_map[j]
+                l2 = tw_map[jn]
+                if l1 == l2:
+                    continue
+                Vs = self.vdd_lut[l1]
+                Ve = self.vdd_lut[l2]
+                Es_pJ = self.compute_dvfs_switch_energy(Vs=Vs, Ve=Ve, core_id=core)
+                total_E_pJ += Es_pJ
+        return total_E_pJ

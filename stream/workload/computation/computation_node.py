@@ -75,8 +75,7 @@ class ComputationNode(LayerNode, Node):
             onchip_energy=0,
             offchip_energy=0,
             runtime=0,
-            possible_core_allocation=mapping_attr.core_allocation,
-            dvfs_level = 0
+            possible_core_allocation=mapping_attr.core_allocation
         )
 
         # Overwrite default spatial mapping with given one

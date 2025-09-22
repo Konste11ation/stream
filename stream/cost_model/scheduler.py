@@ -227,42 +227,170 @@ def check_for_removal(
                 )
 
 
-def set_dvfs_level_for_node(
-    node: ComputationNode,
-    system_clock_freq: float,
-    dvfs_switching_latency: float,
+def set_node_dvfs(
+    node: "ComputationNode",
+    system_clock_freq_ghz: float,
+    dvfs_switching_latency_ms: float,
     dvfs_allocations: dict[int, dict[int, int]]
 ):
-    """Set the DVFS level for a specific node.
-
-    Args:
-        node (ComputationNode): The node to set the DVFS level for.
-        system_clock_freq (float): The system clock frequency in GHz.
-        dvfs_switching_latency (float): The DVFS switching latency in ms.
-        dvfs_allocations (dict[int, dict[int, int]]): The DVFS allocations for each core. {core_id: {time_window_id: dvfs_level}}
     """
-    if dvfs_allocations is None:
-        node.dvfs_level = 0  # Default DVFS level if no allocations provided
-    else:
-        assert node.chosen_core_allocation is not None, "Core should be allocated"
-        assert dvfs_allocations is not None, "DVFS allocations should be provided"
-        core_id = node.chosen_core_allocation
-        if core_id in dvfs_allocations:
-            dvfs_allocation_for_core = dvfs_allocations[core_id]
-            assert node.start is not None, "Node start time should be set"
-            # Determine the time window id based on the node's start time and the DVFS switching latency
-            start_ms = node.start / (system_clock_freq * 1e6)  # Convert cycles to ms
-            time_window_id = int(start_ms // dvfs_switching_latency)
-            if time_window_id in dvfs_allocation_for_core:
-                dvfs_level = dvfs_allocation_for_core[time_window_id]
-            else:
-                # If no specific allocation for this time window，assert
-                raise ValueError(f"No DVFS allocation for core {core_id} at time window {time_window_id}")
+    Compute post-DVFS runtime in baseline (nominal) cycles by stepping through DVFS windows.
+    - We treat time on a baseline time axis (f_scale = 1.0), so 'current_time_cc' and 'dvfs_window_cc'
+      are measured in baseline cycles.
+    - 'nominal_remaining' is the fixed amount of productive work measured in nominal cycles.
+    - In a window with frequency ratio f_scale, consuming 'x' nominal cycles requires 'x/f_scale'
+      baseline cycles of wall time; conversely, a window with 'W' baseline cycles can consume at most
+      'W * f_scale' nominal cycles. 
+    e.g. 100 CC @ 1Ghz == 200 CC @ 0.5Ghz
+         here the f_scale = 0.5 and is calculated as dvfs_freq / nominal_freq
+         so in order to get the nominal cycles that can be consumed in this time window
+         we need to multiply the wall-clock cycles by the f_scale
+    """
 
-        node.dvfs_level = dvfs_level
+    # Window size in baseline cycles (baseline time axis at f_scale=1)
+    dvfs_window_cc = int(dvfs_switching_latency_ms * system_clock_freq_ghz * 1e6)  # ms * GHz * 1e6 = cycles
 
+    core_id = node.chosen_core_allocation
+    assert core_id is not None, "Core should be allocated"
+    dvfs_allocations_for_core = dvfs_allocations[core_id]
 
+    # Baseline time axis and nominal work
+    current_time_cc = node.get_start()            # baseline cycles
+    nominal_remaining = node.get_runtime()  # nominal cycles (productive work at f_scale=1)
 
+    dvfs_runtime_cc = 0           # accumulated wall time in baseline cycles
+    segment_levels: list[int] = [] 
+    segment_durations_cc: list[int] = []  # per-segment wall time in baseline cycles
+
+    while nominal_remaining > 0:
+        time_window_id = int(current_time_cc // dvfs_window_cc)
+        dvfs_lvl = dvfs_allocations_for_core[time_window_id]
+        f_scale = node.freq_lut[dvfs_lvl]  # frequency ratio (0 < f_scale <= 1]
+
+        # Remaining baseline wall time capacity in this window
+        window_end_cc = (time_window_id + 1) * dvfs_window_cc
+        cc_left_in_window = window_end_cc - current_time_cc
+
+        # Max nominal work this window can consume
+        max_nominal_this_window = cc_left_in_window * f_scale
+
+        # Decide how much nominal work to consume in this window
+        consumed_nominal = min(nominal_remaining, max_nominal_this_window)
+
+        # Corresponding baseline wall time for that work
+        consumed_wall_exact = consumed_nominal / f_scale
+
+        # Control rounding: keep integer baseline cycles but avoid negative remainder
+        consumed_wall_cc = int(consumed_wall_exact)
+        if consumed_wall_cc == 0 and consumed_nominal > 0:
+            # Ensure forward progress when small fractions appear
+            consumed_wall_cc = 1
+
+        # Record segment
+        segment_levels.append(dvfs_lvl)
+        segment_durations_cc.append(consumed_wall_cc)
+        dvfs_runtime_cc += consumed_wall_cc
+
+        # Update state
+        nominal_remaining -= consumed_nominal
+        current_time_cc += consumed_wall_cc
+
+    node.set_dvfs_levels(segment_levels)
+    node.set_dvfs_runtime(dvfs_runtime_cc)
+    node.set_dvfs_window_duration(segment_durations_cc)
+
+    # Dynamic energy: time-weighted scaling over segments using dyn_energy_lut
+    total_energy = 0.0
+    total_cc = sum(segment_durations_cc)
+    for lvl, dur_cc in zip(segment_levels, segment_durations_cc):
+        time_share = dur_cc / total_cc
+        e_scale = node.get_energy_lut().get(lvl, 1.0)
+        total_energy += node.get_onchip_energy() * e_scale * time_share
+
+    node.set_onchip_dvfs_energy(total_energy)
+    
+def accumulate_core_leakage_energy(
+    latency_cc: int,
+    system_clock_freq_ghz: float,
+    dvfs_switching_latency_ms: float,
+    dvfs_allocations: dict[int, dict[int, int]] | None,
+    sta_energy_lut: dict[int, float],
+    static_power_per_core_uW: dict[int, float] | None = None,
+    default_core_uW: float = 100.0,
+    default_dvfs_level: int = 0,
+) -> float:
+    """
+    Compute total leakage energy (pJ) across all cores by integrating static power over
+    DVFS windows up to makespan (latency_cc).
+
+    Fallback rules:
+      - If dvfs_allocations is None (no DVFS), use default_level over the entire makespan for all known cores.
+      - If a core/window level is missing, fall back to default_level.
+
+    Returns:
+      Total leakage energy in picojoules (pJ).
+    """
+    # Validate makespan
+    if latency_cc <= 0:
+        return 0.0
+
+    # Baseline frequency and window size (cycles)
+    f_nom_hz = float(system_clock_freq_ghz) * 1e9
+    dvfs_window_cc = int(dvfs_switching_latency_ms * system_clock_freq_ghz * 1e6)
+    if dvfs_window_cc <= 0:
+        dvfs_window_cc = 1
+
+    static_power_per_core_uW = static_power_per_core_uW or {}
+
+    total_E_leak_J = 0.0
+
+    # Determine cores to process
+    core_ids: set[int] = set()
+    if dvfs_allocations is not None:
+        core_ids |= set(int(c) for c in dvfs_allocations.keys())
+    # Also include cores that have a static power entry even if no dvfs_allocations
+    core_ids |= set(int(c) for c in static_power_per_core_uW.keys() if isinstance(c, int) and c >= 0)
+
+    if not core_ids:
+        return 0.0
+
+    # Last window index (inclusive) overlapping [0, latency_cc)
+    last_idx_inclusive = (int(latency_cc) - 1) // dvfs_window_cc
+
+    for core_id in sorted(core_ids):
+        # Nominal per-core static power (W); allow a shared default via key -1
+        P_nom_uW = static_power_per_core_uW.get(core_id, static_power_per_core_uW.get(-1, default_core_uW))
+        P_nom_W = float(P_nom_uW) * 1e-6
+        if P_nom_W <= 0.0:
+            continue
+
+        # Case A: no DVFS allocation provided -> use default_level across full makespan
+        if dvfs_allocations is None:
+            sta_scale = float(sta_energy_lut.get(default_dvfs_level, 1.0))
+            dt_s = int(latency_cc) / f_nom_hz
+            total_E_leak_J += (P_nom_W * sta_scale) * dt_s
+            continue
+
+        # Case B: DVFS provided -> step windows, fallback to default_level when missing
+        tw_map = dvfs_allocations.get(core_id, {})
+        for j in range(0, last_idx_inclusive + 1):
+            lvl = int(tw_map.get(j, default_dvfs_level))
+            sta_scale = float(sta_energy_lut.get(lvl, 1.0))
+
+            # Window [t0, t1) and overlap with [0, latency_cc)
+            t0 = j * dvfs_window_cc
+            t1 = (j + 1) * dvfs_window_cc
+            eff_start = max(0, t0)
+            eff_end = min(int(latency_cc), t1)
+            eff_cc = eff_end - eff_start
+            if eff_cc <= 0:
+                continue
+
+            dt_s = eff_cc / f_nom_hz
+            total_E_leak_J += (P_nom_W * sta_scale) * dt_s
+
+    # Return in picojoules
+    return total_E_leak_J * 1e12
 def schedule_graph(
     G: ComputationNodeWorkload,
     accelerator: "Accelerator",
@@ -410,12 +538,11 @@ def schedule_graph(
         # link for the duration
         # This might again delay the execution if the offchip link was already blocked by another core
         
-        # here the dvfs level is not setted yet, we assume the worst case that the dvfs level is the lowest one
         timestep = accelerator.block_offchip_links(
             best_candidate.too_large_operands,
             core_id,
             timestep,
-            best_candidate.get_worst_runtime(),
+            best_candidate.get_runtime(),
             best_candidate,
         )
 
@@ -447,14 +574,19 @@ def schedule_graph(
         best_candidate.set_start(start)
         # Here we use the dvfs_allocation for this core at the time window in which the node starts
         # to retrieve the dvfs_level for the current node
-        set_dvfs_level_for_node(
-            best_candidate,
-            system_clock_freq,
-            dvfs_switching_latency,
-            dvfs_allocations
-        )
+        if dvfs_allocations is not None:
+            set_node_dvfs(
+                best_candidate,
+                system_clock_freq,
+                dvfs_switching_latency,
+                dvfs_allocations
+            )
         # Now that we have the dvfs level, we can get the actual runtime of this node
-        end = start + best_candidate.get_runtime()
+        if dvfs_allocations is not None:
+            runtime = best_candidate.get_dvfs_runtime()
+        else:
+            runtime = best_candidate.get_runtime()
+        end = start + runtime
         accelerator.spawn(
             output_tensor,
             core_to_add_output_to,
@@ -469,7 +601,11 @@ def schedule_graph(
         cores_idle_from[core_id] = end
 
         # Add the computation energy of running this node
-        total_cn_onchip_energy += best_candidate.get_onchip_energy()
+        if dvfs_allocations is not None:
+            on_chip_energy = best_candidate.get_onchip_dvfs_energy()
+        else:
+            on_chip_energy = best_candidate.get_onchip_energy()
+        total_cn_onchip_energy += on_chip_energy
         total_cn_offchip_memory_energy += best_candidate.get_offchip_energy()
 
         # Add this node to the scheduled nodes
@@ -529,7 +665,27 @@ def schedule_graph(
     cns_end_time = max((n.end for n in G.node_list))
     links_end_time = max([event.end for event in accelerator.communication_manager.events], default=0)
     latency = max(cns_end_time, links_end_time)
+    # Add the leakage energy of all cores across the entire schedule
 
+    if dvfs_allocations is not None:
+        total_leakage_energy = accumulate_core_leakage_energy(
+            latency_cc=int(latency),
+            system_clock_freq_ghz=system_clock_freq,
+            dvfs_switching_latency_ms=dvfs_switching_latency,
+            dvfs_allocations=dvfs_allocations,
+            sta_energy_lut=accelerator.get_sta_energy_lut(),
+            static_power_per_core_uW=accelerator.get_sta_power_per_core_uW(),
+        )
+    else:
+        total_leakage_energy = accumulate_core_leakage_energy(
+            latency_cc=int(latency),
+            system_clock_freq_ghz=system_clock_freq,
+            dvfs_switching_latency_ms=dvfs_switching_latency,
+            dvfs_allocations=None,
+            sta_energy_lut=None,
+            static_power_per_core_uW=None,
+        )
+    total_cn_onchip_energy += total_leakage_energy
     return (
         latency,
         total_cn_onchip_energy,

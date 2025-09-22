@@ -65,8 +65,8 @@ class TilingGenerationStage(Stage):
                     raise ValueError("Unsupported mode for hint loops determination.")
 
         # # Override the intra_core_tiling in case the node is alone in a stack
-        # if stack_size == 1:
-        #     node.intra_core_tiling = []
+        if stack_size == 1:
+            node.intra_core_tiling = []
 
     def set_valid_inter_core_tiling(self, node: ComputationNode):
         self.remove_invalid_entries_from_inter_core_tiling(node)

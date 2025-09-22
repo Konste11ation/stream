@@ -57,6 +57,6 @@ dvfs_level:
     - dyn_energy: 0.25
     - sta_energy: 0.50
 # Minimum latency (in ms) to switch between DVFS levels
-min_dvfs_switch_latency: 1
+min_dvfs_switch_latency: 10
 # system clock frequency (in GHz)
 system_clock_freq: 1

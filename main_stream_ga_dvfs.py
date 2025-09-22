@@ -37,8 +37,8 @@ dvfs_cfg_path = os.path.join(hardware_dir, f"{dvfs}.yaml")
 layer_stacks = None
 nb_ga_generations = 8
 nb_ga_individuals = 8
-nb_ga_generations_dvfs = 16
-nb_ga_individuals_dvfs = 64
+nb_ga_generations_dvfs = 8
+nb_ga_individuals_dvfs = 8
 dvfs_opt = True
 skip_if_exist = True
 

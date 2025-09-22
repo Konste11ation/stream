@@ -46,8 +46,9 @@ class SchedulingOrderGenerationStage(Stage):
         for cme, extra_info in sub_stage.run():
             yield cme, extra_info
 
-    def get_layer_stacks_lbl(self):
-        return [(id,) for id in sorted([n.id for n in self.workload.node_list if isinstance(n, ComputationNode)])]
+    def get_scheduling_order_lbl(self):
+        """Generate the scheduling order in case layers are executed sequentially"""
+        return sorted(((n.id, n.sub_id) for n in self.workload.node_list), reverse=True)
 
     def get_layer_stacks_fused(self):
         cumsum = 0

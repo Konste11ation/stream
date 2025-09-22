@@ -3,8 +3,8 @@ name: offchip_2d
 memories:
   dram:
     size: 10000000000
-    r_bw: 64
-    w_bw: 64
+    r_bw: 512
+    w_bw: 512
     r_cost: 1000
     w_cost: 1000
     area: 0

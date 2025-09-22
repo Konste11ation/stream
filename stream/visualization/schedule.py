@@ -509,9 +509,12 @@ def get_dataframe_from_scme(
         start = node.get_start()
         end = node.get_end()
         runtime = node.get_runtime()
+        dvfs_runtime = node.get_dvfs_runtime()
+        dvfs_levels = node.get_dvfs_levels()
         su_perfect_temporal, su_nonperfect_temporal = get_spatial_utilizations(scme, node, cost_lut)
         en_total_per_op, en_breakdown_per_op = get_energy_breakdown(scme, node, cost_lut)
         energy = node.get_onchip_energy()
+        dvfs_energy = node.get_onchip_dvfs_energy()
         tensors = get_real_input_tensors(node, scme.workload)
         task_type = "compute"
         d = dict(
@@ -523,12 +526,15 @@ def get_dataframe_from_scme(
             Resource=f"Core {core_id}",
             Layer=layer,
             Runtime=runtime,
+            DvfsRuntime=dvfs_runtime,
+            DvfsLevels=dvfs_levels,
             SpatialUtilization=su_perfect_temporal,
             SpatialUtilizationWithTemporal=su_nonperfect_temporal,
             Tensors=tensors,
             Type=task_type,
             Activity=np.nan,
             Energy=energy,
+            DvfsEnergy=dvfs_energy,
             EnergyTotalPerOp=en_total_per_op,
             EnergyBreakdownPerOp=en_breakdown_per_op,
         )
