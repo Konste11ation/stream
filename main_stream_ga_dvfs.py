@@ -21,7 +21,7 @@ dvfs = "fine_dvfs"
 hardware_dir = "stream/inputs/examples/hardware"
 mapping_dir = "stream/inputs/examples/mapping"
 workload_dir = "stream/inputs/examples/workload"
-mode = "lbl"
+mode = "fused"
 output_dir = "outputs"
 
 experiment_id = f"{hardware}-{workload}-{mode}-{dvfs}-genetic_algorithm"

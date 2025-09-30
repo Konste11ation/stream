@@ -210,7 +210,7 @@ class DvfsFitnessEvaluator(FitnessEvaluator):
         if Ve > Vs:
             # Up-scaling energy to charge the bulk capacitor, include converter efficiency
             E_cap = 0.5 * Cb * (Ve * Ve - Vs * Vs)
-            E_conv = E_cap / max(min(self.eta_up, 1.0), 1e-3)  # clamp eta to (1e-3,1]
+            E_conv = E_cap / max(min(self.eta_up, 1.0), 1e-3) 
         else:
             # Down-scaling: treat stored energy as loss with tunable fraction gamma_drop
             E_drop = 0.5 * Cb * (Vs * Vs - Ve * Ve)

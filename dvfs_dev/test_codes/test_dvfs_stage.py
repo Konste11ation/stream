@@ -8,10 +8,12 @@ from stream.stages.optimization.dvfs_optimization import DvfsOptimizationStage
 from stream.visualization.perfetto import convert_scme_to_perfetto_json
 from stream.utils import CostModelEvaluationLUT
 from stream.stages.stage import MainStage
-cost_lut_path = "outputs/tpu_like_quad_core-resnet50-lbl-fine_dvfs-genetic_algorithm/cost_lut.pickle"
+
+stream_experiment = "tpu_like_quad_core-resnet50-lbl-fine_dvfs-genetic_algorithm"
+cost_lut_path = f"outputs/{stream_experiment}/cost_lut.pickle"
 
 
-saved_vars_path = 'outputs/tpu_like_quad_core-resnet50-lbl-fine_dvfs-genetic_algorithm/scme.pickle'
+saved_vars_path = f'outputs/{stream_experiment}/scme.pickle'
 print("Saved Variables Path:", saved_vars_path)
 with open(saved_vars_path, "rb") as file:
     scme_original = pickle.load(file)
@@ -19,8 +21,8 @@ with open(saved_vars_path, "rb") as file:
 dvfs_cfg_path = "dvfs_dev/inputs/fine_dvfs_1ms.yaml"
 dvfs_output_dir = "dvfs_dev/outputs"
 dvfs_json_path = "dvfs_dev/outputs/dvfs_scme.json"
-nb_ga_generations_dvfs = 8
-nb_ga_individuals_dvfs = 32
+nb_ga_generations_dvfs = 4
+nb_ga_individuals_dvfs = 16
 
 
 
@@ -35,7 +37,9 @@ dvfs_opt_stage = MainStage(
 
 answers = dvfs_opt_stage.run()
 scme = answers[0][0]
-scme_dvfs_opt = answers[0][1]
+scmes_dvfs_opt = answers[0][1]
 
 cost_lut = CostModelEvaluationLUT(cost_lut_path)
-convert_scme_to_perfetto_json(scme_dvfs_opt, cost_lut, json_path=dvfs_json_path)
+for i, scme_dvfs_opt in enumerate(scmes_dvfs_opt):
+    dvfs_scme_json_path = f"dvfs_dev/outputs/dvfs_scme_{i}.json"
+    convert_scme_to_perfetto_json(scme_dvfs_opt, cost_lut, json_path=dvfs_scme_json_path)

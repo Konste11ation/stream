@@ -52,6 +52,7 @@ class DvfsOptimizationStage(Stage):
         self.system_clock_freq = 1.0  # default 1GHz
         self.nb_ga_generations = kwargs["nb_ga_generations_dvfs"]
         self.nb_ga_individuals = kwargs["nb_ga_individuals_dvfs"]
+        self.fitness_evaluator = None
 
     def run(self):
         logger.info("Start DvfsOptimizationStage.")
@@ -60,17 +61,27 @@ class DvfsOptimizationStage(Stage):
         self.update_dvfs_info()
         base_energy = self.get_base_energy()
         base_latency = self.get_base_latency()
-        result, hof = self.run_dvfs_opt()
-        opt_energy = result[0]
-        opt_latency = result[1]
-        opt_scme = result[2]
+        hof = self.run_dvfs_opt()
+        opt_result = self.fitness_evaluator.get_fitness(
+            self.convert_individual_to_allocation(hof[-1]), return_scme=False)
+        opt_energy = opt_result[0]
+        opt_latency = opt_result[1]
+        opt_scmes = self.get_opt_scmes(hof)
         print(f"Base Energy = {base_energy}, Base Latency = {base_latency}")
         print(f"Opt Energy = {opt_energy}, Opt Latency = {opt_latency}")
         logger.info("End DvfsOptimizationStage.")
         if hof:
             self.plot_pareto(hof, base_energy, base_latency)
             self.plot_dvfs_schedule(hof)
-        yield origin_scme, opt_scme
+        yield origin_scme, opt_scmes
+
+    def get_opt_scmes(self, hof):
+        opt_scmes = []
+        for individual in hof:
+            best_allocation = self.convert_individual_to_allocation(individual)
+            result = self.fitness_evaluator.get_fitness(best_allocation, return_scme=True)
+            opt_scmes.append(result[2])
+        return opt_scmes
 
 
     def parse_dvfs(self):
@@ -129,116 +140,6 @@ class DvfsOptimizationStage(Stage):
         base_energy = energy_dyn + energy_sta
         return base_energy
 
-
-    def compute_dvfs_level(self, runtime, slack):
-        freq_lut = self.dvfs_luts["freq_lut"]
-        sorted_levels = sorted(freq_lut.keys(), reverse=True)
-        for level in sorted_levels:
-            freq_scaling = freq_lut[level]
-            runtime_dvfs = int(runtime / freq_scaling)
-            if runtime_dvfs <= runtime + slack:
-                return level
-        return min(freq_lut.keys())
-
-    def get_communication_dic(self):
-        """
-        Return all the output transfer event as a dic
-        key:(id,sub_id)
-        value:{start, end, runtime, tensors}
-        """
-        active_links = set()
-        node_events = {}
-        for ky, link_pair in self.accelerator.communication_manager.pair_links.items():
-            if link_pair:
-                for link in link_pair:
-                    if link.events:
-                        active_links.add(link)
-        for pair_link_id, cl in enumerate(active_links):
-            for event in cl.events:
-                start = event.start
-                end = event.end
-                runtime = end - start
-                tensors = event.tensors
-                node = event.tensors[0].origin
-                tensor_type = event.tensors[0].memory_operand
-                node_id = node.id
-                node_sub_id = node.sub_id
-
-                if runtime == 0:
-                    continue
-                if not tensor_type.is_output():
-                    continue
-                key = (node_id, node_sub_id)
-                event_record = {
-                    "Start": start,
-                    "End": end,
-                    "Runtime": runtime,
-                    "Tensors": tensors 
-                }
-                node_events.setdefault(key, event_record)
-        return node_events
-
-    def get_start_time_per_core(self):
-        """
-        Retuen a dict to store the start_time per core per node
-        key: core
-        value: [(node, start_time), ...]
-        """
-        start_time_per_core = defaultdict(list)
-        
-        for node in self.workload.node_list:
-            core = node.chosen_core_allocation
-            start_time = node.get_start()
-            start_time_per_core[core].append((node, start_time))
-        # sorted by the start time
-        # smallest first
-        for core in start_time_per_core:
-            start_time_per_core[core].sort(key=lambda x: x[1])
-        return start_time_per_core
-
-    def find_next_start_time_per_core(self, start_time_per_core, core, end_time):
-        # Check if the core exist
-        if core not in start_time_per_core:
-            return float("nan")
-        
-        # Get all the nodes running on the current core
-        core_nodes = start_time_per_core[core]
-
-        # find the nxt start time after the current end time
-        for _,start_time in core_nodes:
-            if(start_time>=end_time):
-                return start_time
-        return float("nan")
-
-    def brute_task_level_dvfs_opt(self):
-        node_event_dic = self.get_communication_dic()
-        start_time_per_core = self.get_start_time_per_core()
-        for node in self.workload.node_list:
-            cur_id = node.id
-            cur_sub_id = node.sub_id
-            cur_end = node.get_end()
-            cur_runtime = node.get_runtime()
-            cur_core = node.chosen_core_allocation
-            successor_nodes = set(self.workload.successors(node))
-            successor_nodes_start_times = [n.start for n in successor_nodes]
-            # the current node is the exit node
-            if successor_nodes_start_times == []:
-                continue
-            # get the output transfer time
-            output_transfer_event = node_event_dic.get((cur_id, cur_sub_id), [])
-            output_transfer_time = output_transfer_event["Runtime"] if output_transfer_event else 0 
-            # the earlist start time of the successor
-            est_successors = min(successor_nodes_start_times)
-            # the earlist start time of the current core node
-            est_core =  self.find_next_start_time_per_core(start_time_per_core,
-                                                           cur_core,
-                                                           cur_end)
-            deadline = min(est_successors - output_transfer_time,est_core)
-            slack = deadline - cur_end
-            if slack>0:
-                dvfs_level = self.compute_dvfs_level(cur_runtime, slack)
-                node.dvfs_level = dvfs_level
-
     def run_dvfs_opt(self):
         fitness_evaluator = DvfsFitnessEvaluator(workload=self.workload,
                                                  accelerator=self.accelerator,
@@ -248,7 +149,7 @@ class DvfsOptimizationStage(Stage):
                                                  dvfs_switching_latency=self.dvfs_switching_latency,
                                                  system_clock_freq=self.system_clock_freq,
                                                  vdd_lut=self.dvfs_luts["vdd_lut"])
-
+        self.fitness_evaluator = fitness_evaluator
         # determine the number of time slots
 
         valid_allocations = list(self.dvfs_luts["vdd_lut"].keys())
@@ -265,11 +166,7 @@ class DvfsOptimizationStage(Stage):
             pop_init=pop_init
         )
         pop, hof = genetic_alg.run()
-        best_individual = hof[-1]
-        best_allocation = self.convert_individual_to_allocation(best_individual)
-
-        results = fitness_evaluator.get_fitness(best_allocation, return_scme=True)
-        return results, hof
+        return hof
 
 
     def create_initial_population(self, individual_length):
@@ -378,7 +275,17 @@ class DvfsOptimizationStage(Stage):
                 idx += 1
         return allocation
 
+
     def plot_pareto(self, hof, base_energy_pJ, base_latency_cc):
+        # Helper: build constant allocation for a given level
+        def constant_allocation(level: int) -> dict[int, dict[int, int]]:
+            alloc: dict[int, dict[int, int]] = {}
+            for core in range(self.num_cores):
+                alloc[core] = {}
+                for tw in range(self.num_time_windows):
+                    alloc[core][tw] = level
+            return alloc
+        # Plot the Pareto front
         os.makedirs(self.dvfs_output_dir, exist_ok=True)
         fig_filename = os.path.join(self.dvfs_output_dir, "pareto.png")
         meta_filename = os.path.join(self.dvfs_output_dir, "dvfs_meta.pickle")
@@ -405,12 +312,31 @@ class DvfsOptimizationStage(Stage):
                         c='red', s=80, edgecolors='black',
                         label='Pareto Front', zorder=2)
 
-        base_energy_mJ = base_energy_pJ * pj_to_mj
-        base_latency_ms = base_latency_cc / denom_cc_to_ms
+        # base_energy_mJ = base_energy_pJ * pj_to_mj
+        # base_latency_ms = base_latency_cc / denom_cc_to_ms
 
-        plt.scatter(base_energy_mJ, base_latency_ms,
-                    c='blue', s=80, linewidths=2,
-                    marker='x', label='Baseline', zorder=3)
+        # plt.scatter(base_energy_mJ, base_latency_ms,
+        #             c='blue', s=80, linewidths=2,
+        #             marker='x', label='Baseline', zorder=3)
+
+        # Plot constant-level baselines
+            # Evaluate all constant levels
+        constant_levels = sorted(self.dvfs_luts["vdd_lut"].keys())
+        const_energy_mJ = []
+        const_latency_ms = []
+        const_labels = []
+        for lvl in constant_levels:
+            alloc = constant_allocation(lvl)
+            result = self.fitness_evaluator.get_fitness(alloc, return_scme=False)
+            e_pJ = result[0]
+            l_cc = result[1]
+            const_energy_mJ.append(e_pJ * pj_to_mj)
+            const_latency_ms.append(l_cc / denom_cc_to_ms)
+            const_labels.append(lvl)
+        # Plot constant-level baselines
+        plt.scatter(const_energy_mJ, const_latency_ms,
+                    c='green', s=60, edgecolors='black',
+                    marker='o', label='Constant-Level Baselines', zorder=4)
 
         plt.xlabel('Energy (mJ)', fontsize=12)
         plt.ylabel('Latency (ms)', fontsize=12)
@@ -426,20 +352,25 @@ class DvfsOptimizationStage(Stage):
         dvfs_meta = {
             "pf_energy_mJ": pf_energy_mJ,
             "pf_latency_ms": pf_latency_ms,
-            "base_energy_mJ": base_energy_mJ,
-            "base_latency_ms": base_latency_ms
+            "base_energy_mJ": const_energy_mJ,
+            "base_latency_ms": const_latency_ms
         }
         pickle_save(dvfs_meta, meta_filename)
         
         
     def plot_dvfs_schedule(self, hof):
-        # Draw 5 individuals from the Pareto front
+        # Draw all individuals from the Pareto front
+        pj_to_mj = 1e-9
+        denom_cc_to_ms = max(self.system_clock_freq * 1e6, 1e-9)
         os.makedirs(self.dvfs_output_dir, exist_ok=True)
-                
-        hof_length = min(5, len(hof))
-        selected_individuals = hof[-hof_length:] 
-        for idx, individual in enumerate(selected_individuals):
+
+        for idx, individual in enumerate(hof):
             best_allocation = self.convert_individual_to_allocation(individual)
+            result = self.fitness_evaluator.get_fitness(best_allocation, return_scme=False)
+            e_pJ = result[0]
+            l_cc = result[1]
+            e = e_pJ * pj_to_mj
+            l = l_cc / denom_cc_to_ms
             plt.figure(figsize=(12, 6))
             
             fig_filename = os.path.join(self.dvfs_output_dir, f"dvfs_schedule_{idx}.png")
@@ -452,7 +383,7 @@ class DvfsOptimizationStage(Stage):
                 plt.step(times, dvfs_levels, where='post', label=f'Core {core}')
             plt.xlabel('Time (ms)', fontsize=12)
             plt.ylabel('DVFS Level', fontsize=12)
-            plt.title('DVFS Schedule per Core', fontsize=14)
+            plt.title(f'DVFS Schedule per Core with Energy {e:.2f} mJ and Latency {l:.2f} ms', fontsize=14)
             plt.yticks(sorted(self.dvfs_luts["vdd_lut"].keys()))
             plt.legend()
             plt.grid(True, linestyle='--', alpha=0.7)
