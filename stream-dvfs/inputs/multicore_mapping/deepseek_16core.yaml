@@ -1,0 +1,177 @@
+- name: default
+  core_allocation: [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
+  intra_core_tiling:
+    - D, 64
+  inter_core_tiling:
+    - H, 1
+  spatial_mapping:
+    D1:
+      - D, 256
+    D2:
+      - D, 1
+
+- name: Add
+  core_allocation: [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
+  inter_core_tiling:
+    - D, 16
+  intra_core_tiling:
+    - D, 8
+  spatial_mapping:
+    D1:
+      - D, 256
+    D2:
+      - K, 1
+
+- name: Softmax
+  layer_dimension_names: [B, L, H, D]
+  core_allocation: [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
+  inter_core_tiling:
+    - H, 16
+  intra_core_tiling:
+    - H, 8
+
+- name: /layers.0/attn/wq_a/MatMul # dc,ck->dk, so D==1
+  core_allocation: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  inter_core_tiling:
+    - C, 16
+  intra_core_tiling:
+    - K, 1
+  spatial_mapping:
+    D1:
+      - C, 256
+    D2:
+      - K, 256
+
+- name: /layers.0/attn/wkv_a/MatMul
+  core_allocation: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  inter_core_tiling:
+    - C, 16
+  intra_core_tiling:
+    - K, 1
+  spatial_mapping:
+    D1:
+      - C, 256
+    D2:
+      - K, 256
+
+- name: /layers.0/attn/wq_b/MatMul
+  core_allocation: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  inter_core_tiling:
+    - C, 16
+  intra_core_tiling:
+    - K, 1
+  spatial_mapping:
+    D1:
+      - C, 256
+    D2:
+      - K, 256
+
+- name: /layers.0/attn/wkv_b/MatMul
+  core_allocation: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  inter_core_tiling:
+    - K, 16
+  intra_core_tiling:
+    - K, 8
+  spatial_mapping:
+    D1:
+      - D, 256
+    D2:
+      - K, 256
+
+- name: /layers.0/attn/mul_qk_cache/Einsum # blhd,bthd->blht  with L==1
+  core_allocation: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  inter_core_tiling:
+    - H, 16
+  intra_core_tiling:
+    - H, 8
+  spatial_mapping:
+    D1:
+      - T, 256
+    D2:
+      - D, 256
+
+- name: /layers.0/attn/mul_SV_cache/Einsum # bsht,bthd->bshd with S==1
+  core_allocation: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  inter_core_tiling:
+    - H, 16
+  intra_core_tiling:
+    - H, 8
+  spatial_mapping:
+    D1:
+      - T, 256
+    D2:
+      - D, 256
+
+- name: /layers.0/attn/out_proj/MatMul
+  core_allocation: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  inter_core_tiling:
+    - C, 16
+  intra_core_tiling:
+    - C, 8
+  spatial_mapping:
+    D1:
+      - C, 256
+    D2:
+      - K, 256
+
+# MHA part
+
+- name: /layers.0/attn_MHA/q_proj/MatMul
+  core_allocation: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  inter_core_tiling:
+    - C, 16
+  intra_core_tiling:
+    - K, 1
+  spatial_mapping:
+    D1:
+      - C, 256
+    D2:
+      - K, 256
+
+- name: /layers.0/attn_MHA/kv_proj/MatMul
+  core_allocation: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  inter_core_tiling:
+    - K, 16
+  intra_core_tiling:
+    - K, 1
+  spatial_mapping:
+    D1:
+      - C, 256
+    D2:
+      - K, 256
+
+- name: /layers.0/attn_MHA/mul_qk_cache/Einsum # blhd,bthd->blht  with L==1
+  core_allocation: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  inter_core_tiling:
+    - H, 16
+  intra_core_tiling:
+    - H, 1
+  spatial_mapping:
+    D1:
+      - T, 256
+    D2:
+      - D, 256
+
+- name: /layers.0/attn_MHA/mul_SV_cache/Einsum # bsht,bthd->bshd with S==1
+  core_allocation: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  inter_core_tiling:
+    - H, 16
+  intra_core_tiling:
+    - H, 1
+  spatial_mapping:
+    D1:
+      - T, 256
+    D2:
+      - D, 256
+
+- name: /layers.0/attn_MHA/out_proj_mha/MatMul
+  core_allocation: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  inter_core_tiling:
+    - C, 16
+  intra_core_tiling:
+    - C, 1
+  spatial_mapping:
+    D1:
+      - C, 256
+    D2:
+      - K, 256
