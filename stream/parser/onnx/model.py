@@ -47,6 +47,7 @@ class ONNXModelParser:
         "GlobalMaxPool": PoolingParser,
         "GlobalAveragePool": PoolingParser,
         "Add": MulParser,
+        "Sub": MulParser,
         "Mul": MulParser,
         # Special operators
         "SSM": SSMParser,

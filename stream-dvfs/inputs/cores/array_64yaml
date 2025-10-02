@@ -129,6 +129,6 @@ operational_array:
   sizes: [64, 64]
 dataflows:
   D1:
-    - D, 256
+    - D, 64
   D2:
-    - K, 256
+    - K, 64

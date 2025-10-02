@@ -1,0 +1,28 @@
+name: 4_core_vec_array
+cores:
+  0: stream-dvfs/inputs/cores/array_64.yaml
+  1: stream-dvfs/inputs/cores/array_64.yaml
+  2: stream-dvfs/inputs/cores/array_64.yaml
+  3: stream-dvfs/inputs/cores/array_64.yaml
+  4: stream-dvfs/inputs/cores/vec_128.yaml
+  5: stream-dvfs/inputs/cores/vec_128.yaml
+  6: stream-dvfs/inputs/cores/vec_128.yaml
+  7: stream-dvfs/inputs/cores/vec_128.yaml
+  8: stream-dvfs/inputs/cores/offchip.yaml
+offchip_core_id: 8
+core_connectivity:
+  # ───────── 2-D mesh links (bandwidth 512 each) ─────────
+  - {type: link, cores: [0, 1],  bandwidth: 512}
+  - {type: link, cores: [0, 2],  bandwidth: 512}
+  - {type: link, cores: [2, 3],  bandwidth: 512}
+  - {type: link, cores: [1, 3],  bandwidth: 512}
+    # ───── SIMD core connected to every compute core ─────
+  - {type: link, cores: [0, 4],  bandwidth: 512}
+  - {type: link, cores: [1, 5],  bandwidth: 512}
+  - {type: link, cores: [2, 6],  bandwidth: 512}
+  - {type: link, cores: [3, 7],  bandwidth: 512}
+
+  # ───────── Shared off-chip bus ─────────
+  - type: bus
+    cores: [0, 1, 2, 3, 4, 5, 6, 7, 8]     # all chiplets + DRAM ctrl
+    bandwidth: 512
