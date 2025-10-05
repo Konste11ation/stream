@@ -14,6 +14,12 @@ from stream.parser.onnx.model import ONNXModelParser
 from zigzag.utils import open_yaml
 
 from stream.workload.onnx_workload import ONNXWorkload
+import logging as _logging
+_logging_level = _logging.INFO
+_logging_format = "%(asctime)s - %(name)s.%(funcName)s +%(lineno)s - %(levelname)s - %(message)s"
+_logging.basicConfig(level=_logging_level, format=_logging_format)
+
+
 def dump_workload_to_yaml(workload: ONNXWorkload, workload_path:str):
     nodes_data = []
     for node in workload.node_list:
@@ -24,7 +30,8 @@ def dump_workload_to_yaml(workload: ONNXWorkload, workload_path:str):
             "equation": getattr(getattr(node, 'equation', None),'data',None),
             "layer_dim_sizes": str(getattr(node, 'layer_dim_sizes', {})),
             "inter_core_tiling": str(getattr(node, 'inter_core_tiling', {})),
-            "intra_core_tiling": str(getattr(node, 'intra_core_tiling', {}))
+            "intra_core_tiling": str(getattr(node, 'intra_core_tiling', {})),
+            "input_operand_source": str(getattr(node, 'input_operand_source', {}))
         }
         nodes_data.append(node_data)
     yaml_data = {"nodes": nodes_data}
@@ -40,9 +47,9 @@ def dump_workload_to_yaml(workload: ONNXWorkload, workload_path:str):
         )
 
 
-accelerator_yaml = "stream-dvfs/inputs/multicore_system/4core.yaml"
-mapping_yaml = "stream-dvfs/inputs/multicore_mapping/4core_llama_hand_mapping.yaml"
-workload_path = "stream-dvfs/inputs/workloads/Llama1-7B_B=1_FULL_PREFILL_SIZE=1024_DECODE_SIZE=1024_W8A8_Decode.onnx"
+accelerator_yaml = "stream-dvfs/inputs/multicore_system/attention_head.yaml"
+mapping_yaml = "stream-dvfs/inputs/multicore_mapping/attention_head.yaml"
+workload_path = "stream-dvfs/inputs/workloads/AttentionHeadTest_B=1_FULL_PREFILL_SIZE=1_DECODE_SIZE=1_W8A8_Decode.onnx"
 
 # Parse accelerator
 accelerator_data = open_yaml(accelerator_yaml)
@@ -64,4 +71,4 @@ onnx_model_parser = ONNXModelParser(workload_path, all_mappings, accelerator)
 onnx_model_parser.run()
 onnx_model = onnx_model_parser.onnx_model
 workload = onnx_model_parser.workload
-dump_workload_to_yaml(workload, "stream-dvfs/inputs/workloads/llama_workload.yaml")
+dump_workload_to_yaml(workload, "stream-dvfs/inputs/workloads/attention_head.yaml")

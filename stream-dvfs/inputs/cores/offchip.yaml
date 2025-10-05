@@ -3,7 +3,7 @@ type: memory
 
 memories:
   dram: # 400 GB/s
-    size: 10000000000
+    size: 10000000000000000
     r_cost: 700
     w_cost: 750
     area: 0

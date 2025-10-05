@@ -4,7 +4,7 @@ from pathlib import Path
 CURRENT_DIR = Path(__file__).resolve().parent
 STREAM_DVFS_DIR = CURRENT_DIR.parent
 
-from src.config import BATCH_SIZE, QuantConfig, TransformerConfig
+from src.config import BATCH_SIZE, QuantConfig, TransformerConfig, AttentionHeadConfig
 
 W1A8 = QuantConfig(1, 8, 16)
 W4A8 = QuantConfig(4, 8, 16)
@@ -14,6 +14,15 @@ W16A16 = QuantConfig(16, 16, 16)
 W1A32 = QuantConfig(1, 32, 32)
 W16A32 = QuantConfig(16, 32, 32)
 W32A32 = QuantConfig(32, 32, 32)
+
+AttentionHeadTestConfig = AttentionHeadConfig(
+    input_dim=1024,
+    dim_k=64,
+    dim_v=64,
+    batch_size=1,
+    name="AttentionHeadTest"
+)
+
 
 TEST_MODEL = TransformerConfig(
     batch_size=2,

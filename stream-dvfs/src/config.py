@@ -37,6 +37,45 @@ class ModelConfig(metaclass=ABCMeta):
     def __repr__(self):
         return self.name
 
+class AttentionHeadConfig(ModelConfig):
+    def __init__(
+        self,
+        input_dim: int,
+        dim_k: int,
+        dim_v: int,
+        batch_size: int = 1,
+        name: str = "AttentionHead",
+    ):
+        self.input_dim = input_dim
+        self.dim_k = dim_k
+        self.dim_v = dim_v
+        self.batch_size = batch_size
+        self.name = name
+        self.num_layer = 1  # Single layer
+
+    def to_single_layer_config(self) -> "ModelConfig":
+        return deepcopy(self)  # Already single layer
+
+    @property
+    def prefill_size(self) -> int:
+        return 1  # Not applicable
+
+    @prefill_size.setter
+    def prefill_size(self, value: int):
+        pass  # Not applicable
+
+    @property
+    def decode_size(self) -> int:
+        return 1  # Not applicable
+
+    @decode_size.setter
+    def decode_size(self, value: int):
+        pass  # Not applicable
+
+    @property
+    def parameterized_name(self) -> str:
+        return f"{self.name}_B={self.batch_size}_FULL"
+
 
 class TransformerConfig(ModelConfig):
     def __init__(

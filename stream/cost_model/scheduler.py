@@ -164,10 +164,15 @@ class CoalaScheduler:
             best_candidate, preds_end = self.pop_best_candidate()
             core = self.get_allocated_core(best_candidate)
             full_tensors_this_candidate_needs, tensors_operands = self.get_tensors_needed_for_node(best_candidate)
-            sub_tensors_this_candidate_needs = [
-                self.split_tensor_if_needed(t, best_candidate, core, timestep=preds_end)
-                for t in full_tensors_this_candidate_needs
-            ]
+            print(f"Scheduling node {best_candidate} on core {core.id} at earliest {preds_end}")
+            sub_tensors_this_candidate_needs = []
+            for t in full_tensors_this_candidate_needs:
+                print(f"Needs tensor {t} of size {t.size} from core {core.id}")
+                sub_t = self.split_tensor_if_needed(t, best_candidate, core, timestep=preds_end)
+                sub_tensors_this_candidate_needs.append(sub_t)
+            # sub_tensors_this_candidate_needs = [
+            #     self.split_tensor_if_needed(t, best_candidate, core, timestep=preds_end) for t in full_tensors_this_candidate_needs
+            # ]
             self.reset_too_large_operands_for_subtensors(
                 best_candidate, sub_tensors_this_candidate_needs, tensors_operands, core
             )
@@ -216,6 +221,7 @@ class CoalaScheduler:
             core_to_add_output_to = (
                 self.offchip_core if output_memory_operand in best_candidate.too_large_operands else core
             )
+            print(f"Output tensor: {output_tensor} to core {core_to_add_output_to.id}")
             transfer_complete_timestep = self.make_space_for_tensor(
                 output_tensor,
                 core_to_add_output_to,
@@ -312,7 +318,7 @@ class CoalaScheduler:
         If the tensor is already present in the core or no splitting is required, returns the original tensor.
         Handles cases where loop dimensions differ between producer and consumer nodes.
         """
-        #  Only do it if the tensor is still in offchip
+        # if tensor is already present in the core, return it
         if self.accelerator.core_contains_tensor(tensor, core):
             return tensor
 
@@ -336,7 +342,14 @@ class CoalaScheduler:
         if all(size1 == size2 for size1, size2 in zip(needed_range_sizes, full_range_sizes, strict=False)):
             return tensor
 
-        creation_timestep = self.accelerator.get_available_timestep(tensor, self.offchip_core)
+        # find which core holds the tensor
+        tensor_in_core = None
+        for core in self.accelerator.cores:
+            if self.accelerator.core_contains_tensor(tensor, core):
+                tensor_in_core = core
+                break
+        
+        creation_timestep = self.accelerator.get_available_timestep(tensor, tensor_in_core)
 
         sub_tensor = self.create_sub_tensor(tensor, loop_dims_to_split, needed_ranges)
         self.accelerator.spawn(

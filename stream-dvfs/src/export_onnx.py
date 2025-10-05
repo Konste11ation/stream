@@ -18,10 +18,12 @@ from src.config import (
     ModelConfig,
     QuantConfig,
     TransformerConfigSingleLayer,
+    AttentionHeadConfig
 )
 from src.config_library import OPT_2_7B, W32A32
 from src.pytorch_models.transformer_model import LanguageModel
 from src.pytorch_models.transformer_model_decode import LanguageModelDecode
+from src.pytorch_models.attention_head import Self_Attention
 from src.util import Stage, get_onnx_path
 
 
@@ -40,6 +42,11 @@ def export_model_to_onnx(
                 config_single_layer,
                 path,
                 stage,
+            )
+        case AttentionHeadConfig():
+            export_attention_head_to_onnx(
+                config_single_layer,
+                path,
             )
         case _:
             raise ValueError("config must be a single layer configuration")
@@ -62,6 +69,38 @@ def export_model_to_onnx(
     onnx.save(onnx_model, path, save_as_external_data=True, location=external_data_filename)
     if os.path.exists(external_data_path):
         os.remove(external_data_path)
+
+def export_attention_head_to_onnx(
+    attention_head_config: AttentionHeadConfig,
+    output_path: str = "outputs/attention_head.onnx",
+):
+
+    print(f"Generating ONNX model at {output_path}")
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+    dummy_input = torch.randn(
+        attention_head_config.batch_size,
+        128,
+        attention_head_config.input_dim,
+    )
+
+    pytorch_model = Self_Attention(
+        attention_head_config.input_dim,
+        attention_head_config.dim_k,
+        attention_head_config.dim_v,
+    )
+
+    torch.onnx.export(
+        pytorch_model,
+        dummy_input,
+        output_path,
+        opset_version=16,
+        input_names=["input"],
+        output_names=["output"],
+        verbose=False,
+        do_constant_folding=True,
+        export_params=False,
+    )
 
 
 def export_transformer_to_onnx(

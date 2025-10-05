@@ -11,18 +11,23 @@ cores:
   8: stream-dvfs/inputs/cores/offchip.yaml
 offchip_core_id: 8
 core_connectivity:
-  # ───────── 2-D mesh links (bandwidth 512 each) ─────────
-  - {type: link, cores: [0, 1],  bandwidth: 512}
-  - {type: link, cores: [0, 2],  bandwidth: 512}
-  - {type: link, cores: [2, 3],  bandwidth: 512}
-  - {type: link, cores: [1, 3],  bandwidth: 512}
+  # ───────── 2-D mesh links (bandwidth 256 each) ─────────
+  - {type: link, cores: [0, 1],  bandwidth: 256}
+  - {type: link, cores: [0, 2],  bandwidth: 256}
+  - {type: link, cores: [2, 3],  bandwidth: 256}
+  - {type: link, cores: [1, 3],  bandwidth: 256}
     # ───── SIMD core connected to every compute core ─────
-  - {type: link, cores: [0, 4],  bandwidth: 512}
-  - {type: link, cores: [1, 5],  bandwidth: 512}
-  - {type: link, cores: [2, 6],  bandwidth: 512}
-  - {type: link, cores: [3, 7],  bandwidth: 512}
+  - {type: link, cores: [0, 4],  bandwidth: 256}
+  - {type: link, cores: [1, 5],  bandwidth: 256}
+  - {type: link, cores: [2, 6],  bandwidth: 256}
+  - {type: link, cores: [3, 7],  bandwidth: 256}
 
   # ───────── Shared off-chip bus ─────────
   - type: bus
     cores: [0, 1, 2, 3, 4, 5, 6, 7, 8]     # all chiplets + DRAM ctrl
     bandwidth: 512
+
+  # - {type: link, cores: [0, 8],  bandwidth: 256}
+  # - {type: link, cores: [1, 8],  bandwidth: 256}
+  # - {type: link, cores: [2, 8],  bandwidth: 256}
+  # - {type: link, cores: [3, 8],  bandwidth: 256}

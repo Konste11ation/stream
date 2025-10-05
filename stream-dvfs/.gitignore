@@ -1,2 +1,3 @@
 outputs
 inputs/workloads/*.onnx
+inputs/workloads/*.yaml

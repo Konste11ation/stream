@@ -91,7 +91,7 @@ memories:
       - name: r_port_1
         type: read
         bandwidth_min: 64
-        bandwidth_max: 16384
+        bandwidth_max: 1024
         allocation: 
           - I1, tl
           - O, tl
@@ -99,7 +99,7 @@ memories:
       - name: r_port_2
         type: read
         bandwidth_min: 64
-        bandwidth_max: 16384
+        bandwidth_max: 1024
         allocation: 
           - I2, tl
           - O, tl
@@ -107,7 +107,7 @@ memories:
       - name: w_port_1
         type: write
         bandwidth_min: 64
-        bandwidth_max: 16384
+        bandwidth_max: 1024
         allocation: 
           - I1, fh
           - O, fh
@@ -115,7 +115,7 @@ memories:
       - name: w_port_2
         type: write
         bandwidth_min: 64
-        bandwidth_max: 16384
+        bandwidth_max: 1024
         allocation: 
           - I2, fh
           - O, fh
@@ -123,12 +123,12 @@ memories:
     served_dimensions: [D1, D2]
 
 operational_array:
-  unit_energy: 0
+  unit_energy: 0.1 # pJ
   unit_area: 1 # unit
   dimensions: [D1, D2]
   sizes: [64, 64]
 dataflows:
   D1:
-    - D, 64
+    - C, 64
   D2:
     - K, 64
