@@ -13,7 +13,7 @@ memories:
       - name: rw_port_1
         type: read_write
         bandwidth_min: 64
-        bandwidth_max: 2048
+        bandwidth_max: 256
         allocation: 
           - "I1, fh"
           - "I1, tl"

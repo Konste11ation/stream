@@ -10,7 +10,7 @@ STREAM_DVFS_DIR = CURRENT_DIR.parent
 STREAM_WORKDIR = STREAM_DVFS_DIR.parent
 sys.path.append(str(STREAM_WORKDIR))
 
-zigzag_cme_path = "stream-dvfs/outputs/1core-Llama1-7B_B=1_FULL_PREFILL_SIZE=1024_DECODE_SIZE=1024_W8A8_Decode-lbl-ga/cost_lut.pickle"
+zigzag_cme_path = "stream_dvfs/outputs/attention_head-AttentionHeadTest_B=1_FULL_PREFILL_SIZE=1_DECODE_SIZE=1_W8A8_Decode-fused-ga/cost_lut.pickle"
 zigzag_cme_dir = os.path.dirname(zigzag_cme_path)
 
 # Create breakdown directory if it doesn't exist
@@ -36,17 +36,16 @@ def sanitize_filename(filename):
 total_stall = 0
 for node, node_cme in cmes.items():
     node_name = str(node)
-    print(f"Node: {node_name}")
-    cme = next(iter(node_cme.values()))
-    mem_names = [ml.memory_instance.name for ml in cme.mem_level_list]
-    stall_slacks =  cme.stall_slack_comb_collect
-    node_stall = cme.latency_total0 - cme.ideal_temporal_cycle
-    total_stall += node_stall
-    for mem_name, ports_ss in zip(mem_names, stall_slacks):
-        print(f"  {mem_name}: {ports_ss}")
-    print(
-        f"Latency: {cme.latency_total2:.3e} (bd: ideal -> {cme.ideal_temporal_cycle}, spatial_stall -> {cme.ideal_temporal_cycle - cme.ideal_cycle}, temporal_stall -> {cme.latency_total0 - cme.ideal_temporal_cycle}, total_stall -> {cme.latency_total0 - cme.ideal_temporal_cycle}, onload -> {cme.latency_total1 - cme.latency_total0}, offload -> {cme.latency_total2 - cme.latency_total1})"
-    )
+    for cme in node_cme.values():
+        mem_names = [ml.memory_instance.name for ml in cme.mem_level_list]
+        stall_slacks =  cme.stall_slack_comb_collect
+        node_stall = cme.latency_total0 - cme.ideal_temporal_cycle
+        total_stall += node_stall
+        for mem_name, ports_ss in zip(mem_names, stall_slacks):
+            print(f"  {mem_name}: {ports_ss}")
+        print(
+            f"Latency: {cme.latency_total2:.3e} (bd: ideal -> {cme.ideal_temporal_cycle}, spatial_stall -> {cme.ideal_temporal_cycle - cme.ideal_cycle}, temporal_stall -> {cme.latency_total0 - cme.ideal_temporal_cycle}, total_stall -> {cme.latency_total0 - cme.ideal_temporal_cycle}, onload -> {cme.latency_total1 - cme.latency_total0}, offload -> {cme.latency_total2 - cme.latency_total1})"
+        )
     
     # Sanitize the node name for use in filename
     safe_node_name = sanitize_filename(node_name)

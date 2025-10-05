@@ -165,21 +165,21 @@ class CoalaScheduler:
             core = self.get_allocated_core(best_candidate)
             full_tensors_this_candidate_needs, tensors_operands = self.get_tensors_needed_for_node(best_candidate)
             print(f"Scheduling node {best_candidate} on core {core.id} at earliest {preds_end}")
+            if(best_candidate.id==1):
+                print("Here!")
             sub_tensors_this_candidate_needs = []
             for t in full_tensors_this_candidate_needs:
                 print(f"Needs tensor {t} of size {t.size} from core {core.id}")
                 sub_t = self.split_tensor_if_needed(t, best_candidate, core, timestep=preds_end)
                 sub_tensors_this_candidate_needs.append(sub_t)
-            # sub_tensors_this_candidate_needs = [
-            #     self.split_tensor_if_needed(t, best_candidate, core, timestep=preds_end) for t in full_tensors_this_candidate_needs
-            # ]
+
             self.reset_too_large_operands_for_subtensors(
                 best_candidate, sub_tensors_this_candidate_needs, tensors_operands, core
             )
             transfer_bw_fraction = self.get_transfer_bandwidth_fraction(best_candidate)
 
             # Step 0: get the start time: when core is available or predecessors finished
-            self.check_and_sync_cores(best_candidate)
+            # self.check_and_sync_cores(best_candidate)
             core_idle_from = self.cores_idle_from[core.id]
             timestep = max(core_idle_from, preds_end)
 
@@ -203,7 +203,7 @@ class CoalaScheduler:
                 )
                 for tensor, tensor_operand in zip(sub_tensors_this_candidate_needs, tensors_operands, strict=False)
             )
-            earliest_t = core_idle_from - transfer_headstart
+            earliest_t = max(0, core_idle_from - transfer_headstart)
             for tensor, tensor_operand in zip(sub_tensors_this_candidate_needs, tensors_operands, strict=False):
                 transfer_complete_timestep = self.schedule_tensor_transfer(
                     tensor=tensor,
@@ -437,42 +437,42 @@ class CoalaScheduler:
 
         node.set_too_large_operands([])
 
-    def check_and_sync_cores(
-        self,
-        best_candidate: ComputationNode,
-    ):
-        """
-        Synchronizes cores_idle_from values if the best_candidate is the first node of a layer and sync is needed.
-        """
-        # Get the predecessor ids of the best_candidate from the workload graph G
-        predecessor_ids = (pred.id for pred in self.G.predecessors(best_candidate) if pred.id != best_candidate.id)
-        predecessor_idxs: list[int] = []
+    # def check_and_sync_cores(
+    #     self,
+    #     best_candidate: ComputationNode,
+    # ):
+    #     """
+    #     Synchronizes cores_idle_from values if the best_candidate is the first node of a layer and sync is needed.
+    #     """
+    #     # Get the predecessor ids of the best_candidate from the workload graph G
+    #     predecessor_ids = (pred.id for pred in self.G.predecessors(best_candidate) if pred.id != best_candidate.id)
+    #     predecessor_idxs: list[int] = []
 
-        for pred_id in predecessor_ids:
-            predecessor_idxs += list(self.scheduling_order_lookup_tiered[pred_id].values())
+    #     for pred_id in predecessor_ids:
+    #         predecessor_idxs += list(self.scheduling_order_lookup_tiered[pred_id].values())
 
-        best_candidate_idx = self.scheduling_order_lookup[(best_candidate.id, best_candidate.sub_id)]
+    #     best_candidate_idx = self.scheduling_order_lookup[(best_candidate.id, best_candidate.sub_id)]
 
-        # Correct way to compute
-        # is_first_node_of_layer = not any(
-        #     layer_id == best_candidate.id for layer_id, _ in self.scheduling_order[0:best_candidate_idx]
-        # )
-        # ! Fast way to compute -RG
-        is_first_node_of_layer = best_candidate.sub_id == 0 and (
-            not isinstance(best_candidate, GeneratedComputationNode) or (best_candidate.gen_id == 0)
-        )
+    #     # Correct way to compute
+    #     # is_first_node_of_layer = not any(
+    #     #     layer_id == best_candidate.id for layer_id, _ in self.scheduling_order[0:best_candidate_idx]
+    #     # )
+    #     # ! Fast way to compute -RG
+    #     is_first_node_of_layer = best_candidate.sub_id == 0 and (
+    #         not isinstance(best_candidate, GeneratedComputationNode) or (best_candidate.gen_id == 0)
+    #     )
 
-        all_predecessors_are_scheduled = all(idx < best_candidate_idx for idx in predecessor_idxs)
+    #     all_predecessors_are_scheduled = all(idx < best_candidate_idx for idx in predecessor_idxs)
 
-        if is_first_node_of_layer and all_predecessors_are_scheduled:
-            self._sync_cores()
+    #     if is_first_node_of_layer and all_predecessors_are_scheduled:
+    #         self._sync_cores()
 
-    def _sync_cores(self):
-        """Sync the `cores_idle_from` by setting all timesteps to the latest timestep of all cores. The next layer
-        can then start at the same timestep on all cores."""
-        max_idle_time = max(self.cores_idle_from.values())
-        for core_id in self.cores_idle_from:
-            self.cores_idle_from[core_id] = max_idle_time
+    # def _sync_cores(self):
+    #     """Sync the `cores_idle_from` by setting all timesteps to the latest timestep of all cores. The next layer
+    #     can then start at the same timestep on all cores."""
+    #     max_idle_time = max(self.cores_idle_from.values())
+    #     for core_id in self.cores_idle_from:
+    #         self.cores_idle_from[core_id] = max_idle_time
 
     def get_tensors_needed_for_node(self, node: ComputationNode):
         """

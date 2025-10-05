@@ -82,6 +82,27 @@ def get_spatial_utilizations(
         return cme.mac_spatial_utilization, cme.mac_utilization1
     return np.nan, np.nan
 
+def get_stalls(
+    scme: "StreamCostModelEvaluation", node: "ComputationNode", cost_lut: "CostModelEvaluationLUT | None"
+):
+    if cost_lut:
+        equal_node = cost_lut.get_equal_node(node)
+        assert equal_node, (
+            f"No equal node for {node} found in CostModelEvaluationLUT. Check if pre/post LUT path is correct."
+        )
+        assert isinstance(node.chosen_core_allocation, int), (
+            f"Chosen core allocation for {node} should be an integer, got {type(node.chosen_core_allocation)}."
+        )
+        core = scme.accelerator.get_core(node.chosen_core_allocation)
+        cme = cost_lut.get_cme(equal_node, core)
+        ideal_cycle = cme.ideal_temporal_cycle
+        spatial_stall = cme.ideal_temporal_cycle - cme.ideal_cycle
+        temporal_stall = cme.latency_total0 - cme.ideal_temporal_cycle
+        stall_slacks_comb = cme.stall_slack_comb
+        onloading = cme.data_onloading_cycle
+        offloading = cme.data_offloading_cycle
+        return ideal_cycle, spatial_stall, temporal_stall, stall_slacks_comb, onloading, offloading
+    return np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
 
 def get_energy_breakdown(
     scme: "StreamCostModelEvaluation", node: "ComputationNode", cost_lut: "CostModelEvaluationLUT | None"
@@ -133,6 +154,7 @@ def get_dataframe_from_scme(
         runtime = node.runtime
         su_perfect_temporal, su_nonperfect_temporal = get_spatial_utilizations(scme, node, cost_lut)
         en_total_per_op, en_breakdown_per_op = get_energy_breakdown(scme, node, cost_lut)
+        ideal_cycle,spatial_stalls, temporal_stalls, stall_slacks_comb, onloading, offloading = get_stalls(scme, node, cost_lut)
         energy = node.onchip_energy
         tensors = get_real_input_tensors(node, scme.workload)
         task_type = "compute"
@@ -147,6 +169,12 @@ def get_dataframe_from_scme(
             Runtime=runtime,
             SpatialUtilization=su_perfect_temporal,
             SpatialUtilizationWithTemporal=su_nonperfect_temporal,
+            IdealCycle=ideal_cycle,
+            SpatialStalls=spatial_stalls,
+            TemporalStalls=temporal_stalls,
+            StallSlackComb=stall_slacks_comb,
+            Onload=onloading,
+            Offload=offloading,
             Tensors={tensor: tensor.size for tensor in tensors},
             Type=task_type,
             Activity=np.nan,

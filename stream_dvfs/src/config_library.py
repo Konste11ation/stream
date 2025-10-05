@@ -16,9 +16,9 @@ W16A32 = QuantConfig(16, 32, 32)
 W32A32 = QuantConfig(32, 32, 32)
 
 AttentionHeadTestConfig = AttentionHeadConfig(
-    input_dim=1024,
-    dim_k=64,
-    dim_v=64,
+    input_dim=4096,
+    dim_k=128,
+    dim_v=128,
     batch_size=1,
     name="AttentionHeadTest"
 )

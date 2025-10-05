@@ -80,7 +80,7 @@ def export_attention_head_to_onnx(
 
     dummy_input = torch.randn(
         attention_head_config.batch_size,
-        128,
+        1,
         attention_head_config.input_dim,
     )
 
