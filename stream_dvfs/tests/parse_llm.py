@@ -50,7 +50,10 @@ def dump_workload_to_yaml(workload: ONNXWorkload, workload_path:str):
 accelerator_yaml = "stream_dvfs/inputs/multicore_system/attention_head.yaml"
 mapping_yaml = "stream_dvfs/inputs/multicore_mapping/attention_head.yaml"
 workload_path = "stream_dvfs/inputs/workloads/AttentionHeadTest_B=1_FULL_PREFILL_SIZE=1_DECODE_SIZE=1_W8A8_Decode.onnx"
-
+output_yaml = "stream_dvfs/inputs/workloads/attention_head.yaml"
+# workload_path = "stream_dvfs/inputs/workloads/Llama1-7B_B=1_FULL_PREFILL_SIZE=1024_DECODE_SIZE=1024_W8A8_Decode.onnx"
+# accelerator_yaml = "stream_dvfs/inputs/multicore_system/3core.yaml"
+# mapping_yaml = "stream_dvfs/inputs/multicore_mapping/3core_llama_hand_mapping.yaml"
 # Parse accelerator
 accelerator_data = open_yaml(accelerator_yaml)
 validator = AcceleratorValidator(accelerator_data, accelerator_yaml)
@@ -71,4 +74,4 @@ onnx_model_parser = ONNXModelParser(workload_path, all_mappings, accelerator)
 onnx_model_parser.run()
 onnx_model = onnx_model_parser.onnx_model
 workload = onnx_model_parser.workload
-dump_workload_to_yaml(workload, "stream_dvfs/inputs/workloads/attention_head.yaml")
+dump_workload_to_yaml(workload, output_yaml)

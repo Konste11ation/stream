@@ -23,11 +23,14 @@ from stream.stages.set_fixed_allocation_performance import SetFixedAllocationPer
 from stream.stages.stage import MainStage, Stage, StageCallable
 from stream.utils import CostModelEvaluationLUT
 from stream.workload.computation.computation_node import ComputationNode
+from stream.workload.dependency_propagation.propagation_node import PropagationNode
 from stream.workload.dnn_workload import DNNWorkloadStream
 from stream.workload.mapping import TILING_T, TILING_WILDCARD_T
 from stream.workload.onnx_workload import ComputationNodeWorkload
 from stream.workload.steady_state.computation import SteadyStateComputation
 from stream.workload.utils import get_real_successors
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -536,8 +539,8 @@ class ConstraintOptimizationAllocationStage(Stage):
 
     def schedule_allocation(self, allocation: TimeSlotAllocation) -> StreamCostModelEvaluation:
         # Get the involved layer ids we want to schedule and their core allocations
-        # Get the relevant subgraph of the original layer-wise workload
-        layer_ids = [node.id for node in allocation.nodes]
+        # Get the relevant subgraph of the original layer-wise workload (include propagation nodes)
+        layer_ids = sorted(set(n.id for n in self.original_workload.node_list))
         relevant_nodes = list(filter(lambda n: n.id in layer_ids, self.original_workload.node_list))
         unpartitioned_sub_workload: DNNWorkloadStream = pickle_deepcopy(self.original_workload.subgraph(relevant_nodes))
 
@@ -587,6 +590,8 @@ class ConstraintOptimizationAllocationStage(Stage):
         self, unpartitioned_sub_workload: ComputationNodeWorkload, allocation: TimeSlotAllocation
     ):
         for node in unpartitioned_sub_workload.node_list:
+            if isinstance(node, PropagationNode):
+                continue  # Don't need to set it for propagation nodes
             nb_cores = len(allocation.get_resources_for_node_id(node.id))
             # Set correct inter core tiling. Replacing the wildcard will signal to the TiledWorkloadGenerationStage
             # to also split in the inter core tiling
@@ -624,7 +629,10 @@ class ConstraintOptimizationAllocationStage(Stage):
 
     def set_fixed_allocations_for_workload(self, workload: ComputationNodeWorkload, allocation: TimeSlotAllocation):
         """! Modify the workload to fix the core allocations to the given core_ids for the given layer_ids."""
+
         for n in workload.node_list:
+            if isinstance(n, PropagationNode):
+                continue  # Don't need to set it for propagation nodes
             cores = allocation.get_resources_for_node_id(n.id)
             n.possible_core_allocation = list(core.id for core in cores)  # type: ignore
 

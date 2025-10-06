@@ -35,32 +35,32 @@ wl_name = re.split(r"/|\.", workload_path)[-1]
 if wl_name == "onnx":
     wl_name = re.split(r"/|\.", workload_path)[-2]
     
-# experiment_id = f"{hw_name}-{wl_name}-{mode}-co"
-# scme = optimize_allocation_co(
-#     hardware=accelerator,
-#     workload=workload_path,
-#     mapping=mapping_path,
-#     mode=mode,
-#     layer_stacks=layer_stacks,
-#     experiment_id=experiment_id,
-#     output_path=output_dir,
-#     skip_if_exists=False,
-# )
-experiment_id = f"{hw_name}-{wl_name}-{mode}-ga"
-nb_ga_generations = 8
-nb_ga_individuals = 8
-scme = optimize_allocation_ga(
+experiment_id = f"{hw_name}-{wl_name}-{mode}-co"
+scme = optimize_allocation_co(
     hardware=accelerator,
     workload=workload_path,
     mapping=mapping_path,
     mode=mode,
     layer_stacks=layer_stacks,
-    nb_ga_generations=nb_ga_generations,
-    nb_ga_individuals=nb_ga_individuals,
     experiment_id=experiment_id,
     output_path=output_dir,
     skip_if_exists=False,
 )
+# experiment_id = f"{hw_name}-{wl_name}-{mode}-ga"
+# nb_ga_generations = 8
+# nb_ga_individuals = 8
+# scme = optimize_allocation_ga(
+#     hardware=accelerator,
+#     workload=workload_path,
+#     mapping=mapping_path,
+#     mode=mode,
+#     layer_stacks=layer_stacks,
+#     nb_ga_generations=nb_ga_generations,
+#     nb_ga_individuals=nb_ga_individuals,
+#     experiment_id=experiment_id,
+#     output_path=output_dir,
+#     skip_if_exists=False,
+# )
 
 # Load in the CostModelEvaluationLUT from the run
 cost_lut_path = f"{output_dir}/{experiment_id}/cost_lut.pickle"
