@@ -1,4 +1,4 @@
-name: vec
+name: generic_array
 type: compute
 memories:
   rf_I:
@@ -22,6 +22,7 @@ memories:
         allocation: 
           - I1, fh
     served_dimensions: []
+
   rf_W: # For MatMul, this will store activations
     size: 1024
     r_cost: 0.095
@@ -78,6 +79,7 @@ memories:
           - O, fl
     served_dimensions: []
 
+
   l1_64MB:
     size: 536_870_912
     r_cost: 416.16
@@ -117,8 +119,12 @@ memories:
     served_dimensions: [D1, D2]
 
 operational_array:
-  input_precision: [8, 8]
   unit_energy: 1 # pJ
-  unit_area: 0.01 # unit
+  unit_area: 1 # unit
   dimensions: [D1, D2]
-  sizes: [128, 1]
+  sizes: [64, 64]
+dataflows:
+  D1:
+    - D, 64
+  D2:
+    - K, 64

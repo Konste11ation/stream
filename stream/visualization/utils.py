@@ -151,7 +151,8 @@ def get_dataframe_from_scme(
         core_id = node.chosen_core_allocation
         start = node.start
         end = node.end
-        runtime = node.runtime
+        runtime = node.get_runtime()
+        dvfs_level = node.get_dvfs_level()
         su_perfect_temporal, su_nonperfect_temporal = get_spatial_utilizations(scme, node, cost_lut)
         en_total_per_op, en_breakdown_per_op = get_energy_breakdown(scme, node, cost_lut)
         ideal_cycle,spatial_stalls, temporal_stalls, stall_slacks_comb, onloading, offloading = get_stalls(scme, node, cost_lut)
@@ -166,6 +167,7 @@ def get_dataframe_from_scme(
             End=end,
             Resource=f"Core {core_id}",
             Layer=layer,
+            DVFSLevel=dvfs_level,
             Runtime=runtime,
             SpatialUtilization=su_perfect_temporal,
             SpatialUtilizationWithTemporal=su_nonperfect_temporal,

@@ -40,6 +40,19 @@ class Accelerator:
         self.memory_manager = MemoryManager(self)
         self.communication_manager = CommunicationManager(self)
 
+    def clean_memory_manager(self):
+        '''Clean the memory manager state.'''
+        self.memory_manager.clean()
+        
+    def clean_communication_manager(self):
+        '''Clean the communication manager state.'''
+        self.communication_manager.clean()
+        
+    def clean_accelerator(self):
+        '''Clean the accelerator state.'''
+        self.clean_memory_manager()
+        self.clean_communication_manager()
+        
     def get_core(self, core_id: int) -> Core:
         """s
         Return the core with id 'core_id'.

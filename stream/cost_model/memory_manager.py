@@ -73,7 +73,48 @@ class MemoryManager:
                     self.memory_operands_per_top_instance[top_instance].append(tuple(top_level.operands))
 
         self.offchip_core_id = self.accelerator.offchip_core_id
+    def clean(self):
+        # memory operand stored by every top level memory
+        self.memory_operands_per_core: dict[Core, list[list[MemoryOperand]]] = {}
+        for core in self.accelerator.core_list:
+            top_levels: list[MemoryLevel] = list(
+                (level for level, out_degree in core.memory_hierarchy.out_degree() if out_degree == 0)
+            )
+            self.top_levels[core] = top_levels
+            self.top_instances_per_core[core] = [level.memory_instance for level in top_levels]
+            self.memory_operands_per_core[core] = [level.operands for level in top_levels]
+        self.unique_top_instances: set[MemoryInstance] = set()
+        self.cores_per_top_instance: dict[MemoryInstance, list[Core]] = {}
+        self.memory_operands_per_top_instance: dict[MemoryInstance, list[tuple[MemoryOperand, ...]]] = {}
 
+        # Some top level memories instances might be shared, thus we keep info for each unique top memory instance
+        self.top_instance_capacities: dict[MemoryInstance, int] = {}
+        self.top_instance_available: dict[MemoryInstance, int] = {}
+        self.top_instance_stored_tensors: dict[MemoryInstance, list[Tensor]] = {}
+        self.top_instance_stored_tensors_hash: dict[MemoryInstance, set[TensorHash]] = {}
+        self.top_instance_stored_since_timestep: dict[MemoryInstance, dict[TensorHash, int]] = {}
+        self.top_instance_available_since_timestep: dict[MemoryInstance, dict[TensorHash, int]] = {}
+        self.top_instance_stored_cumsum: dict[MemoryInstance, np.ndarray[Any, Any]] = {}
+        self.top_instance_current_timestep: dict[MemoryInstance, int] = {}
+        for core, top_levels in self.top_levels.items():
+            for top_level in top_levels:
+                top_instance = top_level.memory_instance
+                if top_instance not in self.unique_top_instances:
+                    self.unique_top_instances.add(top_instance)
+                    self.cores_per_top_instance[top_instance] = [core]
+                    self.memory_operands_per_top_instance[top_instance] = [tuple(top_level.operands)]
+                    self.top_instance_capacities[top_instance] = top_instance.size
+                    self.top_instance_available[top_instance] = top_instance.size
+                    self.top_instance_stored_tensors[top_instance] = []
+                    self.top_instance_stored_tensors_hash[top_instance] = set()
+                    self.top_instance_stored_since_timestep[top_instance] = {}
+                    self.top_instance_available_since_timestep[top_instance] = {}
+                    self.top_instance_stored_cumsum[top_instance] = np.array([[0, 0]])
+                    self.top_instance_current_timestep[top_instance] = 0
+                else:
+                    self.cores_per_top_instance[top_instance].append(core)
+                    self.memory_operands_per_top_instance[top_instance].append(tuple(top_level.operands))
+        
     def contains(self, tensor: Tensor, top_instance: MemoryInstance):
         """
         Returns True if the tensor (by hash) is present in the given memory instance.

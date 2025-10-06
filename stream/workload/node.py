@@ -51,6 +51,12 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
         self.end = -1
         # number of data (in bits) only this node produces (not produced by any other node)
         self.data_produced_unique = 0
+        # DVFS related
+        self.dvfs_level: int = 0  # default DVFS level
+        self.vdd_lut: dict[int, float] = {0: 1.0}  # default VDD LUT
+        self.freq_lut: dict[int, float] = {0: 1.0}
+        self.dyn_energy_lut: dict[int, float] = {0: 1.0}
+        self.sta_energy_lut: dict[int, float] = {0: 1.0}
 
     def get_total_energy(self) -> float:
         """Get the total energy of running this node, including off-chip energy."""
@@ -58,7 +64,15 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
 
     def get_onchip_energy(self):
         """Get the on-chip energy of running this node."""
-        return self.onchip_energy
+        onchip_energy = self.onchip_energy
+        if self.dvfs_level!=0:
+            if self.dvfs_level in self.dyn_energy_lut and self.dvfs_level in self.sta_energy_lut:
+                dyn_energy = onchip_energy*self.dyn_energy_lut[self.dvfs_level]
+                sta_energy = 0
+                onchip_dvfs_energy = dyn_energy + sta_energy
+                return onchip_dvfs_energy
+        else:
+            return self.onchip_energy
 
     def get_offchip_energy(self):
         """Get the off-chip energy of running this node."""
@@ -66,7 +80,14 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
 
     def get_runtime(self):
         """Get the runtime of running this node."""
-        return self.runtime
+        runtime = self.runtime
+        if self.dvfs_level != 0:
+            if self.dvfs_level in self.freq_lut:
+                freq = self.freq_lut[self.dvfs_level]
+                runtime_dvfs = int(runtime / freq)
+                return runtime_dvfs
+        else:
+            return runtime
 
     def get_start(self):
         """Get the start time in cycles of this node."""
@@ -75,6 +96,10 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
     def get_end(self):
         """Get the end time in cycles of this node."""
         return self.end
+
+    def get_dvfs_level(self):
+        """Get the DVFS level of this node."""
+        return self.dvfs_level
 
     def set_onchip_energy(self, energy: float):
         """Set the on-chip energy of running this node.
@@ -132,6 +157,26 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
 
     def set_offchip_bandwidth(self, offchip_bandwidth_per_op: dict[MemoryOperand, FourWayDataMoving]):
         self.offchip_bandwidth_per_op = offchip_bandwidth_per_op
+
+    def set_dvfs_level(self, dvfs_level: int):
+        """Set the DVFS level for this node."""
+        self.dvfs_level = dvfs_level
+        
+    def set_vdd_lut(self, vdd_lut: dict[int, float]):
+        """Set the VDD LUT for DVFS levels."""
+        self.vdd_lut = vdd_lut
+        
+    def set_freq_lut(self, freq_lut: dict[int, float]):
+        """Set the frequency LUT for DVFS levels."""
+        self.freq_lut = freq_lut
+        
+    def set_dyn_energy_lut(self, dyn_energy_lut: dict[int, float]):
+        """Set the dynamic energy LUT for DVFS levels."""
+        self.dyn_energy_lut = dyn_energy_lut
+        
+    def set_sta_energy_lut(self, sta_energy_lut: dict[int, float]):
+        """Set the static energy LUT for DVFS levels."""
+        self.sta_energy_lut = sta_energy_lut
 
     def __str__(self):
         return self.name

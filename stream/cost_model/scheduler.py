@@ -77,12 +77,20 @@ class CoalaScheduler:
         self._initialize_scheduling_order_lookup()
 
         # Initialize bookkeeping
+        self._initialize_workload_accelerator()
         self.nb_scheduled_nodes = 0
         self.scheduled_nodes: set[ComputationNode] = set()
         self.bw_fraction_to_use_for_tensor: dict[Tensor, float] = {}
         self.candidates = self.get_initial_candidates()
         self.initialize_tensor_priorities()
         self.initialize_offchip_tensors()
+
+    def _initialize_workload_accelerator(self):
+        for n in self.G.node_list:
+            n.set_start(-1)
+            n.set_end(-1)
+        self.accelerator.clean_accelerator()
+
 
     def _initialize_scheduling_order_lookup(self):
         """

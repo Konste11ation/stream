@@ -8,11 +8,11 @@ sys.path.append(str(STREAM_DVFS_DIR))
 from src.config_library import W8A8, LLAMA1_7B, AttentionHeadTestConfig
 from src.util import Stage, get_onnx_path
 from src.export_onnx import export_model_to_onnx
-# model = LLAMA1_7B
-model = AttentionHeadTestConfig
+model = LLAMA1_7B
+# model = AttentionHeadTestConfig
 quant = W8A8    
 # model.batch_size = 1
-stage = Stage.DECODE
+stage = Stage.PREFILL
 onnx_path = get_onnx_path(output_dir=STREAM_DVFS_DIR / "inputs" / "workloads",
                           model=model,
                           stage=stage,

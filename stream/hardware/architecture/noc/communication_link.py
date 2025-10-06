@@ -101,7 +101,12 @@ class CommunicationLink:
             other.bandwidth,
             other.bus_id,
         )
-
+    def clean(self):
+        self.events: list[CommunicationLinkEvent] = []
+        self.active_periods = [(0, float("inf"), 0)]
+        self.active_ts = np.array([0, float("inf")])
+        self.active_deltas = np.array([0, 0])
+        self.tensors: dict[Tensor, list[CommunicationLinkEvent]] = {}
     def get_name_for_schedule_plot(self) -> str:
         if self.bidirectional:
             return f"{self.sender} <-> {self.receiver}"

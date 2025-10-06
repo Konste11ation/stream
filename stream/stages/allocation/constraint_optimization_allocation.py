@@ -337,7 +337,7 @@ class ConstraintOptimizationAllocationStage(Stage):
         sink_nodes = sorted(
             n
             for n in sg.nodes()
-            if len(get_real_successors(n, sg)) == 0  # type: ignore
+            if len(list(sg.successors(n))) == 0  # type: ignore
         )
         sink_layer_ids = sorted(set(n.id for n in sink_nodes))
         assert len(sink_layer_ids) == 1, "Expected only one sink layer per layer stack. Update your layer stacks."

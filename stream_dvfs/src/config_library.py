@@ -37,7 +37,7 @@ TEST_MODEL = TransformerConfig(
 
 LLAMA1_7B = TransformerConfig(
     batch_size=BATCH_SIZE,
-    seq_len=2048,
+    seq_len=1024,
     embedding_dim=4096,
     dim_ff=11_008,
     num_head=32,
