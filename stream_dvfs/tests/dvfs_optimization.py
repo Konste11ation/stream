@@ -11,8 +11,7 @@ sys.path.append(str(STREAM_WORKDIR))
 from stream_dvfs.src.dvfs_optimization import DvfsOptimizationStage
 from stream.utils import CostModelEvaluationLUT
 from stream.visualization.perfetto import convert_scme_to_perfetto_json
-output_dir = 'stream_dvfs/outputs/3core-Llama1-7B_B=1_FULL_PREFILL_SIZE=1024_DECODE_SIZE=1024_W8A8_Prefill-fused-ga'
-
+output_dir = 'stream_dvfs/outputs/3core-Llama1-7B_B=1_FULL_PREFILL_SIZE=512_DECODE_SIZE=512_W8A8_Prefill-fused-ga'
 base_scme_path = f'{output_dir}/scme.pickle'
 print("Base scme Path:", base_scme_path)
 with open(base_scme_path, "rb") as file:
@@ -23,9 +22,9 @@ workload = scme_original.workload
 accelerator = scme_original.accelerator
 scheduling_order = scme_original.scheduling_order
 operands_to_prefetch = scme_original.operands_to_prefetch
-dvfs_output_path = f"{output_dir}/pareto.png"
-ga_nb_generations = 5
-ga_nb_individuals = 10
+dvfs_output_path = output_dir
+ga_nb_generations = 64
+ga_nb_individuals = 64
 dvfs_opt_stage = DvfsOptimizationStage(list_of_callables=[],
                                        workload=workload,
                                        accelerator=accelerator,

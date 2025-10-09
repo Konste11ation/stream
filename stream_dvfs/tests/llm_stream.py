@@ -20,8 +20,8 @@ _logging.basicConfig(level=_logging_level, format=_logging_format)
 ############################################INPUTS############################################
 output_dir = "stream_dvfs/outputs"
 
-# workload_path = "stream_dvfs/inputs/workloads/Llama1-7B_B=1_FULL_PREFILL_SIZE=1024_DECODE_SIZE=1024_W8A8_Decode.onnx"
-workload_path = "stream_dvfs/inputs/workloads/Llama1-7B_B=1_FULL_PREFILL_SIZE=1024_DECODE_SIZE=1024_W8A8_Prefill.onnx"
+workload_path = "stream_dvfs/inputs/workloads/Llama1-7B_B=1_FULL_PREFILL_SIZE=512_DECODE_SIZE=512_W8A8_Prefill.onnx"
+# workload_path = "stream_dvfs/inputs/workloads/Llama1-7B_B=1_FULL_PREFILL_SIZE=1024_DECODE_SIZE=1024_W8A8_Prefill.onnx"
 # accelerator = "stream-dvfs/inputs/multicore_system/tpu_like_quad_core.yaml"
 # mapping_path = "stream-dvfs/inputs/multicore_mapping/tpu_like_quad_core.yaml"
 accelerator = "stream_dvfs/inputs/multicore_system/3core.yaml"

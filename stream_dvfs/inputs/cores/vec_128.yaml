@@ -78,8 +78,8 @@ memories:
           - O, fl
     served_dimensions: []
 
-  l1_64MB:
-    size: 536_870_912
+  l1_32MB:
+    size: 268435456
     r_cost: 416.16
     w_cost: 378.4
     area: 0

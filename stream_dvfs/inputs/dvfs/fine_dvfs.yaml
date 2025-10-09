@@ -1,5 +1,4 @@
 name: finer_dvfs
-name: finer_dvfs
 dvfs_level:
   0:
     - vdd: 1.0

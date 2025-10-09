@@ -77,34 +77,34 @@
 - name: /blocks/blocks.0/sa/key_proj/MatMul
   core_allocation: [0]
   intra_core_tiling:
-    - K, 1
+    - K, 4
   inter_core_tiling:
     - C, 1
 - name: /blocks/blocks.0/sa/query_proj/MatMul
   core_allocation: [1]
   intra_core_tiling:
-    - K, 1
+    - K, 4
   inter_core_tiling:
     - C, 1
 
 - name: /blocks/blocks.0/sa/value_proj/MatMul
   core_allocation: [2]
   intra_core_tiling:
-    - K, 1
+    - K, 4
   inter_core_tiling:
     - C, 1
 
 - name: /blocks/blocks.0/sa/mul_qk_t/MatMul
   core_allocation: [0]
   intra_core_tiling:
-    - K, 8
+    - K, 4
   inter_core_tiling:
     - C, 1
 
 - name: /blocks/blocks.0/sa/Div
   core_allocation: [3]
   intra_core_tiling:
-    - K, 8
+    - K, 1
   inter_core_tiling:
     - H, 1
 
@@ -146,77 +146,77 @@
 - name: /blocks/blocks.0/sa/out_proj/MatMul
   core_allocation: [0]
   intra_core_tiling:
-    - C, 1
+    - C, 4
   inter_core_tiling:
     - H, 1
 
 - name: /blocks/blocks.0/residual_attn/Add
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
 - name: /blocks/blocks.0/layer_norm2/ReduceMean
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
 - name: /blocks/blocks.0/layer_norm2/Sub
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
 - name: /blocks/blocks.0/layer_norm2/Pow
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
 - name: /blocks/blocks.0/layer_norm2/ReduceMean_1
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
 - name: /blocks/blocks.0/layer_norm2/Add
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
 - name: /blocks/blocks.0/layer_norm2/Sqrt
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
 - name: /blocks/blocks.0/layer_norm2/Div
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
 - name: /blocks/blocks.0/layer_norm2/Mul
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
 - name: /blocks/blocks.0/layer_norm2/Add_1
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 41
   inter_core_tiling:
     - D, 1
 
@@ -237,7 +237,7 @@
 - name: /blocks/blocks.0/feed_forward/net/net.1/Relu
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
@@ -251,70 +251,70 @@
 - name: /blocks/blocks.0/feed_forward/net/down_proj/Add
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
 - name: /blocks/blocks.0/residual_ffn/Add
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
 - name: /layer_norm_final/ReduceMean
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
 - name: /layer_norm_final/Sub
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
 - name: /layer_norm_final/Pow
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
 - name: /layer_norm_final/ReduceMean_1
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 41
   inter_core_tiling:
     - D, 1
 
 - name: /layer_norm_final/Add
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
 - name: /layer_norm_final/Sqrt
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
 - name: /layer_norm_final/Div
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 
 - name: /layer_norm_final/Mul
   core_allocation: [3]
   intra_core_tiling:
-    - D, 4
+    - D, 1
   inter_core_tiling:
     - D, 1
 

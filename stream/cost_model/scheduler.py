@@ -172,12 +172,10 @@ class CoalaScheduler:
             best_candidate, preds_end = self.pop_best_candidate()
             core = self.get_allocated_core(best_candidate)
             full_tensors_this_candidate_needs, tensors_operands = self.get_tensors_needed_for_node(best_candidate)
-            print(f"Scheduling node {best_candidate} on core {core.id} at earliest {preds_end}")
-            if(best_candidate.id==1):
-                print("Here!")
+            # print(f"Scheduling node {best_candidate} on core {core.id} at earliest {preds_end}")
             sub_tensors_this_candidate_needs = []
             for t in full_tensors_this_candidate_needs:
-                print(f"Needs tensor {t} of size {t.size} from core {core.id}")
+                # print(f"Needs tensor {t} of size {t.size} from core {core.id}")
                 sub_t = self.split_tensor_if_needed(t, best_candidate, core, timestep=preds_end)
                 sub_tensors_this_candidate_needs.append(sub_t)
 
@@ -229,7 +227,7 @@ class CoalaScheduler:
             core_to_add_output_to = (
                 self.offchip_core if output_memory_operand in best_candidate.too_large_operands else core
             )
-            print(f"Output tensor: {output_tensor} to core {core_to_add_output_to.id}")
+            # print(f"Output tensor: {output_tensor} to core {core_to_add_output_to.id}")
             transfer_complete_timestep = self.make_space_for_tensor(
                 output_tensor,
                 core_to_add_output_to,

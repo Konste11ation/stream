@@ -146,10 +146,47 @@ def export_transformer_to_onnx(
         do_constant_folding=True,
         export_params=False,
     )
-
+    # Remove Identity layers from the exported ONNX model
+    remove_identity_layers(path)
 def add_attribute_to_onnx_node(node: NodeProto, key: str, val: Any):
     attr = onnx.helper.make_attribute(key, val)
     node.attribute.extend([attr])
+
+
+def remove_identity_layers(onnx_model_path: str):
+    """
+    Removes Identity layers from the ONNX model.
+    """
+    model = onnx.load(onnx_model_path)
+    graph = model.graph
+
+    # Collect nodes to remove and update the graph
+    nodes_to_remove = []
+    identity_outputs_map = {}
+
+    for node in graph.node:
+        if node.op_type == "Identity":
+            nodes_to_remove.append(node)
+            # Map the Identity output to its input
+            identity_outputs_map[node.output[0]] = node.input[0]
+
+    # Remove Identity nodes and update references
+    for node in nodes_to_remove:
+        graph.node.remove(node)
+
+    for node in graph.node:
+        for i, input_name in enumerate(node.input):
+            if input_name in identity_outputs_map:
+                node.input[i] = identity_outputs_map[input_name]
+
+    # Update graph outputs if they reference Identity nodes
+    for i, output in enumerate(graph.output):
+        if output.name in identity_outputs_map:
+            graph.output[i].name = identity_outputs_map[output.name]
+
+    # Save the optimized model
+    onnx.save(model, onnx_model_path)
+
 
 if __name__ == "__main__":
     config = OPT_2_7B
