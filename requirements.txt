@@ -9,3 +9,4 @@ cerberus
 pre-commit
 gurobipy
 pydot
+torch==2.8.0

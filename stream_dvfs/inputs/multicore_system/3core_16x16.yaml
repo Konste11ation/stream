@@ -1,0 +1,17 @@
+name: 3_core_vec_array
+cores:
+  0: stream_dvfs/inputs/cores/array_16x16.yaml
+  1: stream_dvfs/inputs/cores/array_16x16.yaml
+  2: stream_dvfs/inputs/cores/array_16x16.yaml
+  3: stream_dvfs/inputs/cores/vec_128.yaml
+  4: stream_dvfs/inputs/cores/offchip.yaml
+offchip_core_id: 4
+core_connectivity:
+  - {type: link, cores: [0, 1],  bandwidth: 512}
+  - {type: link, cores: [0, 2],  bandwidth: 512}
+  - {type: link, cores: [0, 4],  bandwidth: 512}
+  - {type: link, cores: [1, 3],  bandwidth: 512}
+  - {type: link, cores: [2, 3],  bandwidth: 512}
+  # - type: bus
+  #   cores: [0, 1, 2, 3, 4]     # all chiplets + DRAM ctrl
+  #   bandwidth: 512

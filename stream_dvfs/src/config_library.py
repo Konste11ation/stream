@@ -70,7 +70,7 @@ LLAMA1_30B = TransformerConfig(
 
 LLAMA2_7B = TransformerConfig(
     batch_size=BATCH_SIZE,
-    seq_len=4096,
+    seq_len=2048,
     embedding_dim=4096,
     dim_ff=11_008,
     num_head=32,
@@ -81,7 +81,7 @@ LLAMA2_7B = TransformerConfig(
 
 LLAMA2_13B = TransformerConfig(
     batch_size=BATCH_SIZE,
-    seq_len=4096,
+    seq_len=2048,
     embedding_dim=5120,
     dim_ff=13_824,
     num_head=40,
@@ -178,5 +178,5 @@ LLAMA3_8B = TransformerConfig(
     num_head=32,
     num_layer=32,
     vocab_size=128_256,
-    name="LLAMA3-8B",
+    name="Llama3-8B",
 )
