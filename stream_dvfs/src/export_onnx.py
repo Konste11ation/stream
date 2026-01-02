@@ -18,41 +18,49 @@ from src.config import (
     ModelConfig,
     QuantConfig,
     TransformerConfigSingleLayer,
-    AttentionHeadConfig
+    AttentionHeadConfig,
+    FlashAttentionConfig
 )
 from src.config_library import OPT_2_7B, W32A32
 from src.pytorch_models.transformer_model import LanguageModel
 from src.pytorch_models.transformer_model_decode import LanguageModelDecode
 from src.pytorch_models.attention_head import Self_Attention
+from src.pytorch_models.custom_flash_attention import FlashAttentionModel
 from src.util import Stage, get_onnx_path
 
 
 def export_model_to_onnx(
-    config: ModelConfig,
+    model_config: ModelConfig,
     quant_config: QuantConfig,
-    path: str = "outputs/custom_transformer.onnx",
+    output_path: str = "outputs/custom_transformer.onnx",
     stage: Stage = Stage.PREFILL,
 ):
 
-    config_single_layer = config.to_single_layer_config()
+    config_single_layer = model_config.to_single_layer_config()
     match config_single_layer:
 
         case TransformerConfigSingleLayer():
             export_transformer_to_onnx(
                 config_single_layer,
-                path,
+                output_path,
                 stage,
             )
         case AttentionHeadConfig():
             export_attention_head_to_onnx(
                 config_single_layer,
-                path,
+                output_path,
+            )
+        case FlashAttentionConfig():
+            # Export FlashAttention model
+            export_flash_attention_to_onnx(
+                config_single_layer,
+                output_path,
             )
         case _:
             raise ValueError("config must be a single layer configuration")
 
     # Perform shape inference
-    onnx_model = onnx.load(path)
+    onnx_model = onnx.load(output_path)
     onnx_model = infer_shapes(onnx_model)
 
     # Add attribute with quantization info, to be used in Zigzag
@@ -65,8 +73,8 @@ def export_model_to_onnx(
     # Save the model with external data and then remove it
     # NOTE: This requires later loading it with load_external_data=False
     external_data_filename = "external.data"
-    external_data_path = os.path.join(os.path.dirname(path), external_data_filename)
-    onnx.save(onnx_model, path, save_as_external_data=True, location=external_data_filename)
+    external_data_path = os.path.join(os.path.dirname(output_path), external_data_filename)
+    onnx.save(onnx_model, output_path, save_as_external_data=True, location=external_data_filename)
     if os.path.exists(external_data_path):
         os.remove(external_data_path)
 
@@ -101,6 +109,39 @@ def export_attention_head_to_onnx(
         do_constant_folding=True,
         export_params=False,
     )
+
+def export_flash_attention_to_onnx(
+    flash_attention_config: FlashAttentionConfig,
+    output_path: str = "outputs/flash_attention.onnx",
+):
+    print(f"Generating ONNX model at {output_path}")
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+    dummy_input = torch.randn(
+        flash_attention_config.batch_size,
+        flash_attention_config.seq_len,
+        flash_attention_config.hidden_size,
+    )
+
+    pytorch_model = FlashAttentionModel(
+        flash_attention_config.seq_len,
+        flash_attention_config.hidden_size,
+        flash_attention_config.dim_k,
+        flash_attention_config.dim_v,
+    )
+
+    torch.onnx.export(
+        pytorch_model,
+        dummy_input,
+        output_path,
+        opset_version=16,
+        input_names=["input"],
+        output_names=["output"],
+        verbose=False,
+        do_constant_folding=True,
+        export_params=False,
+    )
+
 
 
 def export_transformer_to_onnx(

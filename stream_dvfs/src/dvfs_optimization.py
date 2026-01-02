@@ -51,14 +51,23 @@ class DvfsOptimizationStage(Stage):
     def run(self):
         logger.info(f"Start DVFS optimization stage")     
         self.parse_and_set_dvfs_data()
-        result, hof = self.run_dvfs_ga()
-        opt_energy = result[0]
-        opt_latency = result[1]
-        opt_scme = result[2]
+        (best_result, best_dvfs_allocation), (latency_10pct_result, latency_10pct_dvfs_allocation), hof = self.run_dvfs_ga()
+        # Optimal results
+        opt_energy = best_result[0]
+        opt_latency = best_result[1]
+        opt_scme = best_result[2]
         energy_reduction, latency_overhead = self.compute_metrics(opt_energy, opt_latency)
-        print(f"Optimized DVFS Energy: {opt_energy}, Latency: {opt_latency}")
+        print(f"Optimized DVFS Energy: {opt_energy:.2f}, Latency: {opt_latency:.2f}")
         print(f"Optimized DVFS Energy Reduction: {energy_reduction*100:.2f}%, Latency Overhead: {latency_overhead*100:.2f}%")
+        # 10% latency overhead results
+        latency_10pct_energy = latency_10pct_result[0]
+        latency_10pct_latency = latency_10pct_result[1]
+        latency_10pct_scme = latency_10pct_result[2]
+        print(f"DVFS Energy at 10% Latency Increase: {latency_10pct_energy}, Latency: {latency_10pct_latency}")
+        latency_10pct_energy_reduction, latency_10pct_latency_overhead = self.compute_metrics(latency_10pct_energy, latency_10pct_latency)
+        print(f"DVFS Energy Reduction at 10% Latency Increase: {latency_10pct_energy_reduction*100:.2f}%, Latency Overhead: {latency_10pct_latency_overhead*100:.2f}%")
         self.plot_pareto(hof)
+        self.plot_dvfs_allocation(latency_10pct_scme, self.dvfs_output_path)
         return opt_scme
 
     def parse_and_set_dvfs_data(self):
@@ -277,9 +286,16 @@ class DvfsOptimizationStage(Stage):
             pop_init
         )
         pop, hof = genetic_alg.run()
-        best_dvfs_level_allocation = hof[-1]
-        results = fitness_evaluator.get_fitness(best_dvfs_level_allocation, return_scme = True)
-        return results, hof
+        # Extract the best individual from the hall of fame
+        best_results = fitness_evaluator.get_fitness(hof[-1], return_scme=True)
+        # Extract the energy at 10% latency increase from the Pareto front
+        target_latency = 1 + 0.1
+        pf_latency_list = [ind.fitness.values[1] / self.base_latency for ind in hof]
+
+        idx = min(range(len(pf_latency_list)), key=lambda i: abs(pf_latency_list[i] - target_latency))
+
+        latency_10pct_result = fitness_evaluator.get_fitness(hof[idx], return_scme=True)
+        return (best_results, hof[-1]), (latency_10pct_result,hof[idx]), hof
     def plot_brute_force_dvfs(self, brute_force_dvfs_energy, brute_force_dvfs_latency):
         os.makedirs(self.dvfs_output_path, exist_ok=True)
         fig_filename = os.path.join(self.dvfs_output_path, "brute_force_dvfs.png")
@@ -354,7 +370,13 @@ class DvfsOptimizationStage(Stage):
         plt.plot(ideal_energy, ideal_latency, 
                  'b-o', linewidth=2, markersize=6,
                  label='Naive DVFS Curve', zorder=2)
-        
+
+        # --- New: draw y = 1.1 line (10% latency increase) ---
+        target_latency = 1.1
+        plt.axhline(y=target_latency, color='gray', linestyle='--', linewidth=1.5, alpha=0.8,
+                    label='10% Latency Increase')
+        # ------------------------------------------------------
+
         # Add base point at (1, 1) for reference
         plt.scatter(1.0, 1.0,
                     c='green', s=100, edgecolors='black', linewidths=2,
@@ -373,14 +395,63 @@ class DvfsOptimizationStage(Stage):
             y_min = min(min(pf_latency), min(ideal_latency), 0.8)
             y_max = max(max(pf_latency), max(ideal_latency), 1.2)
             plt.xlim(x_min - 0.1, 1.05)
-            plt.ylim(y_min - 0.1, 6)
+            plt.ylim(y_min - 0.1, 3)
         
         if fig_filename:
             plt.savefig(fig_filename, dpi=300, bbox_inches='tight', transparent=False)
         else:
             plt.show()
         
-        # Save metadata with normalized values
+        # --- New: extract energy at 10% latency increase and compute savings ---
+        def energy_at_target_from_polyline(xs, ys, target_y):
+            # Find all crossings of the polyline with y = target_y and interpolate energy
+            candidates = []
+            n = len(xs)
+            if n == 0:
+                return None
+            for i in range(n - 1):
+                y1, y2 = ys[i], ys[i + 1]
+                x1, x2 = xs[i], xs[i + 1]
+                # Exact hits
+                if y1 == target_y:
+                    candidates.append(x1)
+                if y2 == target_y:
+                    candidates.append(x2)
+                # Crossing check
+                if (y1 - target_y) * (y2 - target_y) < 0:
+                    t = (target_y - y1) / (y2 - y1)
+                    x = x1 + t * (x2 - x1)
+                    candidates.append(x)
+            if candidates:
+                return min(candidates)  # best (lowest) energy at this latency
+            # Fallback: pick energy at point closest in latency
+            idx = min(range(n), key=lambda i: abs(ys[i] - target_y))
+            return xs[idx]
+
+        # Ideal curve energy at target latency
+        ideal_energy_at_target = energy_at_target_from_polyline(ideal_energy, ideal_latency, target_latency)
+        ideal_energy_saving_at_target = (1.0 - ideal_energy_at_target) if ideal_energy_at_target is not None else None
+
+        # Pareto front: pick the lowest energy among points with latency <= target; fallback to closest latency
+        pf_energy_at_target = None
+        pf_energy_list = pf_energy if 'pf_energy' in locals() else []
+        pf_latency_list = pf_latency if 'pf_latency' in locals() else []
+        if pf_energy_list and pf_latency_list:
+            under_or_equal = [e for e, l in zip(pf_energy_list, pf_latency_list) if l <= target_latency]
+            if under_or_equal:
+                pf_energy_at_target = min(under_or_equal)
+            else:
+                # Fallback: closest in latency
+                idx = min(range(len(pf_latency_list)), key=lambda i: abs(pf_latency_list[i] - target_latency))
+                pf_energy_at_target = pf_energy_list[idx]
+        pf_energy_saving_at_target = (1.0 - pf_energy_at_target) if pf_energy_at_target is not None else None
+        print(f"Ideal DVFS Energy at 10% Latency Increase: {ideal_energy_at_target:.2f}%, Saving: {ideal_energy_saving_at_target:.2f}%")
+        print(f"Pareto Front DVFS Energy at 10% Latency Increase: {pf_energy_at_target:.2f}%, Saving: {pf_energy_saving_at_target:.2f}%")
+        improvement_pct =  ((ideal_energy_at_target - pf_energy_at_target)/ideal_energy_at_target) * 100
+        print(f"Pareto Front vs Ideal Energy Improvement at 10% Latency Increase: {improvement_pct:.2f}%")
+        # ----------------------------------------------------------------------
+
+        # Save metadata with normalized values and new metrics
         dvfs_meta = {
             "pf_energy_normalized": pf_energy if 'pf_energy' in locals() else [],
             "pf_latency_normalized": pf_latency if 'pf_latency' in locals() else [],
@@ -390,7 +461,63 @@ class DvfsOptimizationStage(Stage):
             "base_latency": self.base_latency,
             "brute_force_energy": self.brute_force_energy,
             "brute_force_latency": self.brute_force_latency,
+            # New metrics
+            "target_latency_norm": target_latency,
+            "ideal_energy_at_target": ideal_energy_at_target,
+            "pf_energy_at_target": pf_energy_at_target,
+            "ideal_energy_saving_at_target": ideal_energy_saving_at_target,
+            "pf_energy_saving_at_target": pf_energy_saving_at_target,
+            "ga_10pct_energy_improvement_pct": improvement_pct
         }
         pickle_save(dvfs_meta, meta_filename)
+    def plot_dvfs_allocation(self, scme, output_path):
+        workload = scme.workload
+        core_dvfs_allocation = {}
+        for node in workload.node_list:
+            core = node.chosen_core_allocation
+            start_time = node.get_start()
+            end_time = node.get_end()
+            dvfs_level = node.get_dvfs_level()
+            core_dvfs_allocation.setdefault(core, []).append((start_time, end_time, dvfs_level))
+
+        # Single figure: one row per core
+        if not core_dvfs_allocation:
+            return
+
+        cores = sorted(core_dvfs_allocation.keys())
+        nrows = len(cores)
+        fig_height = max(2.0, 1.8 * nrows)
+        fig, axes = plt.subplots(nrows, 1, sharex=True, figsize=(12, fig_height), constrained_layout=True)
+        if nrows == 1:
+            axes = [axes]
+
+        # Global x-limits based on all segments
+        all_starts = [s for allocs in core_dvfs_allocation.values() for (s, _, _) in allocs if s is not None]
+        all_ends = [e for allocs in core_dvfs_allocation.values() for (_, e, _) in allocs if e is not None]
+        if all_starts and all_ends:
+            xmin, xmax = min(all_starts), max(all_ends)
+        else:
+            xmin, xmax = 0, 1
+
+        for i, core in enumerate(cores):
+            ax = axes[i]
+            allocations = sorted(core_dvfs_allocation[core], key=lambda t: (t[0] if t[0] is not None else float("inf")))
+            for start, end, level in allocations:
+                if start is None or end is None:
+                    continue
+                ax.plot([start, end], [level, level], marker='x', color='black', linewidth=2)
+            ax.set_ylim(0, 10)
+            ax.set_ylabel(f"Core {core}\nDVFS")
+            ax.grid(True, linestyle='--', alpha=0.5)
+
+        axes[-1].set_xlabel("Time")
+        for ax in axes:
+            ax.set_xlim(xmin, xmax)
+
+        fig.suptitle("DVFS Allocation per Core", fontsize=14)
+        os.makedirs(output_path, exist_ok=True)
+        plt.savefig(os.path.join(output_path, "dvfs_allocation.png"), dpi=300, bbox_inches='tight')
+        plt.close(fig)
+
     def is_leaf(self):
         return True

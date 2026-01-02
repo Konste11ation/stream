@@ -2,7 +2,7 @@ import math
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 from math import log
-from typing import Literal
+from typing import Literal, Optional
 
 BATCH_SIZE = 1
 
@@ -76,7 +76,47 @@ class AttentionHeadConfig(ModelConfig):
     def parameterized_name(self) -> str:
         return f"{self.name}_B={self.batch_size}_FULL"
 
+class FlashAttentionConfig(ModelConfig):
+    def __init__(
+        self,
+        seq_len: int,
+        hidden_size: int,
+        dim_k: int,
+        dim_v: int,
+        batch_size: int = 1,
+        name: str = "FlashAttention",
+    ):
+        self.seq_len = seq_len
+        self.hidden_size = hidden_size
+        self.dim_k = dim_k
+        self.dim_v = dim_v
+        self.batch_size = batch_size
+        self.name = name
+        self.num_layer = 1  # Single layer
 
+    def to_single_layer_config(self) -> "ModelConfig":
+        return deepcopy(self)  # Already single layer
+
+    @property
+    def prefill_size(self) -> int:
+        return 1  # Not applicable
+
+    @prefill_size.setter
+    def prefill_size(self, value: int):
+        pass  # Not applicable
+
+    @property
+    def decode_size(self) -> int:
+        return 1  # Not applicable
+
+    @decode_size.setter
+    def decode_size(self, value: int):
+        pass  # Not applicable
+
+    @property
+    def parameterized_name(self) -> str:
+        return f"{self.name}_B={self.batch_size}_FULL"
+    
 class TransformerConfig(ModelConfig):
     def __init__(
         self,
@@ -89,9 +129,9 @@ class TransformerConfig(ModelConfig):
         vocab_size: int = 1000,
         name: str = "",
         # Automatically calculated
-        head_size: int | None = None,
-        prefill_size: int | None = None,
-        decode_size: int | None = None,
+        head_size: Optional[int] = None,
+        prefill_size: Optional[int] = None,
+        decode_size: Optional[int] = None,
     ):
         self.batch_size = batch_size
         self.embedding_dim = embedding_dim
@@ -211,7 +251,7 @@ class TransformerConfigSingleLayer(TransformerConfig):
 
 
 class QuantConfig:
-    def __init__(self, weight_bits: int, act_bits: int, output_bits: int | None = None):
+    def __init__(self, weight_bits: int, act_bits: int, output_bits: Optional[int] = None):
         self.weight_bits = weight_bits
         self.act_bits = act_bits
         self.intermediate_output_bits = output_bits if output_bits is not None else 2 * act_bits

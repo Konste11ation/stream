@@ -1,0 +1,19 @@
+name: 4_core_1_vec_array
+cores:
+  0: stream_dvfs/inputs/cores/decode_versacore_1_64_64_os.yaml
+  1: stream_dvfs/inputs/cores/decode_versacore_1_64_64_os.yaml
+  2: stream_dvfs/inputs/cores/decode_versacore_1_64_64_os.yaml
+  3: stream_dvfs/inputs/cores/decode_versacore_1_64_64_os.yaml
+  4: stream_dvfs/inputs/cores/vec_128.yaml
+  5: stream_dvfs/inputs/cores/offchip.yaml
+offchip_core_id: 5
+core_connectivity:
+  - {type: link, cores: [0, 5],  bandwidth: 512}
+  - {type: link, cores: [0, 1],  bandwidth: 512}
+  - {type: link, cores: [0, 2],  bandwidth: 512}
+  - {type: link, cores: [1, 3],  bandwidth: 512}
+  - {type: link, cores: [1, 4],  bandwidth: 512}
+  - {type: link, cores: [2, 3],  bandwidth: 512}
+  # - type: bus
+  #   cores: [0, 1, 2, 3, 4]     # all chiplets + DRAM ctrl
+  #   bandwidth: 512

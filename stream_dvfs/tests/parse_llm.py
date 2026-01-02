@@ -1,5 +1,6 @@
 import sys
 import os
+import argparse
 from pathlib import Path
 CURRENT_DIR = Path(__file__).resolve().parent
 STREAM_DVFS_DIR = CURRENT_DIR.parent
@@ -20,14 +21,14 @@ _logging_format = "%(asctime)s - %(name)s.%(funcName)s +%(lineno)s - %(levelname
 _logging.basicConfig(level=_logging_level, format=_logging_format)
 
 
-def dump_workload_to_yaml(workload: ONNXWorkload, workload_path:str):
+def dump_workload_to_yaml(workload: ONNXWorkload, workload_path: str):
     nodes_data = []
     for node in workload.node_list:
         node_data = {
-            "id": getattr(node, 'id', None),  
+            "id": getattr(node, 'id', None),
             "name": getattr(node, 'name', None),
             "operator_type": getattr(node, 'type', None),
-            "equation": getattr(getattr(node, 'equation', None),'data',None),
+            "equation": getattr(getattr(node, 'equation', None), 'data', None),
             "layer_dim_sizes": str(getattr(node, 'layer_dim_sizes', {})),
             "inter_core_tiling": str(getattr(node, 'inter_core_tiling', {})),
             "intra_core_tiling": str(getattr(node, 'intra_core_tiling', {})),
@@ -40,40 +41,43 @@ def dump_workload_to_yaml(workload: ONNXWorkload, workload_path:str):
         yaml.dump(
             yaml_data,
             f,
-            default_flow_style=False,  
+            default_flow_style=False,
             sort_keys=False,
             indent=2,
             allow_unicode=True
         )
 
 
-# accelerator_yaml = "stream_dvfs/inputs/multicore_system/attention_head.yaml"
-# mapping_yaml = "stream_dvfs/inputs/multicore_mapping/attention_head.yaml"
-# workload_path = "stream_dvfs/inputs/workloads/AttentionHeadTest_B=1_FULL_PREFILL_SIZE=1_DECODE_SIZE=1_W8A8_Decode.onnx"
-# output_yaml = "stream_dvfs/inputs/workloads/attention_head.yaml"
+def main():
+    # Argument parser setup
+    parser = argparse.ArgumentParser(description="Parse LLM workload and generate YAML.")
+    parser.add_argument("-w", "--workload_path", required=True, help="Path to the ONNX workload file.")
+    parser.add_argument("-a", "--accelerator_yaml", required=True, help="Path to the accelerator YAML file.")
+    parser.add_argument("-m", "--mapping_yaml", required=True, help="Path to the mapping YAML file.")
+    parser.add_argument("-o", "--output_yaml", required=True, help="Path to save the output YAML file.")
+    args = parser.parse_args()
 
-workload_path = "stream_dvfs/inputs/workloads/Llama1-7B_B=1_FULL_PREFILL_SIZE=512_DECODE_SIZE=512_W8A8_Decode.onnx"
-accelerator_yaml = "stream_dvfs/inputs/multicore_system/3core.yaml"
-mapping_yaml = "stream_dvfs/inputs/multicore_mapping/3core_llama_hand_mapping.yaml"
-output_yaml = "stream_dvfs/inputs/workloads/llama-7b.yaml"
-# Parse accelerator
-accelerator_data = open_yaml(accelerator_yaml)
-validator = AcceleratorValidator(accelerator_data, accelerator_yaml)
-accelerator_data = validator.normalized_data
-validate_success = validator.validate()
-if not validate_success:
-    raise ValueError("Failed to validate user provided accelerator.")
-factory = AcceleratorFactory(accelerator_data)
+    # Parse accelerator
+    accelerator_data = open_yaml(args.accelerator_yaml)
+    validator = AcceleratorValidator(accelerator_data, args.accelerator_yaml)
+    accelerator_data = validator.normalized_data
+    validate_success = validator.validate()
+    if not validate_success:
+        raise ValueError("Failed to validate user provided accelerator.")
+    factory = AcceleratorFactory(accelerator_data)
 
-accelerator = factory.create()
+    accelerator = factory.create()
 
-# Parse mapping
-mapping_parser = MappingParser(mapping_yaml)
-all_mappings = mapping_parser.run()
+    # Parse mapping
+    mapping_parser = MappingParser(args.mapping_yaml)
+    all_mappings = mapping_parser.run()
 
-# Parse ONNX model
-onnx_model_parser = ONNXModelParser(workload_path, all_mappings, accelerator)
-onnx_model_parser.run()
-onnx_model = onnx_model_parser.onnx_model
-workload = onnx_model_parser.workload
-dump_workload_to_yaml(workload, output_yaml)
+    # Parse ONNX model
+    onnx_model_parser = ONNXModelParser(args.workload_path, all_mappings, accelerator)
+    onnx_model_parser.run()
+    workload = onnx_model_parser.workload
+    dump_workload_to_yaml(workload, args.output_yaml)
+
+
+if __name__ == "__main__":
+    main()

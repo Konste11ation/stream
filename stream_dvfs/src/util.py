@@ -2,8 +2,20 @@ import sys
 import os
 from pathlib import Path
 import pickle
-from enum import StrEnum
-from typing import Any, TypeAlias
+try:
+    from enum import StrEnum
+except ImportError:
+    from enum import Enum
+    class StrEnum(str, Enum):
+        pass
+
+try:
+    from typing import TypeAlias
+except ImportError:
+    from typing import Any
+    TypeAlias = Any
+
+from typing import Any
 
 import numpy as np
 from zigzag.cost_model.cost_model import CostModelEvaluation

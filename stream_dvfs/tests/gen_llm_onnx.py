@@ -8,8 +8,8 @@ CURRENT_DIR = Path(__file__).resolve().parent  # noqa: F821
 STREAM_DVFS_DIR = CURRENT_DIR.parent  # noqa: F821 
 sys.path.append(str(STREAM_DVFS_DIR))  # noqa: F821 
 
-from src.config_library import W8A8, W4A16, W16A16, W32A32  # noqa: E402 
-from src.config_library import LLAMA1_7B, LLAMA2_7B, LLAMA3_8B, OPT_6_7B  # noqa: E402 
+from src.config_library import W4A8, W8A8, W4A16, W16A16, W32A32  # noqa: E402 
+from src.config_library import LLAMA1_7B, LLAMA2_7B, LLAMA3_8B, OPT_6_7B, FlashAttentionTestConfig  # noqa: E402 
 from src.util import Stage, get_onnx_path  # noqa: E402 
 from src.export_onnx import export_model_to_onnx  # noqa: E402 
 
@@ -19,9 +19,11 @@ MODEL_CHOICES = {
     "llama2_7b": LLAMA2_7B,
     "llama3_8b": LLAMA3_8B,
     "opt_6_7b": OPT_6_7B,
+    "fa_test": FlashAttentionTestConfig,
 }  
 
 QUANT_CHOICES = {
+    "w4a8": W4A8,
     "w8a8": W8A8,
     "w4a16": W4A16,
     "w16a16": W16A16,
@@ -74,7 +76,7 @@ def main():
     model = MODEL_CHOICES[args.model]
     quant = QUANT_CHOICES[args.quant]
     stage = STAGE_CHOICES[args.stage]  
-
+    print(f"Exporting model: {args.model}, quant: {args.quant}, stage: {args.stage}")
     onnx_path = get_onnx_path(
         output_dir=args.output_dir,
         model=model,
@@ -82,7 +84,7 @@ def main():
         quant=quant,
     )  
 
-    export_model_to_onnx(model, quant, path=onnx_path, stage=stage)  
+    export_model_to_onnx(model, quant, output_path=onnx_path, stage=stage)  
 
 if __name__ == "__main__":
     main()  

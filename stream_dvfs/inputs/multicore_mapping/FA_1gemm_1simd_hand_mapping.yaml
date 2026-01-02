@@ -1,0 +1,8 @@
+- name: default
+  core_allocation: [0]
+
+- name: Gemm
+  core_allocation: [0]
+
+- name: Simd
+  core_allocation: [1]

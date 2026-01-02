@@ -4,7 +4,7 @@ from pathlib import Path
 CURRENT_DIR = Path(__file__).resolve().parent
 STREAM_DVFS_DIR = CURRENT_DIR.parent
 
-from src.config import BATCH_SIZE, QuantConfig, TransformerConfig, AttentionHeadConfig
+from src.config import BATCH_SIZE, QuantConfig, TransformerConfig, AttentionHeadConfig, FlashAttentionConfig
 
 W1A8 = QuantConfig(1, 8, 16)
 W4A8 = QuantConfig(4, 8, 16)
@@ -22,6 +22,16 @@ AttentionHeadTestConfig = AttentionHeadConfig(
     batch_size=1,
     name="AttentionHeadTest"
 )
+
+FlashAttentionTestConfig = FlashAttentionConfig(
+    seq_len=16,
+    hidden_size=32,
+    dim_k=32,
+    dim_v=32,
+    batch_size=1,
+    name="FlashAttentionTest"
+)
+
 
 
 TEST_MODEL = TransformerConfig(
@@ -48,7 +58,7 @@ LLAMA1_7B = TransformerConfig(
 
 LLAMA1_13B = TransformerConfig(
     batch_size=BATCH_SIZE,
-    seq_len=2048,
+    seq_len=1024,
     embedding_dim=5120,
     dim_ff=13_824,
     num_head=40,
@@ -59,7 +69,7 @@ LLAMA1_13B = TransformerConfig(
 
 LLAMA1_30B = TransformerConfig(
     batch_size=BATCH_SIZE,
-    seq_len=2048,
+    seq_len=1024,
     embedding_dim=6_656,
     dim_ff=17_920,
     num_head=52,
@@ -70,7 +80,7 @@ LLAMA1_30B = TransformerConfig(
 
 LLAMA2_7B = TransformerConfig(
     batch_size=BATCH_SIZE,
-    seq_len=2048,
+    seq_len=1024,
     embedding_dim=4096,
     dim_ff=11_008,
     num_head=32,
@@ -81,7 +91,7 @@ LLAMA2_7B = TransformerConfig(
 
 LLAMA2_13B = TransformerConfig(
     batch_size=BATCH_SIZE,
-    seq_len=2048,
+    seq_len=1024,
     embedding_dim=5120,
     dim_ff=13_824,
     num_head=40,
@@ -93,7 +103,7 @@ LLAMA2_13B = TransformerConfig(
 
 OPT_125M = TransformerConfig(
     batch_size=BATCH_SIZE,
-    seq_len=2048,
+    seq_len=1024,
     embedding_dim=768,
     dim_ff=3072,
     num_head=12,
@@ -105,7 +115,7 @@ OPT_125M = TransformerConfig(
 
 OPT_1_3B = TransformerConfig(
     batch_size=BATCH_SIZE,
-    seq_len=2048,
+    seq_len=1024,
     embedding_dim=2048,
     dim_ff=8_192,
     num_head=32,
@@ -116,7 +126,7 @@ OPT_1_3B = TransformerConfig(
 
 OPT_2_7B = TransformerConfig(
     batch_size=BATCH_SIZE,
-    seq_len=2048,
+    seq_len=1024,
     embedding_dim=2560,
     dim_ff=10240,
     num_head=32,
@@ -127,7 +137,7 @@ OPT_2_7B = TransformerConfig(
 
 OPT_6_7B = TransformerConfig(
     batch_size=BATCH_SIZE,
-    seq_len=2048,
+    seq_len=1024,
     embedding_dim=4096,
     dim_ff=16384,
     num_head=32,
@@ -138,7 +148,7 @@ OPT_6_7B = TransformerConfig(
 
 OPT_13B = TransformerConfig(
     batch_size=BATCH_SIZE,
-    seq_len=2048,
+    seq_len=1024,
     embedding_dim=5120,
     dim_ff=20480,
     num_head=40,
@@ -149,7 +159,7 @@ OPT_13B = TransformerConfig(
 
 OPT_30B = TransformerConfig(
     batch_size=BATCH_SIZE,
-    seq_len=2048,
+    seq_len=1024,
     embedding_dim=7_168,
     dim_ff=28_672,
     num_head=56,
@@ -160,7 +170,7 @@ OPT_30B = TransformerConfig(
 
 GPT3_175B = TransformerConfig(
     batch_size=BATCH_SIZE,
-    seq_len=2048,
+    seq_len=1024,
     embedding_dim=12_288,
     dim_ff=49_152,
     num_head=96,
@@ -172,7 +182,7 @@ GPT3_175B = TransformerConfig(
 
 LLAMA3_8B = TransformerConfig(
     batch_size=BATCH_SIZE,
-    seq_len=2048,
+    seq_len=1024,
     embedding_dim=4096,
     dim_ff=14336,
     num_head=32,
