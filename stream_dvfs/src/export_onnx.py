@@ -29,6 +29,71 @@ from src.pytorch_models.custom_flash_attention import FlashAttentionModel
 from src.util import Stage, get_onnx_path
 
 
+def infer_shapes_with_custom_ops(model_onnx):
+    # Run infer_shapes first pass
+    model_onnx = infer_shapes(model_onnx)
+    
+    # Fix FlashAttention shapes
+    from onnx import helper, TensorProto
+    
+    modified = False
+    for node in model_onnx.graph.node:
+        if node.op_type == 'FlashAttention':
+            q_name = node.input[0]
+            out_name = node.output[0]
+            
+            # Find q shape
+            q_shape = None
+            # Check value_info
+            for vi in model_onnx.graph.value_info:
+                if vi.name == q_name:
+                    if vi.type.HasField('tensor_type') and vi.type.tensor_type.HasField('shape'):
+                        q_shape = vi.type.tensor_type.shape
+                        break
+            # Check graph inputs
+            if q_shape is None:
+                for inp in model_onnx.graph.input:
+                    if inp.name == q_name:
+                         if inp.type.HasField('tensor_type') and inp.type.tensor_type.HasField('shape'):
+                            q_shape = inp.type.tensor_type.shape
+                            break
+                            
+            if q_shape:
+                # Set output shape
+                dims = []
+                for d in q_shape.dim:
+                    if d.HasField('dim_value'):
+                        dims.append(d.dim_value)
+                    elif d.HasField('dim_param'):
+                        dims.append(d.dim_param)
+                    else:
+                        dims.append(None)
+                
+                # Check if it already exists in value_info
+                exists = False
+                for vi in model_onnx.graph.value_info:
+                    if vi.name == out_name:
+                        exists = True
+                        break
+                
+                if not exists:
+                    new_vi = helper.make_tensor_value_info(out_name, TensorProto.FLOAT, dims)
+                    model_onnx.graph.value_info.append(new_vi)
+                    modified = True
+                
+                # Also update graph output if applicable
+                for out in model_onnx.graph.output:
+                    if out.name == out_name:
+                        out.type.tensor_type.shape.Clear()
+                        out.type.tensor_type.shape.CopyFrom(q_shape)
+                        modified = True
+
+    if modified:
+        model_onnx = infer_shapes(model_onnx)
+        
+    return model_onnx
+
+
 def export_model_to_onnx(
     model_config: ModelConfig,
     quant_config: QuantConfig,
@@ -61,7 +126,7 @@ def export_model_to_onnx(
 
     # Perform shape inference
     onnx_model = onnx.load(output_path)
-    onnx_model = infer_shapes(onnx_model)
+    onnx_model = infer_shapes_with_custom_ops(onnx_model)
 
     # Add attribute with quantization info, to be used in Zigzag
     for node in onnx_model.graph.node:
@@ -237,10 +302,12 @@ if __name__ == "__main__":
     stage = Stage.DECODE
     # config = config.to_single_layer_config()
 
-    path = get_onnx_path(config, stage, quant_config)
+    path = get_onnx_path("outputs", config, stage, quant_config)
     export_model_to_onnx(
         config,
         quant_config,
         stage=stage,
-        path=path,
+        output_path=path,
     )
+
+

@@ -15,6 +15,7 @@ from stream.workload.computation.computation_node import ComputationNode
 from stream.workload.dependency_propagation.reshape_node import ReshapeNode
 from stream.workload.dependency_propagation.slice_node import SliceNode
 from stream.workload.dependency_propagation.concat_node import ConcatNode
+from stream.workload.dependency_propagation.diag_node import DiagNode
 # Dummy node for diagonal
 from stream.workload.dependency_propagation.dummy_node import DummyNode
 logger = logging.getLogger(__name__)
@@ -119,14 +120,14 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             for jdx in range(self.Tc):
                 compute_nodes.extend(self.get_compute_qkv_tile_nodes(idx, jdx))
             # 3. Output nodes
-            compute_nodes.extend(self.get_output_o_nodes(idx))
+        compute_nodes.extend(self.get_output_o_nodes())
         
         self.nodes = tuple(preprocessing_nodes + compute_nodes)
     def format_node_names(self):
         # Add the prefix to all node names
         fa_node_prefix = self.node.name
         for node in self.nodes:
-            node.node_name = f"{fa_node_prefix}/{node.node_name}"
+            node.name = f"{fa_node_prefix}/{node.name}"
             
             
     # To create a computation node, the function needs to create a dictionary
@@ -203,22 +204,23 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_data: dict[str, Any] = {}
         node_data["id"] = id
         node_data["name"] = f"gemm_qk_i{idx}_j{jdx}"
-        node_data["operator_type"] = "Gemm"
-        node_data["operand_source"] = {Constants.LAYER_OP_I:pred_id_input_Qi, Constants.LAYER_OP_W:pred_id_input_Kj}
+        node_data["operator_type"] = "FA_Gemm"
+        node_data["operand_source"] = {"I": pred_id_input_Qi, "W": pred_id_input_Kj}
         node_data["operand_precision"] = self.operand_precision
-        node_data["loop_dims"] = ["Batch", "Br", "Hidden", "Bc"]
+        node_data["loop_dims"] = ["BATCH", "BR", "HIDDEN", "BC"]
         node_data["loop_sizes"] = [self.batch, self.tile_Br, self.hidden_dim, self.tile_Bc]
-        node_data["equation"] = "O[batch, br, bc]+=I[batch, br, hidden]*W[batch, hidden, bc]"
-
+        node_data["equation"] = "O[batch][br][bc]+=I[batch][br][hidden]*W[batch][hidden][bc]"
+        node_data["dimension_relations"] = []
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
+        mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"Q_tile_{idx}", f"K_tile_{jdx}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
             node_attr=node_attrs,
-            mapping_attr=self.get_mapping_this_node(),
+            mapping_attr=mapping_attr,
             input_names=input_names,           
         )
     
@@ -228,21 +230,23 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_data: dict[str, Any] = {}
         node_data["id"] = id
         node_data["name"] = f"scale_i{idx}_j{jdx}"
-        node_data["operator_type"] = "Simd"
-        node_data["operand_source"] = {Constants.LAYER_OP_I:pred_id}
+        node_data["operator_type"] = "FA_Simd"
+        node_data["operand_source"] = {"I": pred_id}
         node_data["operand_precision"] = self.operand_precision
-        node_data["loop_dims"] = ["Batch", "Br", "Bc"]
+        node_data["loop_dims"] = ["BATCH", "BR", "BC"]
         node_data["loop_sizes"] = [self.batch, self.tile_Br, self.tile_Bc]
-        node_data["equation"] = "O[batch, br, bc]+=I[batch, br, bc]*W[]"
+        node_data["equation"] = "O[batch][br][bc]+=I[batch][br][bc]*W[]"
+        node_data["dimension_relations"] = []
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
+        mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"gemm_qk_i{idx}_j{jdx}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
             node_attr=node_attrs,
-            mapping_attr=self.get_mapping_this_node(),
+            mapping_attr=mapping_attr,
             input_names=input_names,           
         )
     
@@ -253,21 +257,23 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_data: dict[str, Any] = {}
         node_data["id"] = id
         node_data["name"] = f"compute_m_i{idx}_j{jdx}"
-        node_data["operator_type"] = "Simd"
-        node_data["operand_source"] = {Constants.LAYER_OP_I:pred_id}
+        node_data["operator_type"] = "FA_Simd"
+        node_data["operand_source"] = {"I":pred_id}
         node_data["operand_precision"] = self.operand_precision
-        node_data["loop_dims"] = ["Batch", "Br", "Bc"]
+        node_data["loop_dims"] = ["BATCH", "BR", "BC"]
         node_data["loop_sizes"] = [self.batch, self.tile_Br, self.tile_Bc]
-        node_data["equation"] = "O[batch, br]+=I[batch, br, bc]*W[]"
+        node_data["equation"] = "O[batch][br]+=I[batch][br][bc]*W[]"
+        node_data["dimension_relations"] = []
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
+        mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"scale_i{idx}_j{jdx}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
             node_attr=node_attrs,
-            mapping_attr=self.get_mapping_this_node(),
+            mapping_attr=mapping_attr,
             input_names=input_names,           
         )
     
@@ -277,24 +283,26 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_data: dict[str, Any] = {}
         node_data["id"] = id
         node_data["name"] = f"compute_p_i{idx}_j{jdx}"
-        node_data["operator_type"] = "Simd"
+        node_data["operator_type"] = "FA_Simd"
         node_data["operand_source"] = {
-            Constants.LAYER_OP_I: pred_id_s,
-            Constants.LAYER_OP_W: pred_id_m,
+            "I": pred_id_s,
+            "W": pred_id_m,
         }
         node_data["operand_precision"] = self.operand_precision
-        node_data["loop_dims"] = ["Batch", "Br", "Bc", "R"]
-        node_data["loop_sizes"] = [self.batch, self.tile_Br, self.tile_Bc, 1]
-        node_data["equation"] = "O[batch, br, bc]+=I[batch, br, bc]*W[batch, br, r]"
+        node_data["loop_dims"] = ["BATCH", "BR", "BC"]
+        node_data["loop_sizes"] = [self.batch, self.tile_Br, self.tile_Bc]
+        node_data["equation"] = "O[batch][br][bc]+=I[batch][br][bc]*W[batch][br]"
+        node_data["dimension_relations"] = []
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
+        mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"scale_i{idx}_j{jdx}", f"compute_m_i{idx}_j{jdx}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
             node_attr=node_attrs,
-            mapping_attr=self.get_mapping_this_node(),
+            mapping_attr=mapping_attr,
             input_names=input_names,           
         )
     
@@ -304,21 +312,23 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_data: dict[str, Any] = {}
         node_data["id"] = id
         node_data["name"] = f"compute_l_i{idx}_j{jdx}"
-        node_data["operator_type"] = "Simd"
-        node_data["operand_source"] = {Constants.LAYER_OP_I:pred_id_input}
+        node_data["operator_type"] = "FA_Simd"
+        node_data["operand_source"] = {"I":pred_id_input}
         node_data["operand_precision"] = self.operand_precision
-        node_data["loop_dims"] = ["Batch", "Br", "Bc"]
+        node_data["loop_dims"] = ["BATCH", "BR", "BC"]
         node_data["loop_sizes"] = [self.batch, self.tile_Br, self.tile_Bc]
-        node_data["equation"] = "O[batch, br]+=I[batch, br, bc]*W[]"
+        node_data["equation"] = "O[batch][br]+=I[batch][br][bc]*W[]"
+        node_data["dimension_relations"] = []
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
+        mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"compute_p_i{idx}_j{jdx}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
             node_attr=node_attrs,
-            mapping_attr=self.get_mapping_this_node(),
+            mapping_attr=mapping_attr,
             input_names=input_names,           
         )
     
@@ -331,21 +341,23 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_data: dict[str, Any] = {}
         node_data["id"] = id
         node_data["name"] = f"gemm_pv_i{idx}_j{jdx}"
-        node_data["operator_type"] = "Gemm"
-        node_data["operand_source"] = {Constants.LAYER_OP_I:pred_id_input, Constants.LAYER_OP_W:pred_id_weight}
+        node_data["operator_type"] = "FA_Gemm"
+        node_data["operand_source"] = {"I":pred_id_input, "W":pred_id_weight}
         node_data["operand_precision"] = self.operand_precision
-        node_data["loop_dims"] = ["Batch", "Br", "Bc", "Hidden_Dim"]
+        node_data["loop_dims"] = ["BATCH", "BR", "BC", "HIDDEN"]
         node_data["loop_sizes"] = [self.batch, self.tile_Br, self.tile_Bc, self.hidden_dim]
-        node_data["equation"] = "O[batch, br, hd]+=I[batch, br, bc]*W[batch, bc, hd]"
+        node_data["equation"] = "O[batch][br][hidden]+=I[batch][br][bc]*W[batch][bc][hidden]"
+        node_data["dimension_relations"] = []
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
+        mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"compute_p_i{idx}_j{jdx}", f"V_tile_{jdx}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
             node_attr=node_attrs,
-            mapping_attr=self.get_mapping_this_node(),
+            mapping_attr=mapping_attr,
             input_names=input_names,           
         )
     
@@ -355,34 +367,37 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_data: dict[str, Any] = {}
         node_data["id"] = id
         node_data["name"] = f"scaling_factor_i{idx}_j{jdx}"
-        node_data["operator_type"] = "Simd"
-        node_data["operand_source"] = {Constants.LAYER_OP_I: pred_id_input}
+        node_data["operator_type"] = "FA_Simd"
+        node_data["operand_source"] = {"I": pred_id_input}
         node_data["operand_precision"] = self.operand_precision
-        node_data["loop_dims"] = ["Batch", "Br"]
+        node_data["loop_dims"] = ["BATCH", "BR"]
         node_data["loop_sizes"] = [self.batch, self.tile_Br]
-        node_data["equation"] = "O[batch, br]+=I[batch, br]*W[]"
+        node_data["equation"] = "O[batch][br]+=I[batch][br]*W[]"
+        node_data["dimension_relations"] = []
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
+        mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"compute_m_i{idx}_j{jdx}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
             node_attr=node_attrs,
-            mapping_attr=self.get_mapping_this_node(),
+            mapping_attr=mapping_attr,
             input_names=input_names,
         )
-    def _helper_create_diag_node(self, id, pred_id):
+    def _helper_create_diag_sf_node(self, idx, jdx, id, pred_id):
         # This is the diag node
-        # We use a dummy node for now
         # Basically it will create a diagonal matrix from the input vector
         # for example the input with size Br*1 will create a Br*Br matrix
         # [1,2] -> [[1,0],[0,2]]
-        return DummyNode(
+        # We need to use a concat node to pad the
+        
+        return DiagNode(
             node_id=id,
-            node_type="dummy_diag",
-            node_name=f"diag_{id}",
+            node_name=f"diag_sf_i{idx}_j{jdx}",
             predecessors=[pred_id],
+            input_names=[f"scaling_factor_i{idx}_j{jdx}"],
         )
     def _helper_create_update_og_node(self, idx, jdx, id, pred_id_scale_factor, pred_id_og_partial):
         # This is the eigth step for the FA
@@ -391,24 +406,26 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_data: dict[str, Any] = {}
         node_data["id"] = id
         node_data["name"] = f"update_og_i{idx}_j{jdx}"
-        node_data["operator_type"] = "Gemm"
+        node_data["operator_type"] = "FA_Gemm"
         node_data["operand_source"] = {
-            Constants.LAYER_OP_I: pred_id_scale_factor,
-            Constants.LAYER_OP_W: pred_id_og_partial,
+            "I": pred_id_scale_factor,
+            "W": pred_id_og_partial,
         }
         node_data["operand_precision"] = self.operand_precision
-        node_data["loop_dims"] = ["Batch", "Br", "Br", "Hidden_Dim"]
+        node_data["loop_dims"] = ["BATCH", "BR", "D", "HIDDEN"]
         node_data["loop_sizes"] = [self.batch, self.tile_Br, self.tile_Br, self.hidden_dim]
-        node_data["equation"] = "O[batch, br, hd]+=I[batch, br, br]*W[batch, br, hd]"
+        node_data["equation"] = "O[batch][br][hidden]+=I[batch][br][d]*W[batch][br][hidden]"
+        node_data["dimension_relations"] = []
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
+        mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"scaling_factor_i{idx}_j{jdx}", f"gemm_pv_i{idx}_j{jdx}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
             node_attr=node_attrs,
-            mapping_attr=self.get_mapping_this_node(),
+            mapping_attr=mapping_attr,
             input_names=input_names,
         )
     def _helper_create_update_lg_node(self, idx, jdx, id, pred_id_scale_factor, pred_id_lg_partial):
@@ -418,24 +435,26 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_data: dict[str, Any] = {}
         node_data["id"] = id
         node_data["name"] = f"update_lg_i{idx}_j{jdx}"
-        node_data["operator_type"] = "Gemm"
+        node_data["operator_type"] = "FA_Gemm"
         node_data["operand_source"] = {
-            Constants.LAYER_OP_I: pred_id_scale_factor,
-            Constants.LAYER_OP_W: pred_id_lg_partial,
+            "I": pred_id_scale_factor,
+            "W": pred_id_lg_partial,
         }
         node_data["operand_precision"] = self.operand_precision
-        node_data["loop_dims"] = ["Batch", "Br", "Br"]
+        node_data["loop_dims"] = ["BATCH", "BR", "BR"]
         node_data["loop_sizes"] = [self.batch, self.tile_Br, self.tile_Br]
-        node_data["equation"] = "O[batch, br]+=I[batch, br, br]*W[batch, br]"
+        node_data["equation"] = "O[batch][br]+=I[batch][br][br]*W[batch][br]"
+        node_data["dimension_relations"] = []
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
+        mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"scaling_factor_i{idx}_j{jdx}", f"compute_l_i{idx}_j{jdx}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
             node_attr=node_attrs,
-            mapping_attr=self.get_mapping_this_node(),
+            mapping_attr=mapping_attr,
             input_names=input_names,
         )
 
@@ -445,9 +464,16 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         # since it is just a copy operation, we use a dummy node
         return DummyNode(
             node_id=id,
-            node_type="dummy_copy",
             node_name=f"update_mg_i{idx}_j{jdx}",
             predecessors=[pred_id],
+        )
+    def _helper_create_diag_lg_node(self, idx, id, pred_id):
+        # This is the diag node for lg
+        return DiagNode(
+            node_id=id,
+            node_name=f"diag_lg_i{idx}_j{self.Tc -1}",
+            predecessors=[pred_id],
+            input_names=[f"update_lg_i{idx}_j{self.Tc -1}"],
         )
     def _helper_create_rescale_o_node(self, idx, id, pred_id_lg_updated, pred_id_og_updated):
         # This is the eleventh step for the FA
@@ -457,27 +483,29 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_data: dict[str, Any] = {}
         node_data["id"] = id
         node_data["name"] = f"rescale_o_i{idx}"
-        node_data["operator_type"] = "Gemm"
+        node_data["operator_type"] = "FA_Gemm"
         node_data["operand_source"] = {
-            Constants.LAYER_OP_I: pred_id_lg_updated,
-            Constants.LAYER_OP_W: pred_id_og_updated,
+            "I": pred_id_lg_updated,
+            "W": pred_id_og_updated,
         }
         node_data["operand_precision"] = self.operand_precision
-        node_data["loop_dims"] = ["Batch", "Br", "Br","Hidden"]
+        node_data["loop_dims"] = ["BATCH", "BR", "BR","HIDDEN"]
         node_data["loop_sizes"] = [self.batch, self.tile_Br, self.tile_Br, self.hidden_dim]
-        node_data["equation"] = "O[batch, br, hidden]+=I[batch, br, br]*W[batch, br, hidden]"
+        node_data["equation"] = "O[batch][br][hidden]+=I[batch][br][br]*W[batch][br][hidden]"
+        node_data["dimension_relations"] = []
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
-        input_names = [f"update_lg_i{idx}_j{jdx}", f"update_og_i{idx}_j{jdx}"]
+        mapping_attr = self._util_get_mapping_this_node(node_data)
+        input_names = [f"update_lg_i{idx}_j{self.Tc-1}", f"update_og_i{idx}_j{self.Tc-1}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
             node_attr=node_attrs,
-            mapping_attr=self.get_mapping_this_node(),
+            mapping_attr=mapping_attr,
             input_names=input_names,
         )
-    
+
     def _helper_create_concat_o_node(self, id, pred_id_partial_o_nodes):
         # This is the final step to concatenate all the output tiles
         return ConcatNode(
@@ -497,15 +525,30 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
 
     def _util_add_node(self, node):
         """Add a node to the node_name_to_id dictionary"""
-        name = node.node_name
-        id = node.node_id
+        name = node.name
+        id = node.id
         self.node_name_to_id[name] = id
 
     def _util_get_id_from_node_name(self, name: str) -> int:
         """Get the node id from the node_name_to_id dictionary using the node name"""
         if name in self.node_name_to_id:
             return self.node_name_to_id[name]
-        raise ValueError(f"Node with name {name} not found in node_name_to_id")
+        raise ValueError(f"Node with name {name} not found in node_name_to_id={self.node_name_to_id}")
+    
+    def _util_get_mapping_this_node(self, node_data: dict[str, Any]):
+        default_mapping = self.all_mappings["default"]
+        if node_data["name"] in self.all_mappings:
+            mapping = self.all_mappings[node_data["name"]]
+        elif node_data["operator_type"] in self.all_mappings:
+            mapping = self.all_mappings[node_data["operator_type"]]
+        else:
+            mapping = default_mapping
+        # If no inter/intra mapping is given: use default one
+        if not mapping.intra_core_tiling:
+            mapping.intra_core_tiling = default_mapping.intra_core_tiling
+        if not mapping.inter_core_tiling:
+            mapping.inter_core_tiling = default_mapping.inter_core_tiling
+        return mapping
     # Main get_nodes function
     def get_preprocessing_nodes(self):
         """Get the preprocessing nodes for FlashAttention"""
@@ -643,11 +686,21 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         )
         nodes.append(scaling_factor_node)
         self._util_add_node(scaling_factor_node)
+        # The diag node
+        current_id = self._util_get_and_increment_id()
+        diag_sf_node = self._helper_create_diag_sf_node(
+            id=current_id,
+            pred_id=self._util_get_id_from_node_name(f"scaling_factor_i{idx}_j{jdx}"),
+            idx=idx,
+            jdx=jdx,
+        )
+        nodes.append(diag_sf_node)
+        self._util_add_node(diag_sf_node)
         # 8. Update Og
         current_id = self._util_get_and_increment_id()
         update_og_node = self._helper_create_update_og_node(
             id=current_id,
-            pred_id_scale_factor=self._util_get_id_from_node_name(f"scaling_factor_i{idx}_j{jdx}"),
+            pred_id_scale_factor=self._util_get_id_from_node_name(f"diag_sf_i{idx}_j{jdx}"),
             pred_id_og_partial=self._util_get_id_from_node_name(f"gemm_pv_i{idx}_j{jdx}"),
             idx=idx,
             jdx=jdx,
@@ -658,7 +711,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         current_id = self._util_get_and_increment_id()
         update_lg_node = self._helper_create_update_lg_node(
             id=current_id,
-            pred_id_scale_factor=self._util_get_id_from_node_name(f"scaling_factor_i{idx}_j{jdx}"),
+            pred_id_scale_factor=self._util_get_id_from_node_name(f"diag_sf_i{idx}_j{jdx}"),
             pred_id_lg_partial=self._util_get_id_from_node_name(f"compute_l_i{idx}_j{jdx}"),
             idx=idx,
             jdx=jdx,
@@ -676,16 +729,24 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         nodes.append(update_mg_node)
         self._util_add_node(update_mg_node)
         return nodes
-    def get_output_o_nodes(self, idx: int):
+    def get_output_o_nodes(self):
         """Get the output nodes for one tile of FlashAttention"""
         nodes = []
         # For each output tile, we need to create the following nodes:
         # 11. Rescale O
         for idx in range(self.Tr):
             current_id = self._util_get_and_increment_id()
+            diag_lg_node = self._helper_create_diag_lg_node(
+                id=current_id,
+                pred_id=self._util_get_id_from_node_name(f"update_lg_i{idx}_j{self.Tc -1}"),
+                idx=idx,
+            )
+            nodes.append(diag_lg_node)
+            self._util_add_node(diag_lg_node)
+            current_id = self._util_get_and_increment_id()
             rescale_o_node = self._helper_create_rescale_o_node(
                 id=current_id,
-                pred_id_lg_updated=self._util_get_id_from_node_name(f"update_lg_i{idx}_j{self.Tc -1}"),
+                pred_id_lg_updated=self._util_get_id_from_node_name(f"diag_lg_i{idx}_j{self.Tc -1}"),
                 pred_id_og_updated=self._util_get_id_from_node_name(f"update_og_i{idx}_j{self.Tc -1}"),
                 idx=idx,
             )
@@ -727,12 +788,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
 
         # Second pass: add edges
         for node in self.nodes:
-            if isinstance(node, dict):
-                node_name = node["name"]
-                sources = node.get("operand_source", {}).values()
-            else:
-                node_name = node.node_name
-                sources = node.input_operand_source.values()
+            node_name = node.node_name
+            sources = node.input_operand_source.values()
             
             for src_id in sources:
                 if isinstance(src_id, list): # Handle list of predecessors (e.g. Concat)

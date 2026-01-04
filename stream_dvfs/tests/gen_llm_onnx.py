@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument(
         "--model",
         choices=MODEL_CHOICES.keys(),
-        default="llama2_7b",
+        default="fa_test",
         help="Model config to export: {%(choices)s} (default: %(default)s)",  
     )  
 

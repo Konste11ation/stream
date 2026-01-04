@@ -3,7 +3,7 @@ import torch.nn as nn
 
 class FlashAttentionFunction(torch.autograd.Function):
     """
-    Custom autograd function to export a specific 'Flash_Attention' node to ONNX.
+    Custom autograd function to export a specific 'FlashAttention' node to ONNX.
     """
     @staticmethod
     def forward(ctx, q, k, v):
@@ -16,7 +16,7 @@ class FlashAttentionFunction(torch.autograd.Function):
         # This method tells the ONNX exporter how to represent this function.
         # g.op() creates a new node in the ONNX graph.
         # "Flash_Attention" will be the 'op_type' of the node.
-        output = g.op("Flash_Attention", q, k, v)
+        output = g.op("FlashAttention", q, k, v)
         # Infer the shape of the output
         # We assume the output shape is the same as the query shape
         output.setType(q.type())

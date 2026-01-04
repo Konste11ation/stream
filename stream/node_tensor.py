@@ -192,6 +192,59 @@ class NodeTensor(np.ndarray[Any, Any]):
         axis = axis - 1 if axis < 0 else axis
         return np.expand_dims(self.as_ndarray(), axis).view(NodeTensor)
 
+    def diag(self) -> "NodeTensor":
+        """Create diagonal matrices from a 1D vector (final dimension).
+        
+        For a NodeTensor with shape (..., N), creates output with shape (..., N, N)
+        where each N-element vector is converted to an NxN diagonal matrix.
+        
+        Example:
+            Input shape: (Batch, Br) -> shape (2, 4)
+            Output shape: (Batch, Br, Br) -> shape (2, 4, 4)
+            
+            For each (batch, :) slice, a 4x4 diagonal matrix is created.
+        
+        Returns:
+            A NodeTensor with one additional dimension, containing diagonal matrices.
+        """
+        # Get the size of the last workload dimension (the vector size)
+        vector_size = self.tensor_shape[-1]
+        
+        # Create output shape: (..., N, N) with pre_allocation_size
+        output_shape = self.tensor_shape + (vector_size,)
+        output_full_shape = self.convert_to_full_shape(output_shape)
+        
+        # Create the output tensor filled with zeros
+        output_array = np.zeros(output_full_shape, dtype=object)
+        
+        # Flatten all dimensions except the last (vector dimension)
+        flat_tensor = self.flat
+        num_vectors = math.prod(self.tensor_shape[:-1])
+        
+        # Process each vector and create diagonal matrix
+        for i in range(num_vectors):
+            # Get the vector at position i
+            vector = flat_tensor[i, :vector_size]
+            
+            # Remove None values (unfilled slots)
+            vector_cleaned = vector[vector != 0]
+            
+            # Create diagonal matrix from this vector
+            if len(vector_cleaned) > 0:
+                diag_matrix = np.diag(vector_cleaned)
+                
+                # Reshape to match output structure and place in output
+                # Map flat index i back to multi-dimensional index
+                multi_idx = np.unravel_index(i, self.tensor_shape[:-1])
+                
+                # Place the diagonal matrix in the output
+                output_slices = multi_idx + (slice(None), slice(None))
+                output_array[output_slices + (slice(None),)] = diag_matrix[..., np.newaxis]
+        
+        # Convert back to NodeTensor
+        result = output_array.view(NodeTensor)
+        return result
+
     def __repr__(self):
         return f"NodeTensor{self.tensor_shape}[depth={self.__node_count}]"
 

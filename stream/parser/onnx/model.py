@@ -24,6 +24,7 @@ from stream.parser.onnx.slice import SliceParser
 from stream.parser.onnx.softmax import SoftmaxParser
 from stream.parser.onnx.split import SplitParser
 from stream.parser.onnx.ssm import SSMParser
+from stream.parser.onnx.flashattention import FlashAttentionParser
 from stream.parser.onnx.transpose import TransposeParser
 from stream.workload.mapping import InterCoreMappingAttributes
 from stream.workload.onnx_workload import ONNXWorkload
@@ -52,6 +53,7 @@ class ONNXModelParser:
         # Special operators
         "SSM": SSMParser,
         "Softmax": SoftmaxParser,
+        "FlashAttention": FlashAttentionParser,
         # Single-input element-wise
         "Exp": SimdParser,
         "ReduceMean": Reduce1DParser,

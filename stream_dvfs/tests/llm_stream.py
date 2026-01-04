@@ -5,10 +5,8 @@ from pathlib import Path
 CURRENT_DIR = Path(__file__).resolve().parent
 STREAM_DVFS_DIR = CURRENT_DIR.parent
 STREAM_WORKDIR = STREAM_DVFS_DIR.parent
-STREAM_DEV_DIR = STREAM_WORKDIR.parent
 sys.path.append(str(STREAM_WORKDIR))
 
-os.environ['GRB_LICENSE_FILE'] = f'{STREAM_DEV_DIR}/gurobi.lic'
 import logging as _logging
 from stream.api import optimize_allocation_co, optimize_allocation_ga
 from stream.utils import CostModelEvaluationLUT

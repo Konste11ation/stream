@@ -24,7 +24,7 @@ AttentionHeadTestConfig = AttentionHeadConfig(
 )
 
 FlashAttentionTestConfig = FlashAttentionConfig(
-    seq_len=16,
+    seq_len=32,
     hidden_size=32,
     dim_k=32,
     dim_v=32,
