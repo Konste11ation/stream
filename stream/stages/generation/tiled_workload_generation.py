@@ -19,6 +19,7 @@ from stream.opt.partitioning.TemporalLoop import TemporalLoop
 from stream.opt.partitioning.utils import convert_outer_cn_loops
 from stream.stages.stage import Stage, StageCallable
 from stream.utils import contains_wildcard, get_inter_core_tiling_size
+from stream.workload.utils import visualize_computation_workload    
 from stream.workload.computation.computation_node import LOOP_RANGES_T, ComputationNode, GeneratedComputationNode
 from stream.workload.dependency_propagation.dummy_node import DummyNode
 from stream.workload.dependency_propagation.propagation_node import PropagationNode
@@ -198,6 +199,7 @@ class TiledWorkloadGenerationStage(Stage):
 
     @staticmethod
     def get_scheduling_order(workload: ComputationNodeWorkload):
+        # visualize_computation_workload(workload, filepath="tiled_workload.png")
         return sorted((n.id, n.sub_id) for n in workload.node_list)
 
     @staticmethod

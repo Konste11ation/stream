@@ -127,3 +127,71 @@ class ConcatNode(PropagationNode):
         relevant_axes[self.axis] = True
 
         return extended_tensor, relevant_axes
+
+
+class BlockConcatNode(PropagationNode):
+    """Class that represents an onnx Concat node where input blocks (size > 1) are concatenated."""
+
+    def __init__(
+        self,
+        node_id: int,
+        node_name: str,
+        predecessors: list[int],
+        axis: int,
+        output_shape: tuple[int, ...],
+        input_names: list[str] | None = None,
+        axis_exists_in_input: bool = True,
+    ) -> None:
+        """Initialize the BlockConcatNode
+
+        Args:
+            predecessors: The id of this node's parent.
+            axis: axis in which the inputs are concatenated
+            output_shape: the shape of the output
+            axis_exists_in_input: whether the input already has the axis over which the concationation happens.
+                                  Defaults to True as this is primarily for block concatenation.
+
+        """
+        if input_names is None:
+            input_names = []
+        op_type = "concat"
+        super().__init__(node_id, node_name, op_type, input_names)
+        self.axis = axis
+        self.output_shape = output_shape
+        self.axis_exists_in_input = axis_exists_in_input
+
+        self.input_operand_source = {LayerOperand(f"I{i}"): node_id for i, node_id in enumerate(predecessors)}
+
+    def propagate(
+        self,
+        tensor: NodeTensor,
+        previous_node: Node | None = None,
+        next_node: Node | None = None,
+        relevant_axes: list[bool] | None = None,
+    ) -> tuple[NodeTensor, list[bool]]:
+        """The input slice is only one of many inputs of this node, but the output tensor should have the shape of the
+        concat node output. Return a tensor of all zeros except the input tensor at the correct index"""
+        if relevant_axes is None:
+            relevant_axes = [False] * len(tensor.tensor_shape)
+        assert isinstance(previous_node, GeneratedComputationNode), (
+            "BlockConcatNode only supported for procedurally generated nodes for now"
+        )
+        
+        # We expect input dimensions to match output dimensions if axis exists
+        if self.axis_exists_in_input:
+            assert len(tensor.tensor_shape) == len(self.output_shape), "Tensor shape mismatch"
+            # We explicitly DO NOT check checks on size 1 dimensions here, unlike ConcatNode
+
+        slice_idx = previous_node.gen_id
+        extended_tensor = tensor.concat_with_empty_both_sides_chunk(
+            output_shape=self.output_shape,
+            axis=self.axis,
+            slice_idx=slice_idx,
+            axis_exists_in_input=self.axis_exists_in_input,
+        )
+
+        # Log this axis as relevant
+        relevant_axes[self.axis] = True
+
+        return extended_tensor, relevant_axes
+

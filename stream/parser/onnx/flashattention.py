@@ -3,6 +3,7 @@ import logging
 from enum import StrEnum
 from typing import Any
 from zigzag.datatypes import Constants
+from zigzag.datatypes import LayerDim
 from stream.parser.onnx.operator_parser import OnnxComputeOperatorParser
 from onnx import ModelProto, NodeProto
 from zigzag.parser.workload_factory import LayerNodeFactory
@@ -11,10 +12,11 @@ from stream.hardware.architecture.accelerator import Accelerator
 from stream.onnx_utils import get_onnx_input_shapes, get_onnx_output_shapes
 from stream.workload.node import Node
 from stream.workload.computation.computation_node import ComputationNode
+from stream.workload.computation.computation_node import GeneratedComputationNode
 # Dependency propagation nodes
 from stream.workload.dependency_propagation.reshape_node import ReshapeNode
 from stream.workload.dependency_propagation.slice_node import SliceNode
-from stream.workload.dependency_propagation.concat_node import ConcatNode
+from stream.workload.dependency_propagation.concat_node import ConcatNode, BlockConcatNode
 from stream.workload.dependency_propagation.diag_node import DiagNode
 # Dummy node for diagonal
 from stream.workload.dependency_propagation.dummy_node import DummyNode
@@ -162,26 +164,26 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         # This function create the slice qkv node
         # input names should be only 1 from ["Q", "K", "V"]
         if input_name == "Q":
-            node_name = f"slice_q_{idx}"
+            node_name = f"slice_q_i_{idx}"
             start = idx * self.tile_Br
             end = start + self.tile_Br
             axe = 1
             input_name = self.node.input[0]
-            output_names = [f"Q_tile_{idx}"]
+            output_names = [f"Q_tile_i_{idx}"]
         if input_name == "K":
-            node_name = f"slice_k_{idx}"
+            node_name = f"slice_k_j_{idx}"
             start = idx * self.tile_Bc
             end = start + self.tile_Bc
             axe = 1
             input_name = "reshape_k"
             output_names = [f"K_tile_{idx}" ]
         if input_name == "V":
-            node_name = f"slice_v_{idx}"
+            node_name = f"slice_v_j_{idx}"
             start = idx * self.tile_Bc
             end = start + self.tile_Bc
             axe = 2
             input_name = self.node.input[2]
-            output_names = [f"V_tile_{idx}"]
+            output_names = [f"V_tile_j_{idx}"]
         return SliceNode(
             node_id=node_id,
             node_name=node_name,
@@ -203,7 +205,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         # jdx: index for K
         node_data: dict[str, Any] = {}
         node_data["id"] = id
-        node_data["name"] = f"gemm_qk_i{idx}_j{jdx}"
+        node_data["name"] = f"gemm_qk_i_{idx}_j_{jdx}"
         node_data["operator_type"] = "FA_Gemm"
         node_data["operand_source"] = {"I": pred_id_input_Qi, "W": pred_id_input_Kj}
         node_data["operand_precision"] = self.operand_precision
@@ -215,6 +217,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"Q_tile_{idx}", f"K_tile_{jdx}"]
+        
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
@@ -229,7 +232,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         # 2. s = x/scale [Br x Bc]
         node_data: dict[str, Any] = {}
         node_data["id"] = id
-        node_data["name"] = f"scale_i{idx}_j{jdx}"
+        node_data["name"] = f"scale_i_{idx}_j_{jdx}"
         node_data["operator_type"] = "FA_Simd"
         node_data["operand_source"] = {"I": pred_id}
         node_data["operand_precision"] = self.operand_precision
@@ -240,7 +243,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
-        input_names = [f"gemm_qk_i{idx}_j{jdx}"]
+        input_names = [f"gemm_qk_i_{idx}_j_{jdx}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
@@ -250,24 +253,28 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             input_names=input_names,           
         )
     
-    def _helper_create_compute_m_node(self, idx, jdx, id, pred_id):
+    def _helper_create_compute_m_node(self, idx, jdx, id, pred_id_s, pred_id_mg):
         # This is the third step for the FA
-        # 3. m = max_row(s) [Br x 1]
+        # 3. m = max_row(s, m_g) [Br x 1]
         # Pretty much a reduce 1d operator
         node_data: dict[str, Any] = {}
         node_data["id"] = id
-        node_data["name"] = f"compute_m_i{idx}_j{jdx}"
+        node_data["name"] = f"compute_m_i_{idx}_j_{jdx}"
         node_data["operator_type"] = "FA_Simd"
-        node_data["operand_source"] = {"I":pred_id}
         node_data["operand_precision"] = self.operand_precision
         node_data["loop_dims"] = ["BATCH", "BR", "BC"]
         node_data["loop_sizes"] = [self.batch, self.tile_Br, self.tile_Bc]
-        node_data["equation"] = "O[batch][br]+=I[batch][br][bc]*W[]"
         node_data["dimension_relations"] = []
+        if jdx == 0:
+            node_data["operand_source"] = {"I": pred_id_s}
+            node_data["equation"] = "O[batch][br]+=I[batch][br][bc]*W[]"
+        else:
+            node_data["operand_source"] = {"I": pred_id_s, "W": pred_id_mg}
+            node_data["equation"] = "O[batch][br]+=I[batch][br][bc]*W[batch][br]"
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
-        input_names = [f"scale_i{idx}_j{jdx}"]
+        input_names = [f"scale_i_{idx}_j_{jdx}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
@@ -282,7 +289,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         # 4. p = exp(s - m) [Br x Bc]
         node_data: dict[str, Any] = {}
         node_data["id"] = id
-        node_data["name"] = f"compute_p_i{idx}_j{jdx}"
+        node_data["name"] = f"compute_p_i_{idx}_j_{jdx}"
         node_data["operator_type"] = "FA_Simd"
         node_data["operand_source"] = {
             "I": pred_id_s,
@@ -296,7 +303,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
-        input_names = [f"scale_i{idx}_j{jdx}", f"compute_m_i{idx}_j{jdx}"]
+        input_names = [f"scale_i_{idx}_j_{jdx}", f"compute_m_i_{idx}_j_{jdx}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
@@ -311,7 +318,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         # 5. l = sum_row(p) [Br x 1]
         node_data: dict[str, Any] = {}
         node_data["id"] = id
-        node_data["name"] = f"compute_l_i{idx}_j{jdx}"
+        node_data["name"] = f"compute_l_i_{idx}_j_{jdx}"
         node_data["operator_type"] = "FA_Simd"
         node_data["operand_source"] = {"I":pred_id_input}
         node_data["operand_precision"] = self.operand_precision
@@ -322,7 +329,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
-        input_names = [f"compute_p_i{idx}_j{jdx}"]
+        input_names = [f"compute_p_i_{idx}_j_{jdx}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
@@ -340,7 +347,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         # o_partial: [Batch, Br, Hidden_Dim]
         node_data: dict[str, Any] = {}
         node_data["id"] = id
-        node_data["name"] = f"gemm_pv_i{idx}_j{jdx}"
+        node_data["name"] = f"gemm_pv_i_{idx}_j_{jdx}"
         node_data["operator_type"] = "FA_Gemm"
         node_data["operand_source"] = {"I":pred_id_input, "W":pred_id_weight}
         node_data["operand_precision"] = self.operand_precision
@@ -351,7 +358,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
-        input_names = [f"compute_p_i{idx}_j{jdx}", f"V_tile_{jdx}"]
+        input_names = [f"compute_p_i_{idx}_j_{jdx}", f"V_tile_{jdx}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
@@ -361,23 +368,30 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             input_names=input_names,           
         )
     
-    def _helper_create_simd_scale_factor_node(self, idx, jdx, id, pred_id_input):
+    def _helper_create_simd_scale_factor_node(self, idx, jdx, id, pred_id_m, pred_id_mg):
         # This is the seventh step for the FA
-        # 7. scale_factor = exp(-m) [Br x 1]
+        # 7. scale_factor = exp(m_g-m) [Br x 1]
         node_data: dict[str, Any] = {}
         node_data["id"] = id
-        node_data["name"] = f"scaling_factor_i{idx}_j{jdx}"
+        node_data["name"] = f"scaling_factor_i_{idx}_j_{jdx}"
         node_data["operator_type"] = "FA_Simd"
-        node_data["operand_source"] = {"I": pred_id_input}
-        node_data["operand_precision"] = self.operand_precision
         node_data["loop_dims"] = ["BATCH", "BR"]
         node_data["loop_sizes"] = [self.batch, self.tile_Br]
-        node_data["equation"] = "O[batch][br]+=I[batch][br]*W[]"
+        node_data["operand_precision"] = self.operand_precision
         node_data["dimension_relations"] = []
+        if jdx == 0:
+            node_data["operand_source"] = {"I": pred_id_m}
+            node_data["equation"] = "O[batch][br]+=I[batch][br]*W[]"
+        else:
+            node_data["operand_source"] = {
+                "I": pred_id_m,
+                "W": pred_id_mg,
+            }
+            node_data["equation"] = "O[batch][br]+=I[batch][br]*W[batch][br]"
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
-        input_names = [f"compute_m_i{idx}_j{jdx}"]
+        input_names = [f"compute_m_i_{idx}_j_{jdx}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
@@ -395,31 +409,32 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         
         return DiagNode(
             node_id=id,
-            node_name=f"diag_sf_i{idx}_j{jdx}",
+            node_name=f"diag_sf_i_{idx}_j_{jdx}",
             predecessors=[pred_id],
-            input_names=[f"scaling_factor_i{idx}_j{jdx}"],
+            input_names=[f"scaling_factor_i_{idx}_j_{jdx}"],
         )
-    def _helper_create_update_og_node(self, idx, jdx, id, pred_id_scale_factor, pred_id_og_partial):
+    def _helper_create_update_partial_og_node(self, idx, jdx, id, pred_id_scale_factor, pred_id_og):
         # This is the eigth step for the FA
-        # 8. o_updated = scale_factor [Br x Br] * o_partial [Br x Hidden_Dim]
+        # 8. og_partial = scale_factor [Br x Br] * og [Br x Hidden_Dim]
         # A Gemm operation
         node_data: dict[str, Any] = {}
         node_data["id"] = id
-        node_data["name"] = f"update_og_i{idx}_j{jdx}"
+        node_data["name"] = f"update_partial_og_i_{idx}_j_{jdx}"
         node_data["operator_type"] = "FA_Gemm"
-        node_data["operand_source"] = {
-            "I": pred_id_scale_factor,
-            "W": pred_id_og_partial,
-        }
         node_data["operand_precision"] = self.operand_precision
         node_data["loop_dims"] = ["BATCH", "BR", "D", "HIDDEN"]
         node_data["loop_sizes"] = [self.batch, self.tile_Br, self.tile_Br, self.hidden_dim]
-        node_data["equation"] = "O[batch][br][hidden]+=I[batch][br][d]*W[batch][br][hidden]"
         node_data["dimension_relations"] = []
+        node_data["operand_source"] = {
+            "I": pred_id_scale_factor,
+            "W": pred_id_og,
+        }
+        node_data["equation"] = "O[batch][br][hidden]+=I[batch][br][d]*W[batch][br][hidden]"
+        
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
-        input_names = [f"scaling_factor_i{idx}_j{jdx}", f"gemm_pv_i{idx}_j{jdx}"]
+        input_names = [f"scaling_factor_i_{idx}_j_{jdx}", f"og_partial_i_{idx}_j_{jdx}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
@@ -428,17 +443,57 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             mapping_attr=mapping_attr,
             input_names=input_names,
         )
-    def _helper_create_update_lg_node(self, idx, jdx, id, pred_id_scale_factor, pred_id_lg_partial):
+        
+    def _helper_create_update_og_node(self, idx, jdx, id, pred_id_partial_og, pred_id_o):
+        # This is the eigth step for the FA
+        # 8. og = og_partial[Br x Hidden_Dim] + o [Br x Hidden_Dim]
+        # A Gemm operation
+        node_data: dict[str, Any] = {}
+        node_data["id"] = id
+        node_data["name"] = f"update_og_i_{idx}_j_{jdx}"
+        node_data["operator_type"] = "FA_Gemm"
+        node_data["operand_source"] = {
+            "I": pred_id_partial_og,
+            "W": pred_id_o,
+        }
+        node_data["operand_precision"] = self.operand_precision
+        node_data["loop_dims"] = ["BATCH", "BR", "HIDDEN"]
+        node_data["loop_sizes"] = [self.batch, self.tile_Br, self.hidden_dim]
+        node_data["equation"] = "O[batch][br][hidden]+=I[batch][br][hidden]*W[batch][br][hidden]"
+        node_data["dimension_relations"] = []
+        node_factory = LayerNodeFactory(node_data, mapping_data=[])
+        node_attrs = node_factory.create_node_attr()
+        mapping_attr = self._util_get_mapping_this_node(node_data)
+        input_names = [f"partial_og_i_{idx}_j_{jdx}", f"gemm_pv_i_{idx}_j_{jdx}"]
+        return ComputationNode(
+            node_id=node_data["id"],
+            node_name=node_data["name"],
+            op_type=node_data["operator_type"],
+            node_attr=node_attrs,
+            mapping_attr=mapping_attr,
+            input_names=input_names,
+        )
+        
+    def _helper_create_dummy_update_og_node(self, idx, jdx, id, pred_id_o):
+        # This is the dummy node for og update when j=0 such that o_g = o
+        # The pred_id_o is the o input
+        return DummyNode(
+            node_id=id,
+            node_name=f"update_og_i_{idx}_j_{jdx}",
+            predecessors=[pred_id_o],
+        )
+
+    def _helper_create_update_partial_lg_node(self, idx, jdx, id, pred_id_scale_factor, pred_id_lg):
         # This is the ninth step for the FA
-        # 9. lg_updated = scale_factor [Br x Br] * l_g [Br x 1]
+        # 9. lg_partial = scale_factor [Br x Br] * lg [Br x 1]
         # A Gemm
         node_data: dict[str, Any] = {}
         node_data["id"] = id
-        node_data["name"] = f"update_lg_i{idx}_j{jdx}"
+        node_data["name"] = f"update_partial_lg_i_{idx}_j_{jdx}"
         node_data["operator_type"] = "FA_Gemm"
         node_data["operand_source"] = {
             "I": pred_id_scale_factor,
-            "W": pred_id_lg_partial,
+            "W": pred_id_lg,
         }
         node_data["operand_precision"] = self.operand_precision
         node_data["loop_dims"] = ["BATCH", "BR", "BR"]
@@ -448,7 +503,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
-        input_names = [f"scaling_factor_i{idx}_j{jdx}", f"compute_l_i{idx}_j{jdx}"]
+        input_names = [f"scaling_factor_i_{idx}_j_{jdx}", f"compute_l_i_{idx}_j_{jdx}"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
@@ -457,23 +512,63 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             mapping_attr=mapping_attr,
             input_names=input_names,
         )
-
+    
+    def _helper_create_update_lg_node(self, idx, jdx, id, pred_id_partial_lg, pred_id_l):
+        # This is the ninth step for the FA
+        # 9. lg = lg_partial[Br x 1] + l [Br x 1]
+        # A Gemm
+        node_data: dict[str, Any] = {}
+        node_data["id"] = id
+        node_data["name"] = f"update_lg_i_{idx}_j_{jdx}"
+        node_data["operator_type"] = "FA_Gemm"
+        node_data["operand_source"] = {
+            "I": pred_id_partial_lg,
+            "W": pred_id_l,
+        }
+        node_data["operand_precision"] = self.operand_precision
+        node_data["loop_dims"] = ["BATCH", "BR"]
+        node_data["loop_sizes"] = [self.batch, self.tile_Br]
+        node_data["equation"] = "O[batch][br]+=I[batch][br]*W[batch][br]"
+        node_data["dimension_relations"] = []
+        node_factory = LayerNodeFactory(node_data, mapping_data=[])
+        node_attrs = node_factory.create_node_attr()
+        mapping_attr = self._util_get_mapping_this_node(node_data)
+        input_names = [f"partial_lg_i_{idx}_j_{jdx}", f"compute_l_i_{idx}_j_{jdx}"]
+        return ComputationNode(
+            node_id=node_data["id"],
+            node_name=node_data["name"],
+            op_type=node_data["operator_type"],
+            node_attr=node_attrs,
+            mapping_attr=mapping_attr,
+            input_names=input_names,
+        )
+    
+    def _helper_create_dummy_update_lg_node(self, idx, jdx, id, pred_id_l):
+        # This is the dummy node for lg update when j=0 such that lg = l
+        # The pred_id_l is the l input
+        return DummyNode(
+            node_id=id,
+            node_name=f"update_lg_i_{idx}_j_{jdx}",
+            predecessors=[pred_id_l],
+        )
+        
+        
     def _helper_create_update_mg_node(self, idx, jdx, id, pred_id):
         # This is the tenth step for the FA
         # m_g = m
         # since it is just a copy operation, we use a dummy node
         return DummyNode(
             node_id=id,
-            node_name=f"update_mg_i{idx}_j{jdx}",
+            node_name=f"update_mg_i_{idx}_j_{jdx}",
             predecessors=[pred_id],
         )
     def _helper_create_diag_lg_node(self, idx, id, pred_id):
         # This is the diag node for lg
         return DiagNode(
             node_id=id,
-            node_name=f"diag_lg_i{idx}_j{self.Tc -1}",
+            node_name=f"diag_lg_i_{idx}_j_{self.Tc -1}",
             predecessors=[pred_id],
-            input_names=[f"update_lg_i{idx}_j{self.Tc -1}"],
+            input_names=[f"update_lg_i_{idx}_j_{self.Tc -1}"],
         )
     def _helper_create_rescale_o_node(self, idx, id, pred_id_lg_updated, pred_id_og_updated):
         # This is the eleventh step for the FA
@@ -482,7 +577,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         # [Br x Br] * [Br x Hidden_Dim]
         node_data: dict[str, Any] = {}
         node_data["id"] = id
-        node_data["name"] = f"rescale_o_i{idx}"
+        node_data["name"] = f"rescale_o_i"
         node_data["operator_type"] = "FA_Gemm"
         node_data["operand_source"] = {
             "I": pred_id_lg_updated,
@@ -497,6 +592,53 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"update_lg_i{idx}_j{self.Tc-1}", f"update_og_i{idx}_j{self.Tc-1}"]
+        # We need to create a generated computation node here to indicate that this node is generated
+        # for the concat node later
+        if idx == 0:
+            base_id = id
+        else:
+            base_id = self._util_get_id_from_node_name(f"rescale_o_i_0")
+        node = GeneratedComputationNode(
+            node_id=node_data["id"],
+            gen_id = idx,
+            gen_split_layer_dim=LayerDim("BR"),
+            base_id=base_id,
+            node_name=node_data["name"],
+            op_type=node_data["operator_type"],
+            node_attr=node_attrs,
+            mapping_attr=mapping_attr,
+            input_names=input_names,
+        )
+        return node
+
+    def _helper_create_concat_o_node(self, id, pred_id_partial_o_nodes):
+        # This is the final step to concatenate all the output tiles
+        return BlockConcatNode(
+            node_id=id,
+            node_name=f"concat_o",
+            predecessors=pred_id_partial_o_nodes,
+            axis=1, # Concatenate along the sequence length axis
+            input_names=[f"O_tile_{i}" for i in range(self.Tr)],
+            output_shape = (self.batch, self.seq_len, self.hidden_dim),
+            axis_exists_in_input=True
+        )
+
+    def _helper_create_dummy_final_o_node(self, id, pred_id):
+        # This is a dummy computation node to represent the final output O for the CO
+        node_data: dict[str, Any] = {}
+        node_data["id"] = id
+        node_data["name"] = "final_o"
+        node_data["operator_type"] = "FA_Gemm"
+        node_data["operand_source"] = {"I": pred_id}
+        node_data["operand_precision"] = self.operand_precision
+        node_data["loop_dims"] = ["BATCH", "L", "HIDDEN"]
+        node_data["loop_sizes"] = [self.batch, self.seq_len, self.hidden_dim]
+        node_data["equation"] = "O[batch][l][hidden]+=I[batch][l][hidden]*W[]"
+        node_data["dimension_relations"] = []
+        node_factory = LayerNodeFactory(node_data, mapping_data=[])
+        node_attrs = node_factory.create_node_attr()
+        mapping_attr = self._util_get_mapping_this_node(node_data)
+        input_names = ["concat_o"]
         return ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
@@ -506,16 +648,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             input_names=input_names,
         )
 
-    def _helper_create_concat_o_node(self, id, pred_id_partial_o_nodes):
-        # This is the final step to concatenate all the output tiles
-        return ConcatNode(
-            node_id=id,
-            node_name=f"concat_o",
-            predecessors=pred_id_partial_o_nodes,
-            axis=1, # Concatenate along the sequence length axis
-            input_names=[f"O_tile_{i}" for i in range(self.Tr)],
-            output_shape = (self.batch, self.seq_len, self.hidden_dim),
-        )
+
 
     def _util_get_and_increment_id(self):
         """Keeps track of how many nodes have been created. Returns a new id that has not been used before"""
@@ -617,8 +750,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         current_id = self._util_get_and_increment_id()
         gemm_qk_node = self._helper_create_gemm_qk_node(
             id=current_id,
-            pred_id_input_Qi=self._util_get_id_from_node_name(f"slice_q_{idx}"),
-            pred_id_input_Kj=self._util_get_id_from_node_name(f"slice_k_{jdx}"),
+            pred_id_input_Qi=self._util_get_id_from_node_name(f"slice_q_i_{idx}"),
+            pred_id_input_Kj=self._util_get_id_from_node_name(f"slice_k_j_{jdx}"),
             idx=idx,
             jdx=jdx,
         )
@@ -628,7 +761,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         current_id = self._util_get_and_increment_id()
         scale_node = self._helper_create_simd_scale_node(
             id=current_id,
-            pred_id=self._util_get_id_from_node_name(f"gemm_qk_i{idx}_j{jdx}"),
+            pred_id=self._util_get_id_from_node_name(f"gemm_qk_i_{idx}_j_{jdx}"),
             idx=idx,
             jdx=jdx,
         )
@@ -638,7 +771,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         current_id = self._util_get_and_increment_id()
         compute_m_node = self._helper_create_compute_m_node(
             id=current_id,
-            pred_id=self._util_get_id_from_node_name(f"scale_i{idx}_j{jdx}"),
+            pred_id_s=self._util_get_id_from_node_name(f"scale_i_{idx}_j_{jdx}"),
+            pred_id_mg= 0 if jdx == 0 else self._util_get_id_from_node_name(f"update_mg_i_{idx}_j_{jdx-1}"),
             idx=idx,
             jdx=jdx,
         )
@@ -648,8 +782,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         current_id = self._util_get_and_increment_id()
         compute_p_node = self._helper_create_compute_p_node(
             id=current_id,
-            pred_id_s=self._util_get_id_from_node_name(f"scale_i{idx}_j{jdx}"),
-            pred_id_m=self._util_get_id_from_node_name(f"compute_m_i{idx}_j{jdx}"),
+            pred_id_s=self._util_get_id_from_node_name(f"scale_i_{idx}_j_{jdx}"),
+            pred_id_m=self._util_get_id_from_node_name(f"compute_m_i_{idx}_j_{jdx}"),
             idx=idx,
             jdx=jdx,
         )
@@ -659,7 +793,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         current_id = self._util_get_and_increment_id()
         compute_l_node = self._helper_create_compute_l_node(
             id=current_id,
-            pred_id_input=self._util_get_id_from_node_name(f"compute_p_i{idx}_j{jdx}"),
+            pred_id_input=self._util_get_id_from_node_name(f"compute_p_i_{idx}_j_{jdx}"),
             idx=idx,
             jdx=jdx,
         )
@@ -669,60 +803,110 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         current_id = self._util_get_and_increment_id()
         gemm_pv_node = self._helper_create_gemm_pv_node(
             id=current_id,
-            pred_id_input=self._util_get_id_from_node_name(f"compute_p_i{idx}_j{jdx}"),
-            pred_id_weight=self._util_get_id_from_node_name(f"slice_v_{jdx}"),
+            pred_id_input=self._util_get_id_from_node_name(f"compute_p_i_{idx}_j_{jdx}"),
+            pred_id_weight=self._util_get_id_from_node_name(f"slice_v_j_{jdx}"),
             idx=idx,
             jdx=jdx,
         )
         nodes.append(gemm_pv_node)
         self._util_add_node(gemm_pv_node)
-        # 7. Scaling Factor
-        current_id = self._util_get_and_increment_id()
-        scaling_factor_node = self._helper_create_simd_scale_factor_node(
-            id=current_id,
-            pred_id_input=self._util_get_id_from_node_name(f"compute_m_i{idx}_j{jdx}"),
-            idx=idx,
-            jdx=jdx,
-        )
-        nodes.append(scaling_factor_node)
-        self._util_add_node(scaling_factor_node)
-        # The diag node
-        current_id = self._util_get_and_increment_id()
-        diag_sf_node = self._helper_create_diag_sf_node(
-            id=current_id,
-            pred_id=self._util_get_id_from_node_name(f"scaling_factor_i{idx}_j{jdx}"),
-            idx=idx,
-            jdx=jdx,
-        )
-        nodes.append(diag_sf_node)
-        self._util_add_node(diag_sf_node)
-        # 8. Update Og
-        current_id = self._util_get_and_increment_id()
-        update_og_node = self._helper_create_update_og_node(
-            id=current_id,
-            pred_id_scale_factor=self._util_get_id_from_node_name(f"diag_sf_i{idx}_j{jdx}"),
-            pred_id_og_partial=self._util_get_id_from_node_name(f"gemm_pv_i{idx}_j{jdx}"),
-            idx=idx,
-            jdx=jdx,
-        )
-        nodes.append(update_og_node)
-        self._util_add_node(update_og_node)
-        # 9. Update Lg
-        current_id = self._util_get_and_increment_id()
-        update_lg_node = self._helper_create_update_lg_node(
-            id=current_id,
-            pred_id_scale_factor=self._util_get_id_from_node_name(f"diag_sf_i{idx}_j{jdx}"),
-            pred_id_lg_partial=self._util_get_id_from_node_name(f"compute_l_i{idx}_j{jdx}"),
-            idx=idx,
-            jdx=jdx,
-        )
-        nodes.append(update_lg_node)
-        self._util_add_node(update_lg_node)
+
+        if jdx==0:
+            # For j=0, only simple update and do not need to compute scaling factor
+            # og = o
+            current_id = self._util_get_and_increment_id()
+            dummy_og_node = self._helper_create_dummy_update_og_node(
+                id=current_id,
+                pred_id_o=self._util_get_id_from_node_name(f"gemm_pv_i_{idx}_j_{jdx}"),
+                idx=idx,
+                jdx=jdx,
+            )
+            nodes.append(dummy_og_node)
+            self._util_add_node(dummy_og_node)
+            # lg = l
+            current_id = self._util_get_and_increment_id()
+            dummy_lg_node = self._helper_create_dummy_update_lg_node(
+                id=current_id,
+                pred_id_l=self._util_get_id_from_node_name(f"compute_l_i_{idx}_j_{jdx}"),
+                idx=idx,
+                jdx=jdx,
+            )
+            nodes.append(dummy_lg_node)
+            self._util_add_node(dummy_lg_node)
+        else:
+            # we need to create the scaling factor to update og and lg
+            # 7. Scaling Factor
+            current_id = self._util_get_and_increment_id()
+            scaling_factor_node = self._helper_create_simd_scale_factor_node(
+                id=current_id,
+                pred_id_m=self._util_get_id_from_node_name(f"compute_m_i_{idx}_j_{jdx}"),
+                pred_id_mg=self._util_get_id_from_node_name(f"update_mg_i_{idx}_j_{jdx-1}"),
+                idx=idx,
+                jdx=jdx,
+            )
+            nodes.append(scaling_factor_node)
+            self._util_add_node(scaling_factor_node)
+            # The diag node for SF
+            current_id = self._util_get_and_increment_id()
+            diag_sf_node = self._helper_create_diag_sf_node(
+                id=current_id,
+                pred_id=self._util_get_id_from_node_name(f"scaling_factor_i_{idx}_j_{jdx}"),
+                idx=idx,
+                jdx=jdx,
+            )
+            nodes.append(diag_sf_node)
+            self._util_add_node(diag_sf_node)
+            # 8. Update Og
+            # we first create the update partial og node to compute the sf*og_partial
+            current_id = self._util_get_and_increment_id()
+            update_og_node = self._helper_create_update_partial_og_node(
+                id=current_id,
+                pred_id_scale_factor=self._util_get_id_from_node_name(f"diag_sf_i_{idx}_j_{jdx}"),
+                pred_id_og=self._util_get_id_from_node_name(f"update_og_i_{idx}_j_{jdx-1}"),
+                idx=idx,
+                jdx=jdx,
+            )
+            nodes.append(update_og_node)
+            self._util_add_node(update_og_node)
+            # then the update og node
+            current_id = self._util_get_and_increment_id()
+            update_og_node = self._helper_create_update_og_node(
+                id=current_id,
+                pred_id_partial_og=self._util_get_id_from_node_name(f"update_partial_og_i_{idx}_j_{jdx}"),
+                pred_id_o=self._util_get_id_from_node_name(f"gemm_pv_i_{idx}_j_{jdx}"),
+                idx=idx,
+                jdx=jdx,
+            )
+            nodes.append(update_og_node)
+            self._util_add_node(update_og_node)
+            # 9. Update Lg
+            current_id = self._util_get_and_increment_id()
+            update_lg_node = self._helper_create_update_partial_lg_node(
+                id=current_id,
+                pred_id_scale_factor=self._util_get_id_from_node_name(f"diag_sf_i_{idx}_j_{jdx}"),
+                pred_id_lg=self._util_get_id_from_node_name(f"update_lg_i_{idx}_j_{jdx-1}"),
+                idx=idx,
+                jdx=jdx,
+            )
+            nodes.append(update_lg_node)
+            self._util_add_node(update_lg_node)
+            # then the update lg node
+            current_id = self._util_get_and_increment_id()
+            update_lg_node = self._helper_create_update_lg_node(
+                id=current_id,
+                pred_id_partial_lg=self._util_get_id_from_node_name(f"update_partial_lg_i_{idx}_j_{jdx}"),
+                pred_id_l=self._util_get_id_from_node_name(f"compute_l_i_{idx}_j_{jdx}"),
+                idx=idx,
+                jdx=jdx,
+            )
+            nodes.append(update_lg_node)
+            self._util_add_node(update_lg_node)
         # 10. Update Mg
+        # always mg=m
         current_id = self._util_get_and_increment_id()
         update_mg_node = self._helper_create_update_mg_node(
             id=current_id,
-            pred_id=self._util_get_id_from_node_name(f"compute_m_i{idx}_j{jdx}"),
+            pred_id=self._util_get_id_from_node_name(f"compute_m_i_{idx}_j_{jdx}"),
             idx=idx,
             jdx=jdx,
         )
@@ -738,7 +922,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             current_id = self._util_get_and_increment_id()
             diag_lg_node = self._helper_create_diag_lg_node(
                 id=current_id,
-                pred_id=self._util_get_id_from_node_name(f"update_lg_i{idx}_j{self.Tc -1}"),
+                pred_id=self._util_get_id_from_node_name(f"update_lg_i_{idx}_j_{self.Tc -1}"),
                 idx=idx,
             )
             nodes.append(diag_lg_node)
@@ -746,20 +930,28 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             current_id = self._util_get_and_increment_id()
             rescale_o_node = self._helper_create_rescale_o_node(
                 id=current_id,
-                pred_id_lg_updated=self._util_get_id_from_node_name(f"diag_lg_i{idx}_j{self.Tc -1}"),
-                pred_id_og_updated=self._util_get_id_from_node_name(f"update_og_i{idx}_j{self.Tc -1}"),
+                pred_id_lg_updated=self._util_get_id_from_node_name(f"diag_lg_i_{idx}_j_{self.Tc -1}"),
+                pred_id_og_updated=self._util_get_id_from_node_name(f"update_og_i_{idx}_j_{self.Tc -1}"),
                 idx=idx,
             )
             nodes.append(rescale_o_node)
             self._util_add_node(rescale_o_node)
-        # Final concat O node
+        # Concat O node
         current_id = self._util_get_and_increment_id()
         concat_o_node = self._helper_create_concat_o_node(
             id=current_id,
-            pred_id_partial_o_nodes=[self._util_get_id_from_node_name(f"rescale_o_i{i}") for i in range(self.Tr)],
+            pred_id_partial_o_nodes=[self._util_get_id_from_node_name(f"rescale_o_i_{idx}") for idx in range(self.Tr)],
         )
         nodes.append(concat_o_node)
         self._util_add_node(concat_o_node)
+        # Final dummy O computation node
+        current_id = self._util_get_and_increment_id()
+        final_o_node = self._helper_create_dummy_final_o_node(
+            id=current_id,
+            pred_id=self._util_get_id_from_node_name("concat_o"),
+        )
+        nodes.append(final_o_node)
+        self._util_add_node(final_o_node)
         return nodes
 
     def plot_dfg(self):

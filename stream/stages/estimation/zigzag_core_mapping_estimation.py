@@ -75,7 +75,7 @@ class ZigZagCoreMappingEstimationStage(Stage):
     def run(self):
         logger.info("Start ZigZagCoreMappingEstimationStage.")
         self.update_cost_lut()
-        self.visualize_cost_lut()
+        # self.visualize_cost_lut()
         logger.info("Finished ZigZagCoreMappingEstimationStage.")
 
         kwargs = self.kwargs.copy()

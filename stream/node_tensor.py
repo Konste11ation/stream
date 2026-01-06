@@ -244,7 +244,40 @@ class NodeTensor(np.ndarray[Any, Any]):
         # Convert back to NodeTensor
         result = output_array.view(NodeTensor)
         return result
+    def concat_with_empty_both_sides_chunk(
+        self, output_shape: tuple[int, ...], axis: int, slice_idx: int, axis_exists_in_input: bool = False
+    ):
+        """Return a new tensor with shape `output_shape` that is all zero, except for the slice at `slice_idx` in
+        the given axis. This slice is equal to this instance.
+        In other words, a new dimension is created and the current instance is sandwiched between tensors of zeros in
+        this dimension.
+        This version supports valid chunks (size > 1) in the input tensor along the concatenation axis.
+        """
+        full_shape = self.convert_to_full_shape(output_shape)
+        full_tensor = np.zeros(full_shape, dtype=object)
 
+        if axis_exists_in_input:
+            assert len(output_shape) == len(self.tensor_shape)
+            # Validates that the input fits into the output at the correct position
+            chunk_size = self.tensor_shape[axis]
+            start = slice_idx * chunk_size
+            end = start + chunk_size
+            
+            assert end <= output_shape[axis], "Input chunk exceeds output shape boundaries"
+
+            # Assign the block
+            slice_to_assign = self
+            slices = [slice(None)] * len(full_shape)
+            slices[axis] = slice(start, end)
+        else:
+            assert len(output_shape) == len(self.tensor_shape) + 1
+            slice_to_assign = self
+            slices = [slice(None)] * len(full_shape)
+            slices[axis] = slice_idx  # type: ignore
+
+        full_tensor[tuple(slices)] = slice_to_assign
+        return full_tensor.view(NodeTensor)
+    
     def __repr__(self):
         return f"NodeTensor{self.tensor_shape}[depth={self.__node_count}]"
 

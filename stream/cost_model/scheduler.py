@@ -97,9 +97,10 @@ class CoalaScheduler:
         Initializes lookup dictionaries for fast access from (id, sub_id) to scheduling order index.
         """
         # {item: idx for idx, item in enumerate(self.scheduling_order)}
+        scheduling_order = ((n.id, n.sub_id) for n in self.G.topological_sort())
         self.scheduling_order_lookup: dict[tuple[int, int], int] = {}
         self.scheduling_order_lookup_tiered: dict[int, dict[int, int]] = {}
-        for idx, item in enumerate(self.scheduling_order):
+        for idx, item in enumerate(scheduling_order):
             self.scheduling_order_lookup[item] = idx
             layer_id, sub_id = item
             if layer_id not in self.scheduling_order_lookup_tiered:
