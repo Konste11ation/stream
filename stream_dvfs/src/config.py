@@ -12,6 +12,7 @@ class ModelConfig(metaclass=ABCMeta):
     num_layer: int
     name: str
     batch_size: int
+    type: Literal["FullModel", "SingleLayerModel", "AttentionHead", "FlashAttention"]
 
     @abstractmethod
     def to_single_layer_config(self) -> "ModelConfig": ...
@@ -40,18 +41,22 @@ class ModelConfig(metaclass=ABCMeta):
 class AttentionHeadConfig(ModelConfig):
     def __init__(
         self,
+        seq_len: int,
         input_dim: int,
         dim_k: int,
         dim_v: int,
         batch_size: int = 1,
         name: str = "AttentionHead",
+        type: Literal["AttentionHead"] = "AttentionHead",
     ):
+        self.seq_len = seq_len
         self.input_dim = input_dim
         self.dim_k = dim_k
         self.dim_v = dim_v
         self.batch_size = batch_size
         self.name = name
         self.num_layer = 1  # Single layer
+        self.type = type
 
     def to_single_layer_config(self) -> "ModelConfig":
         return deepcopy(self)  # Already single layer
@@ -74,25 +79,27 @@ class AttentionHeadConfig(ModelConfig):
 
     @property
     def parameterized_name(self) -> str:
-        return f"{self.name}_B={self.batch_size}_FULL"
+        return f"{self.name}_B={self.batch_size}_Seq={self.seq_len}_Embed={self.dim_k}"
 
 class FlashAttentionConfig(ModelConfig):
     def __init__(
         self,
         seq_len: int,
-        hidden_size: int,
+        input_dim: int,
         dim_k: int,
         dim_v: int,
         batch_size: int = 1,
         name: str = "FlashAttention",
+        type: Literal["FlashAttention"] = "FlashAttention",
     ):
         self.seq_len = seq_len
-        self.hidden_size = hidden_size
+        self.input_dim = input_dim
         self.dim_k = dim_k
         self.dim_v = dim_v
         self.batch_size = batch_size
         self.name = name
         self.num_layer = 1  # Single layer
+        self.type = type
 
     def to_single_layer_config(self) -> "ModelConfig":
         return deepcopy(self)  # Already single layer
@@ -115,7 +122,7 @@ class FlashAttentionConfig(ModelConfig):
 
     @property
     def parameterized_name(self) -> str:
-        return f"{self.name}_B={self.batch_size}_FULL"
+        return f"{self.name}_B={self.batch_size}_Seq={self.seq_len}_Embed={self.dim_k}"
     
 class TransformerConfig(ModelConfig):
     def __init__(
@@ -128,6 +135,7 @@ class TransformerConfig(ModelConfig):
         batch_size: int = 1,
         vocab_size: int = 1000,
         name: str = "",
+        type: Literal["FullModel", "SingleLayerModel"] = "FullModel",
         # Automatically calculated
         head_size: Optional[int] = None,
         prefill_size: Optional[int] = None,
@@ -141,6 +149,7 @@ class TransformerConfig(ModelConfig):
         self.vocab_size = vocab_size
         self.seq_len = seq_len
         self.name = name
+        self.type = type
 
         # Defaults
         self.head_size = head_size if head_size is not None else embedding_dim // num_head
@@ -214,9 +223,9 @@ class TransformerConfigSingleLayer(TransformerConfig):
             head_size=full_config.head_size,
             prefill_size=full_config.prefill_size,
             decode_size=full_config.decode_size,
+            type="SingleLayerModel",
         )
         self.num_layer_full = full_config.num_layer
-
     def to_single_layer_config(self):
         raise Exception("This already is a single layer configuration")
 

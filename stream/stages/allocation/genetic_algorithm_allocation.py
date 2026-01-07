@@ -57,39 +57,32 @@ class GeneticAlgorithmAllocationStage(Stage):
         self.scheduling_order = scheduling_order
         self.latency_attr = kwargs.get("latency_attr", "latency_total2")
 
-        # Determine the set of all (layer, group) combinations to be allocated separately
-        self.layer_groups: list[tuple[int, int]] = sorted(set((n.id, n.group) for n in self.workload.node_list))
 
-        # self.coarse_node_ids contains all the original node (aka layers) ids of the original graph
-        self.unique_nodes = get_unique_nodes(self.workload)
-        self.coarse_node_ids: list[int] = [id for id, _ in self.layer_groups]
-        # allocated to more than one core
-        # TODO is this sorting key correct?
-        self.unique_nodes_flexible: list[ComputationNode] = []
-        for n in self.unique_nodes:
+        self.flexible_nodes: list[ComputationNode] = []
+        for n in self.workload.node_list:
             if not isinstance(n.chosen_core_allocation, int):
-                self.unique_nodes_flexible.append(n)
+                self.flexible_nodes.append(n)
 
         # For each unique node get the possible core allocations by getting the ids of the cores in cost_lut
         self.valid_allocations: list[list[int]] = []
-        # Save all the layer group combinations that are flexible
-        self.layer_groups_flexible: list[tuple[int, int]] = []
-        for layer_id, group_id in self.layer_groups:
-            # Find the unique node that corresponds to this layer
-            # This assumes all the nodes of this layer are identical
-            unique_node = next(n for n in self.unique_nodes if n.id == layer_id)
-            if unique_node in self.unique_nodes_flexible:
-                cores = self.cost_lut.get_cores(unique_node)
-                valid_core_ids = [core.id for core in cores if core.id < len(self.unique_nodes_flexible)]
-                self.layer_groups_flexible.append((layer_id, group_id))
-                self.valid_allocations.append(valid_core_ids)
+        for flexible_node in self.flexible_nodes:
+            self.valid_allocations.append(flexible_node.core_allocation)
+        # for layer_id, group_id in self.layer_groups:
+        #     # Find the unique node that corresponds to this layer
+        #     # This assumes all the nodes of this layer are identical
+        #     unique_node = next(n for n in self.unique_nodes if n.id == layer_id)
+        #     if unique_node in self.unique_nodes_flexible:
+        #         cores = self.cost_lut.get_cores(unique_node)
+        #         valid_core_ids = [core.id for core in cores if core.id < len(self.unique_nodes_flexible)]
+        #         self.layer_groups_flexible.append((layer_id, group_id))
+        #         self.valid_allocations.append(valid_core_ids)
 
         # Initialize the fitness evaluator of different core allocations
         self.fitness_evaluator = StandardFitnessEvaluator(
             self.workload,
             self.accelerator,
             self.cost_lut,
-            self.layer_groups_flexible,
+            self.flexible_nodes,
             self.operands_to_prefetch,
             self.scheduling_order,
             self.latency_attr,
@@ -97,13 +90,13 @@ class GeneticAlgorithmAllocationStage(Stage):
 
         # Extract the length of an individual.
         # This is the number of unique original nodes that have more than one possible core allocation
-        self.individual_length = len(self.layer_groups_flexible)
+        self.individual_length = len(self.flexible_nodes)
         # Extract the value range each gene in the individual can have.
         # This ranges from 0 to the max core index.
-        # TODO There might be some case where a core is not possible, so it shouldnt be tried by the GA
-        core_ids: list[int] = sorted([core.id for core in self.accelerator.cores.node_list])
-        self.core_id_range = (min(core_ids), max(core_ids))
-        self.nb_cores = max(core_ids) - min(core_ids) + 1  # Assuming they are incrementing with step size 1
+        # # TODO There might be some case where a core is not possible, so it shouldnt be tried by the GA
+        # core_ids: list[int] = sorted([core.id for core in self.accelerator.cores.node_list])
+        # self.core_id_range = (min(core_ids), max(core_ids))
+        # self.nb_cores = max(core_ids) - min(core_ids) + 1  # Assuming they are incrementing with step size 1
 
     def run(self):
         """Run the InterCoreMappingStage by checking if we have a fixed core_allocation.
@@ -122,9 +115,9 @@ class GeneticAlgorithmAllocationStage(Stage):
                 f"Running Genetic Algorithm with {self.nb_generations} "
                 f"generations and {self.nb_individuals} individuals."
             )
-            flexible_layer_names = [f"{n.name}" for n in self.unique_nodes_flexible]
+            flexible_layer_names = [f"{n.name}" for n in self.flexible_nodes]
             logger.info(
-                f"Exploring allocation for {len(self.unique_nodes_flexible)} flexible layers: {flexible_layer_names}"
+                f"Exploring allocation for {len(self.flexible_nodes)} flexible layers: {flexible_layer_names}"
             )
             # Initialize the genetic algorithm
             self.genetic_algorithm = GeneticAlgorithm(

@@ -24,15 +24,15 @@ class FlashAttentionFunction(torch.autograd.Function):
 # For single head attention
 # dim_k = dim_v = hidden_dim/n_heads = hidden_dim
 class FlashAttentionModel(nn.Module):
-    def __init__(self, seq_len, hidden_dim, dim_k, dim_v):
+    def __init__(self, input_dim, dim_k, dim_v):
         super().__init__()
-        # inpu : seq_len * hidden_dim
-        # q : hidden_dim * dim_k => Q=in
-        # k : hidden_dim * dim_k
-        # v : hidden_dim * dim_v
-        self.q_proj = nn.Linear(hidden_dim, dim_k, bias=False)
-        self.k_proj = nn.Linear(hidden_dim, dim_k, bias=False)
-        self.v_proj = nn.Linear(hidden_dim, dim_v, bias=False)
+        # input : seq_len * input_dim
+        # q : input_dim * dim_k => Q=in
+        # k : input_dim * dim_k
+        # v : input_dim * dim_v
+        self.q_proj = nn.Linear(input_dim, dim_k, bias=False)
+        self.k_proj = nn.Linear(input_dim, dim_k, bias=False)
+        self.v_proj = nn.Linear(input_dim, dim_v, bias=False)
 
     def forward(self, x):
         # 1. Compute Q, K, V

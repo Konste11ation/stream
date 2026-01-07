@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 CURRENT_DIR = Path(__file__).resolve().parent
 STREAM_DVFS_DIR = CURRENT_DIR.parent
-
+sys.path.append(str(STREAM_DVFS_DIR))  
 from src.config import BATCH_SIZE, QuantConfig, TransformerConfig, AttentionHeadConfig, FlashAttentionConfig
 
 W1A8 = QuantConfig(1, 8, 16)
@@ -16,6 +16,7 @@ W16A32 = QuantConfig(16, 32, 32)
 W32A32 = QuantConfig(32, 32, 32)
 
 AttentionHeadTestConfig = AttentionHeadConfig(
+    seq_len=32,
     input_dim=4096,
     dim_k=128,
     dim_v=128,
@@ -24,10 +25,10 @@ AttentionHeadTestConfig = AttentionHeadConfig(
 )
 
 FlashAttentionTestConfig = FlashAttentionConfig(
-    seq_len=64,
-    hidden_size=32,
-    dim_k=32,
-    dim_v=32,
+    seq_len=32,
+    input_dim=64,
+    dim_k=64,
+    dim_v=64,
     batch_size=1,
     name="FlashAttentionTest"
 )

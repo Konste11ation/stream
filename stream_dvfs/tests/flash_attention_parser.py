@@ -39,29 +39,29 @@ experiment_id = f"{hw_name}-{wl_name}-{mode}-ga"
 nb_ga_generations = 8
 nb_ga_individuals = 8
 ##############################################################################################
-# scme = optimize_allocation_ga(
-#     hardware=accelerator,
-#     workload=workload_path,
-#     mapping=mapping_path,
-#     mode=mode,
-#     layer_stacks=layer_stacks,
-#     nb_ga_generations=nb_ga_generations,
-#     nb_ga_individuals=nb_ga_individuals,
-#     experiment_id=experiment_id,
-#     output_path=output_dir,
-#     skip_if_exists=False,
-# )
-
-scme = optimize_allocation_co(
+scme = optimize_allocation_ga(
     hardware=accelerator,
     workload=workload_path,
     mapping=mapping_path,
     mode=mode,
     layer_stacks=layer_stacks,
+    nb_ga_generations=nb_ga_generations,
+    nb_ga_individuals=nb_ga_individuals,
     experiment_id=experiment_id,
     output_path=output_dir,
     skip_if_exists=False,
 )
+
+# scme = optimize_allocation_co(
+#     hardware=accelerator,
+#     workload=workload_path,
+#     mapping=mapping_path,
+#     mode=mode,
+#     layer_stacks=layer_stacks,
+#     experiment_id=experiment_id,
+#     output_path=output_dir,
+#     skip_if_exists=False,
+# )
 
 
 # Load in the CostModelEvaluationLUT from the run

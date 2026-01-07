@@ -41,8 +41,8 @@ class GeneticAlgorithm:
         self.hof = tools.ParetoFront()  # initialize Hall-of-Fame as Pareto Front
 
         def get_random_individual():
-            """rReturns a random individual by randomly choosing from the valid allocations of each node"""
-            return (random.choice(x) for x in valid_allocations)
+            """Returns a random individual by randomly choosing from the valid allocations of each node"""
+            return [random.choice(choices) for choices in valid_allocations]
 
         # attribute generator
         self.toolbox.register(
@@ -66,11 +66,10 @@ class GeneticAlgorithm:
         # link user defined fitness function to toolbox
         self.toolbox.register("evaluate", self.fitness_evaluator.get_fitness)
 
-        individual_length_threshold = 10
-        if self.individual_length > individual_length_threshold:
-            self.toolbox.register("mate", tools.cxOrdered)  # for big graphs use cxOrdered crossover function
-        else:
-            self.toolbox.register("mate", tools.cxTwoPoint)  # for small graphs use two point crossover function
+        # Always use cxTwoPoint. 
+        # cxOrdered is for permutations (TSP) and moves values to different indices, 
+        # which breaks node-specific core validity constraints.
+        self.toolbox.register("mate", tools.cxTwoPoint)
 
         # link user defined mutation function to toolbox
         self.toolbox.register("mutate", self.mutate)
@@ -130,19 +129,30 @@ class GeneticAlgorithm:
         change_percentage = 0.75
         if random.random() < change_percentage:
             for position in range(len(list(individual))):
-                individual[position]
                 if random.random() < prob_mutation:
                     current_core_allocation = individual[position]
-                    valid_new_core_allocations = sorted(
-                        set(self.valid_allocations[position]) - set([current_core_allocation])
-                    )
-                    individual[position] = random.choice(valid_new_core_allocations)
+                    valid_allocs = self.valid_allocations[position]
+                    # If there's only 1 valid allocation, we can't mutate to a different one
+                    if len(valid_allocs) > 1:
+                        valid_new_core_allocations = sorted(
+                            set(valid_allocs) - set([current_core_allocation])
+                        )
+                        individual[position] = random.choice(valid_new_core_allocations)
+        
         # swap the core allocation of two randomly chosen positions
         else:
-            first_position, second_position = random.sample(range(len(individual)), 2)
-            tmp = individual[second_position]
-            individual[second_position] = individual[first_position]
-            individual[first_position] = tmp
+            # We must Ensure that the swap results in a valid allocation for both positions
+            # We try a fixed number of times to find a valid swap pair
+            for _ in range(10):  # Try 10 times to find a valid swap
+                pos1, pos2 = random.sample(range(len(individual)), 2)
+                val1 = individual[pos1]
+                val2 = individual[pos2]
+                
+                # Check if val2 is valid for pos1 AND val1 is valid for pos2
+                if val2 in self.valid_allocations[pos1] and val1 in self.valid_allocations[pos2]:
+                    individual[pos1] = val2
+                    individual[pos2] = val1
+                    break
 
         return (individual,)
 

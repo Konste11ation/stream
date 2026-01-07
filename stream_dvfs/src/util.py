@@ -95,15 +95,13 @@ def get_cmes_full_model_from_pickle(
     cmes_generalized = get_cmes_full_model(cmes_filtered, model, stage)
     return cmes_generalized
 
-
-def get_experiment_id(model: ModelConfig, stage: Stage, quant: QuantConfig, accelerator_name: str):
-    """Generate the name of the experiment"""
-    assert "yaml" not in accelerator_name and "/" not in accelerator_name
-    return f"{model.parameterized_name}_prefill={model.prefill_size}_decode={model.decode_size}_{quant.name}_{stage}_{accelerator_name}"
-
-
-def get_onnx_path(output_dir: str, model: ModelConfig, stage: Stage, quant: QuantConfig):
-    name = f"{model.parameterized_name}_PREFILL_SIZE={model.prefill_size}_DECODE_SIZE={model.decode_size}_{quant.name}_{stage}.onnx"
+def get_onnx_path(output_dir: str, model: ModelConfig, quant: QuantConfig, stage: Stage = Stage.PREFILL) -> str:
+    if model.type == "AttentionHead" or model.type == "FlashAttention":
+        # We only need the Quant info for the attention layer
+        name = f"{model.parameterized_name}_{quant.name}.onnx"
+    else:
+        # The rest are full models
+        name = f"{model.parameterized_name}_PREFILL_SIZE={model.prefill_size}_DECODE_SIZE={model.decode_size}_{quant.name}_{stage}.onnx"
     return f"{output_dir}/{name}"
 
 

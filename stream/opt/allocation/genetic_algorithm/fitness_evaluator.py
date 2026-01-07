@@ -33,7 +33,7 @@ class StandardFitnessEvaluator(FitnessEvaluator):
         workload: ComputationNodeWorkload,
         accelerator: Accelerator,
         cost_lut: CostModelEvaluationLUT,
-        layer_groups_flexible,
+        flexible_nodes: list[ComputationNode],
         operands_to_prefetch: list[LayerOperand],
         scheduling_order: list[tuple[int, int]],
         latency_attr: str,
@@ -43,7 +43,7 @@ class StandardFitnessEvaluator(FitnessEvaluator):
         self.weights = (-1.0, -1.0)
         self.metrics = ["energy", "latency"]
 
-        self.layer_groups_flexible = layer_groups_flexible
+        self.flexible_nodes = flexible_nodes
         self.operands_to_prefetch = operands_to_prefetch
         self.scheduling_order = scheduling_order
         self.latency_attr = latency_attr
@@ -79,38 +79,30 @@ class StandardFitnessEvaluator(FitnessEvaluator):
         """
         for i, core_allocation in enumerate(core_allocations):
             core = self.accelerator.get_core(core_allocation)
-            (layer_id, group_id) = self.layer_groups_flexible[i]
-            # Find all nodes of this coarse id and set their core_allocation, energy and runtime
-            nodes = (
-                node
-                for node in self.workload.node_list
-                if isinstance(node, ComputationNode) and node.id == layer_id and node.group == group_id
-            )
-            for node in nodes:
-                equal_unique_node = self.cost_lut.get_equal_node(node)
-                assert equal_unique_node is not None, "Node not found in CostModelEvaluationLUT"
-                cme = self.cost_lut.get_cme(equal_unique_node, core)
-                onchip_energy = cme.energy_total  # Initialize on-chip energy as total energy
-                latency = getattr(cme, self.latency_attr)
-                too_large_operands = get_too_large_operands(cme, self.accelerator, core_id=core_allocation)
-                # If there is a too_large_operand, we separate the off-chip energy.
-                offchip_energy = 0
-                for too_large_operand in too_large_operands:
-                    layer_operand = next(
-                        k for (k, v) in cme.layer.memory_operand_links.data.items() if v == too_large_operand
-                    )
-                    layer_operand_offchip_energy = cme.mem_energy_breakdown[layer_operand][-1]
-                    offchip_energy += layer_operand_offchip_energy
-                    onchip_energy -= layer_operand_offchip_energy
-                # Get the required offchip bandwidth during the execution of the node for all directions
-                bandwidth_scaling = cme.ideal_temporal_cycle / latency
-                offchip_bandwidth_per_op: dict[MemoryOperand, FourWayDataMoving] = {
-                    mem_op: get_top_level_inst_bandwidth(cme, mem_op, bandwidth_scaling)
-                    for mem_op in too_large_operands
-                }
-                node.set_onchip_energy(onchip_energy)
-                node.set_offchip_energy(offchip_energy)
-                node.set_runtime(int(latency))
-                node.set_chosen_core_allocation(core_allocation)
-                node.set_too_large_operands(too_large_operands)
-                node.set_offchip_bandwidth(offchip_bandwidth_per_op)
+            node = self.flexible_nodes[i]
+            equal_unique_node = self.cost_lut.get_equal_node(node)
+            cme = self.cost_lut.get_cme(equal_unique_node, core)
+            onchip_energy = cme.energy_total  # Initialize on-chip energy as total energy
+            latency = getattr(cme, self.latency_attr)
+            too_large_operands = get_too_large_operands(cme, self.accelerator, core_id=core_allocation)
+            # If there is a too_large_operand, we separate the off-chip energy.
+            offchip_energy = 0
+            for too_large_operand in too_large_operands:
+                layer_operand = next(
+                    k for (k, v) in cme.layer.memory_operand_links.data.items() if v == too_large_operand
+                )
+                layer_operand_offchip_energy = cme.mem_energy_breakdown[layer_operand][-1]
+                offchip_energy += layer_operand_offchip_energy
+                onchip_energy -= layer_operand_offchip_energy
+            # Get the required offchip bandwidth during the execution of the node for all directions
+            bandwidth_scaling = cme.ideal_temporal_cycle / latency
+            offchip_bandwidth_per_op: dict[MemoryOperand, FourWayDataMoving] = {
+                mem_op: get_top_level_inst_bandwidth(cme, mem_op, bandwidth_scaling)
+                for mem_op in too_large_operands
+            }
+            node.set_onchip_energy(onchip_energy)
+            node.set_offchip_energy(offchip_energy)
+            node.set_runtime(int(latency))
+            node.set_chosen_core_allocation(core_allocation)
+            node.set_too_large_operands(too_large_operands)
+            node.set_offchip_bandwidth(offchip_bandwidth_per_op)

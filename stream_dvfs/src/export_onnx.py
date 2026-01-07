@@ -7,8 +7,6 @@ import onnx
 import torch
 from onnx import NodeProto
 from onnx.shape_inference import infer_shapes
-from torch.onnx import register_custom_op_symbolic
-from torch.onnx.symbolic_helper import _get_tensor_sizes
 
 CURRENT_DIR = Path(__file__).resolve().parent
 STREAM_DVFS_DIR = CURRENT_DIR.parent
@@ -102,21 +100,20 @@ def export_model_to_onnx(
 ):
 
     config_single_layer = model_config.to_single_layer_config()
-    match config_single_layer:
+    match config_single_layer.type:
 
-        case TransformerConfigSingleLayer():
+        case "Single_Layer_Model":
             export_transformer_to_onnx(
                 config_single_layer,
                 output_path,
                 stage,
             )
-        case AttentionHeadConfig():
+        case "AttentionHead":
             export_attention_head_to_onnx(
                 config_single_layer,
                 output_path,
             )
-        case FlashAttentionConfig():
-            # Export FlashAttention model
+        case "FlashAttention":
             export_flash_attention_to_onnx(
                 config_single_layer,
                 output_path,
@@ -153,7 +150,7 @@ def export_attention_head_to_onnx(
 
     dummy_input = torch.randn(
         attention_head_config.batch_size,
-        1,
+        attention_head_config.seq_len,
         attention_head_config.input_dim,
     )
 
@@ -185,12 +182,11 @@ def export_flash_attention_to_onnx(
     dummy_input = torch.randn(
         flash_attention_config.batch_size,
         flash_attention_config.seq_len,
-        flash_attention_config.hidden_size,
+        flash_attention_config.input_dim,
     )
-
+    # For now the input_dim and dim_k, dim_v must be equal
     pytorch_model = FlashAttentionModel(
-        flash_attention_config.seq_len,
-        flash_attention_config.hidden_size,
+        flash_attention_config.input_dim,
         flash_attention_config.dim_k,
         flash_attention_config.dim_v,
     )
