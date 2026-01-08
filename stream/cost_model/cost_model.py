@@ -5,8 +5,7 @@ from stream.hardware.architecture.accelerator import Accelerator
 from stream.visualization.memory_usage import plot_memory_usage
 from stream.visualization.schedule import plot_timeline_brokenaxes
 from stream.workload.onnx_workload import ComputationNodeWorkload
-# Wrap around the Stream Cost Model Evaluation (SCME) with a GA Engine to search an optimal scheduling order
-from stream.opt.scheduling.scheduling_order_evaluator import SchedulingOrderEvaluator
+
 class StreamCostModelEvaluation:
     """
     Evaluates the cost model for a given workload and accelerator using the Schedule class.
@@ -48,19 +47,17 @@ class StreamCostModelEvaluation:
         Runs the scheduling and cost model evaluation, updating latency and energy attributes.
         Uses the Schedule class for modular scheduling and result extraction.
         """
-        evaluator = SchedulingOrderEvaluator(
-            workload=self.workload,
-            accelerator=self.accelerator,
-            operands_to_prefetch=self.operands_to_prefetch)
-        optimal_order = evaluator.run()
-        # Run the scheduler with the optimal order to get final metrics
+        # Run the scheduler directly
         schedule = CoalaScheduler(
             g=self.workload,
             accelerator=self.accelerator,
-            scheduling_order=optimal_order,
+            scheduling_order=self.scheduling_order,
             operands_to_prefetch=self.operands_to_prefetch,
+            beam_width=2, # Configurable beam width for exploration
         )
         schedule.run()
+        # Update the accelerator to the one used in the best schedule (since beam search creates copies)
+        self.accelerator = schedule.accelerator
         schedule.update_graph_nodes()
 
         self.latency = schedule.latency

@@ -1,4 +1,5 @@
 import logging
+import networkx as nx
 from collections import defaultdict
 from enum import Enum, auto
 from math import ceil
@@ -42,6 +43,7 @@ class CoalaScheduler:
         scheduling_order: list[tuple[int, int]],
         cores_idle_from: dict[int, int] | None = None,
         operands_to_prefetch: list[LayerOperand] | None = None,
+        beam_width: int = 1,
     ):
         """
         Args:
@@ -50,6 +52,7 @@ class CoalaScheduler:
             scheduling_order: List of (layer_id, sub_id) tuples indicating scheduling order.
             cores_idle_from: Optional dict mapping core_id to start offset.
             operands_to_prefetch: Layer operands to prefetch at the start of the schedule.
+            beam_width: Number of top partial schedules to keep during exploration (default 1).
         """
         if operands_to_prefetch is None:
             operands_to_prefetch = []
@@ -57,6 +60,7 @@ class CoalaScheduler:
         self.accelerator = accelerator
         self.scheduling_order = scheduling_order
         self.operands_to_prefetch = operands_to_prefetch
+        self.beam_width = beam_width
         core_ids = set(n.chosen_core_allocation for n in g.node_list)
         assert None not in core_ids, "Not all nodes have core allocation. Insert SetFixedAllocationPerformanceStage."
         all_core_ids: list[int] = sorted(list(core_ids))  # type: ignore
@@ -152,8 +156,11 @@ class CoalaScheduler:
         new_instance.scheduled_nodes = self.scheduled_nodes.copy()
         new_instance.bw_fraction_to_use_for_tensor = self.bw_fraction_to_use_for_tensor.copy()
         new_instance.node_timesteps = self.node_timesteps.copy()
-        new_instance.candidates = self.candidates[:] 
+        new_instance.candidates = self.candidates[:]
         
+        # New field
+        new_instance.beam_width = self.beam_width
+
         return new_instance
 
     def update_graph_nodes(self):
@@ -236,28 +243,173 @@ class CoalaScheduler:
 
     def run(self):
         """
-        Main scheduling loop. For each candidate node, handles:
-        - Subtensor creation if only a portion of a tensor is needed
-        - Memory management and transfer
-        - Scheduling and output tensor spawning
-        - Memory cleanup and candidate extension
-        Returns the total latency of the schedule.
+        Main scheduling loop. Supports Beam Search exploration.
+        Returns the total latency of the best schedule found.
         """
-        nb_scheduled_nodes = 0
-        done = False
         self.prefetch_constant_operands()
-        while not done:
-            self.schedule_next_node()
-            nb_scheduled_nodes += 1
-            done = nb_scheduled_nodes == self.nb_graph_nodes
+
+        # --- Baseline Comparison (Naive Topological Sort) ---
+        baseline_latency = float('inf')
+        try:
+            baseline_scheduler = self.copy()
+            # Construct a map for priority-based selection
+            baseline_order_nodes = list(nx.lexicographical_topological_sort(self.G))
+            # Just use the index in the list as priority (lower is better)
+            # ComputationNode needs to be hashable or we use IDs.
+            # Assuming nodes are consistent objects specific to G.
+            baseline_priority = {n: i for i, n in enumerate(baseline_order_nodes)}
+
+            step_base = 0
+            while step_base < baseline_scheduler.nb_graph_nodes:
+                if not baseline_scheduler.candidates:
+                     break
+                
+                # Pick the candidate with the lowest index in the topological sort
+                # candidates is list of (preds_end, node)
+                best_cand_tuple = min(
+                    baseline_scheduler.candidates, 
+                    key=lambda x: baseline_priority.get(x[1], float('inf'))
+                )
+                preds_end, best_candidate = best_cand_tuple
+                
+                # Remove from candidates
+                # Note: candidates is a list, we need to find the index to delete or just pop correctly
+                # Since we found the object, let's find the index
+                idx_to_remove = baseline_scheduler.candidates.index(best_cand_tuple)
+                del baseline_scheduler.candidates[idx_to_remove]
+
+                baseline_scheduler._schedule_node(best_candidate, preds_end)
+                step_base += 1
+            
+            baseline_latency = baseline_scheduler.get_total_latency()
+        except Exception as e:
+            logger.warning(f"Failed to run baseline comparison: {e}")
+
+        
+        # Initialize beam with self
+        active_schedulers = [self]
+        
+        # We perform beam search until all nodes are scheduled in all active beams
+        # Assuming all valid schedules have same number of nodes: self.nb_graph_nodes
+        step = 0
+        while step < self.nb_graph_nodes:
+            next_generation_beam = []
+            
+            # Expand all schedulers
+            for scheduler in active_schedulers:
+                # If scheduler has no candidates, it might be stuck or done? 
+                # But we control loop by nb_graph_nodes, so it should proceed.
+                if not scheduler.candidates:
+                     # If done, just keep it? But loop condition should prevent this if nb_graph_nodes is correct.
+                     # Or maybe some graph structure issue.
+                     continue
+
+                # Optimization for beam_width=1 (Greedy DFS/Lookahead 1)
+                # If we only keep 1, we can use the optimized in-place simulation
+                # used in original schedule_next_node modification if we wanted, 
+                # but generic logic is cleaner for maintenance.
+                
+                for i, (preds_end, candidate) in enumerate(scheduler.candidates):
+                    # Create a branch for this candidate
+                    # We must copy current state.
+                    child = scheduler.copy()
+                    
+                    # Remove the candidate from child's candidate list
+                    del child.candidates[i]
+                    
+                    # Schedule it
+                    child._schedule_node(candidate, preds_end)
+                    next_generation_beam.append(child)
+            
+            if not next_generation_beam:
+                # Dead end?
+                break
+                
+            # Prune: Sort by latency and keep top beam_width
+            # Note: Latency at intermediate steps might favor greedy choices.
+            # But beam search usually uses cost-so-far.
+            next_generation_beam.sort(key=lambda s: s.latency)
+            active_schedulers = next_generation_beam[:self.beam_width]
+
+            best_current_latency = active_schedulers[0].latency
+            logger.debug(f"Step {step + 1}/{self.nb_graph_nodes}: Beam Size {len(active_schedulers)}, Best Latency: {best_current_latency}")
+
+            step += 1
+        logger.info(f"Beam search best latency: {active_schedulers[0].latency}, Naive baseline latency: {baseline_latency}, Improvement: {baseline_latency - active_schedulers[0].latency if baseline_latency != float('inf') else 'N/A'}(absolute), {f'{(baseline_latency - active_schedulers[0].latency) / baseline_latency * 100:.1f}' if baseline_latency != float('inf') else 'N/A'}%(relative)")
+        if not active_schedulers:
+             raise RuntimeError("Scheduler failed to complete.")
+
+        # Best scheduler is the first one
+        best_scheduler = active_schedulers[0]
+        
+        # Update self to reflect the best schedule found
+        if best_scheduler is not self:
+             # We need to update all mutable fields
+             # self.copy() logic showed us what is mutable
+             self.accelerator = best_scheduler.accelerator
+             self.latency = best_scheduler.latency
+             self.total_cn_onchip_energy = best_scheduler.total_cn_onchip_energy
+             self.link_energy = best_scheduler.link_energy
+             self.memory_energy = best_scheduler.memory_energy
+             self.nb_scheduled_nodes = best_scheduler.nb_scheduled_nodes
+             self.scheduled_nodes = best_scheduler.scheduled_nodes
+             self.bw_fraction_to_use_for_tensor = best_scheduler.bw_fraction_to_use_for_tensor
+             self.node_timesteps = best_scheduler.node_timesteps
+             self.candidates = best_scheduler.candidates
+             self.cores_idle_from = best_scheduler.cores_idle_from
+             # Re-link logical refs
+             self.offchip_core = self.accelerator.get_offchip_core()
+             self.offchip_top_instances = self.accelerator.get_top_instances_of_core(self.offchip_core)
+
         self.latency = self.get_total_latency()
         return self.latency
 
     def schedule_next_node(self):
-        """
-        Schedules the next best candidate node.
-        """
-        best_candidate, preds_end = self.pop_best_candidate()
+        # Kept for compatibility if used step-by-step externally, 
+        # but run() now handles the loop locally.
+        # This implementation essentially does a Beam Search of width=1 on self.
+        
+        if not self.candidates:
+            raise ValueError("There are no candidates to schedule.")
+
+        # Optimization: If only one candidate, schedule it directly
+        if len(self.candidates) == 1:
+            preds_end, best_candidate = self.candidates.pop(0)
+            return self._schedule_node(best_candidate, preds_end)
+
+        best_metric = float("inf")
+        best_idx = -1
+
+        for i, (preds_end, candidate) in enumerate(self.candidates):
+            simulated_scheduler = self.copy()
+            del simulated_scheduler.candidates[i]
+
+            # Save mutable state of the node that might be modified during scheduling
+            # Since G (and nodes) are shared across copies, we must revert changes
+            original_too_large = list(candidate.too_large_operands)
+
+            try:
+                # We use latency as the metric to minimize
+                latency = simulated_scheduler._schedule_node(candidate, preds_end)
+            except Exception as e:
+                logger.warning(f"Simulation failed for node {candidate}: {e}")
+                latency = float("inf")
+            finally:
+                # Restore mutable state
+                candidate.set_too_large_operands(original_too_large)
+
+            if latency < best_metric:
+                best_metric = latency
+                best_idx = i
+
+        if best_idx == -1:
+            preds_end, best_candidate = self.candidates.pop(0)
+        else:
+            preds_end, best_candidate = self.candidates.pop(best_idx)
+
+        return self._schedule_node(best_candidate, preds_end)
+
+    def _schedule_node(self, best_candidate, preds_end):
         core = self.get_allocated_core(best_candidate)
         full_tensors_this_candidate_needs, tensors_operands = self.get_tensors_needed_for_node(best_candidate)
         # print(f"Scheduling node {best_candidate} on core {core.id} at earliest {preds_end}")
