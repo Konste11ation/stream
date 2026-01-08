@@ -150,7 +150,7 @@ class TiledWorkloadGenerationStage(Stage):
             # Get all pairs of nodes that we have to extract inter edges for
             all_pairs = self.get_all_node_pairs(self.workload)
             for producer, consumer, is_complex in all_pairs:
-                print(f"Getting edges between {producer} and {consumer}, complex: {is_complex}")
+                logger.debug(f"Getting edges between {producer} and {consumer}, complex: {is_complex}")
                 if is_complex:
                     inter_edges = self.get_inter_edges_numpy(producer, consumer)
                 else:

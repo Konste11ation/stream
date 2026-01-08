@@ -90,7 +90,7 @@ class ZigZagCoreMappingEstimationStage(Stage):
                 equal_node = self.cost_lut.get_equal_node(node)
                 equal_core = self.cost_lut.get_equal_core(equal_node, core) if equal_node else None
                 if equal_node and equal_core:
-                    logger.info(f"Reusing CME for node {node} on core {core_id} from equal node {equal_node} on core {equal_core.id}.")
+                    logger.debug(f"Reusing CME for node {node} on core {core_id} from equal node {equal_node} on core {equal_core.id}.")
                     cme = pickle_deepcopy(self.cost_lut.get_cme(equal_node, equal_core))
                     # Update the CME attributes for this node-core combination
                     cme.layer.core_allocation = [core_id]
