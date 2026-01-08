@@ -6,6 +6,7 @@ from zigzag.datatypes import Constants
 from zigzag.datatypes import LayerDim
 from stream.parser.onnx.operator_parser import OnnxComputeOperatorParser
 from onnx import ModelProto, NodeProto
+from zigzag.parser.onnx.utils import get_attribute_ints_with_name
 from zigzag.parser.workload_factory import LayerNodeFactory
 from stream.workload.mapping import InterCoreMappingAttributes
 from stream.hardware.architecture.accelerator import Accelerator
@@ -58,11 +59,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         self.Tc: int = 0
         self.init_set_shape_info()
         self.init_set_tile_info()
-        # For now just fixed numbers
-        self.operand_precision = {"W": 8,
-                                  "I": 8,
-                                  "O_final": 8,
-                                  "O": 16}
+        self.init_set_operand_precision()
     # Top level run function
     # Call the get_nodes funtion
     def run(self):
@@ -87,19 +84,26 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         
     def init_set_tile_info(self):
         """ Set the FlashAttention tiling information """
-
         # For now we set to a fix value
-        DEFAULT_TILE_Br = 16
-        DEFAULT_TILE_Bc = 16
-        self.tile_Br = DEFAULT_TILE_Br
-        self.tile_Bc = DEFAULT_TILE_Bc
+        self.tile_Br = get_attribute_ints_with_name("tile_Br", self.node.attribute, default=16)
+        self.tile_Bc = get_attribute_ints_with_name("tile_Bc", self.node.attribute, default=16)
         self.Tr = self.seq_len // self.tile_Br # Number of row tiles, for Q and O
         self.Tc = self.seq_len // self.tile_Bc # Number of column tiles, for K and V
         # For now we assume seq_len is divisible by tile sizes
         assert self.seq_len % self.tile_Br == 0, "Sequence length must be divisible by tile size Br"
         assert self.seq_len % self.tile_Bc == 0, "Sequence length must be divisible by tile size Bc"
-        # TODO 1: Compute the Br and Bc from the memory capacity
         # TODO 2: Handle the case where seq_len is not divisible by tile sizes
+    def init_set_operand_precision(self):
+        """ Set the operand precision for FlashAttention """
+        act_precision: int = self.get_activation_precision()
+        weight_precision: int = self.get_weight_precision()
+        intermediate_output_precision: int = self.get_intermediate_output_precision()
+        self.operand_precision = {
+            "W": act_precision,
+            "I": act_precision,
+            "O_final": act_precision,
+            "O": intermediate_output_precision,
+        }
     def get_layer_node_user_format(
         self, input_shape: list[int], output_shape: list[int], mapping: Any | None
     ) -> dict[str, Any]:
@@ -944,14 +948,14 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         )
         nodes.append(concat_o_node)
         self._util_add_node(concat_o_node)
-        # Final dummy O computation node
-        current_id = self._util_get_and_increment_id()
-        final_o_node = self._helper_create_dummy_final_o_node(
-            id=current_id,
-            pred_id=self._util_get_id_from_node_name("concat_o"),
-        )
-        nodes.append(final_o_node)
-        self._util_add_node(final_o_node)
+        # # Final dummy O computation node
+        # current_id = self._util_get_and_increment_id()
+        # final_o_node = self._helper_create_dummy_final_o_node(
+        #     id=current_id,
+        #     pred_id=self._util_get_id_from_node_name("concat_o"),
+        # )
+        # nodes.append(final_o_node)
+        # self._util_add_node(final_o_node)
         return nodes
 
     def plot_dfg(self):
@@ -1008,3 +1012,4 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         plt.title("FlashAttention DFG")
         plt.savefig("flash_attention_dfg.png")
         print("DFG plot saved to flash_attention_dfg.png")
+        

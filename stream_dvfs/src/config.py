@@ -89,6 +89,8 @@ class FlashAttentionConfig(ModelConfig):
         dim_k: int,
         dim_v: int,
         batch_size: int = 1,
+        tile_Br: int = 16,
+        tile_Bc: int = 16,
         name: str = "FlashAttention",
         type: Literal["FlashAttention"] = "FlashAttention",
     ):
@@ -98,6 +100,8 @@ class FlashAttentionConfig(ModelConfig):
         self.dim_v = dim_v
         self.batch_size = batch_size
         self.name = name
+        self.tile_Br = tile_Br
+        self.tile_Bc = tile_Bc
         self.num_layer = 1  # Single layer
         self.type = type
 
@@ -122,7 +126,7 @@ class FlashAttentionConfig(ModelConfig):
 
     @property
     def parameterized_name(self) -> str:
-        return f"{self.name}_B={self.batch_size}_Seq={self.seq_len}_Embed={self.dim_k}"
+        return f"{self.name}_B={self.batch_size}_Seq={self.seq_len}_Embed={self.dim_k}_TileBr={self.tile_Br}_TileBc={self.tile_Bc}"
     
 class TransformerConfig(ModelConfig):
     def __init__(

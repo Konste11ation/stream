@@ -33,6 +33,7 @@ class FlashAttentionModel(nn.Module):
         self.q_proj = nn.Linear(input_dim, dim_k, bias=False)
         self.k_proj = nn.Linear(input_dim, dim_k, bias=False)
         self.v_proj = nn.Linear(input_dim, dim_v, bias=False)
+        self.o_proj = nn.Linear(dim_v, input_dim, bias=False)
 
     def forward(self, x):
         # 1. Compute Q, K, V
@@ -44,6 +45,8 @@ class FlashAttentionModel(nn.Module):
         # When exporting to ONNX, this will be replaced by a single "Flash_Attention" node
         # taking q, k, v as inputs.
         output = FlashAttentionFunction.apply(q, k, v)
+        # 3. Final output projection
+        output = self.o_proj(output)
         
         return output
 

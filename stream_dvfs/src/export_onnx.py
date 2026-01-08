@@ -131,7 +131,11 @@ def export_model_to_onnx(
             add_attribute_to_onnx_node(node, "weight_size", quant_config.weight_bits)
             add_attribute_to_onnx_node(node, "act_size", quant_config.act_bits)
             add_attribute_to_onnx_node(node, "output_size", quant_config.intermediate_output_bits)
-
+    # Add the flash attention specific attributes on the Tile Size
+    for node in onnx_model.graph.node:
+        if node.op_type == "FlashAttention":
+            add_attribute_to_onnx_node(node, "tile_Br", model_config.tile_Br)
+            add_attribute_to_onnx_node(node, "tile_Bc", model_config.tile_Bc)
     # Save the model with external data and then remove it
     # NOTE: This requires later loading it with load_external_data=False
     external_data_filename = "external.data"
