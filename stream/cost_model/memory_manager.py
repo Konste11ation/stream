@@ -1,3 +1,4 @@
+from collections import defaultdict
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -13,6 +14,10 @@ if TYPE_CHECKING:
     from stream.hardware.architecture.accelerator import Accelerator
 
 logger = logging.getLogger(__name__)
+
+
+def return_defaultdict_int():
+    return defaultdict(int)
 
 
 class MemoryManager:
@@ -43,6 +48,11 @@ class MemoryManager:
         self.unique_top_instances: set[MemoryInstance] = set()
         self.cores_per_top_instance: dict[MemoryInstance, list[Core]] = {}
         self.memory_operands_per_top_instance: dict[MemoryInstance, list[tuple[MemoryOperand, ...]]] = {}
+
+        # Stores the priority of a tensor for a specific top instance.
+        # This replaces the Tensor.instance_priorities attribute to allow sharing Tensor objects.
+        # tensor -> top_instance -> priority
+        self.tensor_priority_per_top_instance: dict[Tensor, dict[MemoryInstance, int]] = defaultdict(return_defaultdict_int)
 
         # Some top level memories instances might be shared, thus we keep info for each unique top memory instance
         self.top_instance_capacities: dict[MemoryInstance, int] = {}
@@ -229,6 +239,29 @@ class MemoryManager:
         new_timestep = relevant_timesteps[last_max_usage_idx + 1]
         return self.get_timestep_for_tensor_addition(tensor, core, new_timestep, memory_op)
 
+    def get_tensor_priority(self, tensor: Tensor, top_instance: MemoryInstance) -> int:
+        if top_instance in self.tensor_priority_per_top_instance[tensor]:
+            return self.tensor_priority_per_top_instance[tensor][top_instance]
+        else:
+            # Reimplement logic from Tensor.get_instance_priority
+            storing_core_ids, top_instance_idxs, _ = self.find_tensor(tensor)
+            storing_instances = []
+            for storing_core_id, top_instance_idx in zip(storing_core_ids, top_instance_idxs, strict=False):
+                core = self.accelerator.get_core(storing_core_id)
+                storing_instance = self.top_instances_per_core[core][top_instance_idx]
+                storing_instances.append(storing_instance)
+
+            # Use self.tensor_priority_per_top_instance instead of tensor.instance_priorities
+            tensor_priorities = self.tensor_priority_per_top_instance[tensor]
+            not_storing_instances = list(set(tensor_priorities.keys()) - set(storing_instances))
+            not_storing_priority = sum(
+                tensor_priorities[not_storing_instance] for not_storing_instance in not_storing_instances
+            )
+            return not_storing_priority
+
+    def get_total_priority(self, tensor: Tensor) -> int:
+        return sum(self.tensor_priority_per_top_instance[tensor].values())
+
     def find_best_tensor_combination_to_evict_fast(
         self,
         top_instance: MemoryInstance,
@@ -258,7 +291,8 @@ class MemoryManager:
             return []
         evictable_tensors_priority_size: list[int] = []
         for tensor in evictable_tensors:
-            instance_priority = tensor.get_instance_priority(top_instance, self)
+            # instance_priority = tensor.get_instance_priority(top_instance, self)
+            instance_priority = self.get_tensor_priority(tensor, top_instance)
             importance = instance_priority * tensor.size
             evictable_tensors_priority_size.append(importance)
         evictable_tensors_priority_size_tuple, evictable_tensors_tuple = zip(
