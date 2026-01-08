@@ -57,18 +57,8 @@ class ZigZagCoreMappingEstimationStage(Stage):
         self.layer_stacks: list[STACK_T] = kwargs["layer_stacks"]
         self.temporal_mapping_type: TemporalMappingType = kwargs["temporal_mapping_type"]
 
-        # Extract all unique nodes that will have to be evaluated
-        self.unique_nodes = get_unique_nodes(self.workload)
-
-        assert all(isinstance(node, ComputationNode) for node in self.unique_nodes), (
-            "ZigZagCoreMappingEstimationStage received a non-ComputationNode."
-        )
-        assert all(isinstance(node.possible_core_allocation, list) for node in self.unique_nodes), (
-            "ZigZagCoreMappingEstimationStage received a node with a non-list core allocation."
-        )
-
         self.valid_allocations: dict[ComputationNode, list[int]] = {
-            node: node.possible_core_allocation for node in self.unique_nodes
+            node: node.possible_core_allocation for node in self.workload.node_list
         }
         self.cost_lut = CostModelEvaluationLUT(self.cost_lut_path)
 
@@ -86,7 +76,7 @@ class ZigZagCoreMappingEstimationStage(Stage):
         yield from sub_stage.run()
 
     def update_cost_lut(self):
-        for node in self.unique_nodes:
+        for node in self.workload.node_list:
             core_ids = self.valid_allocations[node]
             for core_id in core_ids:
                 core = self.accelerator.get_core(core_id)
@@ -100,6 +90,7 @@ class ZigZagCoreMappingEstimationStage(Stage):
                 equal_node = self.cost_lut.get_equal_node(node)
                 equal_core = self.cost_lut.get_equal_core(equal_node, core) if equal_node else None
                 if equal_node and equal_core:
+                    logger.info(f"Reusing CME for node {node} on core {core_id} from equal node {equal_node} on core {equal_core.id}.")
                     cme = pickle_deepcopy(self.cost_lut.get_cme(equal_node, equal_core))
                     # Update the CME attributes for this node-core combination
                     cme.layer.core_allocation = [core_id]

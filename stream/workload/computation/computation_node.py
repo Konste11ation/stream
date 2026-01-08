@@ -219,7 +219,8 @@ class ComputationNode(LayerNode, Node):
             and self.operand_precision == other.operand_precision
             and self.memory_operand_links == other.memory_operand_links
             and self.nb_real_predecessors == other.nb_real_predecessors
-            and self.id == other.id
+            and self.core_allocation == other.core_allocation
+            # and self.id == other.id
             # NOTE: don't include sub_id
         )
 
