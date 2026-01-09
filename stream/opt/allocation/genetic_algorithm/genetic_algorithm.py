@@ -1,5 +1,6 @@
 import array
 import random
+import multiprocessing
 
 from deap import algorithms, base, creator, tools
 
@@ -15,6 +16,7 @@ class GeneticAlgorithm:
         num_generations=250,
         num_individuals=64,
         pop=None,
+        num_processes=4,
     ) -> None:
         if pop is None:
             pop = []
@@ -25,6 +27,7 @@ class GeneticAlgorithm:
         self.prob_crossover = 0.3  # probablility to perform corssover
         self.prob_mutation = 0.7  # probablility to perform mutation
         self.valid_allocations = valid_allocations
+        self.num_processes = num_processes
 
         self.individual_length = individual_length
 
@@ -65,6 +68,11 @@ class GeneticAlgorithm:
 
         # link user defined fitness function to toolbox
         self.toolbox.register("evaluate", self.fitness_evaluator.get_fitness)
+
+        # Register map with multiprocessing pool if num_processes > 1
+        if self.num_processes > 1:
+            self.pool = multiprocessing.Pool(processes=self.num_processes)
+            self.toolbox.register("map", self.pool.map)
 
         # Always use cxTwoPoint. 
         # cxOrdered is for permutations (TSP) and moves values to different indices, 
@@ -109,17 +117,23 @@ class GeneticAlgorithm:
         )
         # stats.register("saved", self.save_population)
 
-        algorithms.eaMuPlusLambda(
-            self.pop,
-            self.toolbox,
-            mu=self.para_mu,
-            lambda_=self.para_lambda,
-            cxpb=self.prob_crossover,
-            mutpb=self.prob_mutation,
-            ngen=self.num_generations,
-            stats=stats,
-            halloffame=self.hof,
-        )
+        try:
+            algorithms.eaMuPlusLambda(
+                self.pop,
+                self.toolbox,
+                mu=self.para_mu,
+                lambda_=self.para_lambda,
+                cxpb=self.prob_crossover,
+                mutpb=self.prob_mutation,
+                ngen=self.num_generations,
+                stats=stats,
+                halloffame=self.hof,
+            )
+        finally:
+            if self.num_processes > 1 and hasattr(self, "pool"):
+                self.pool.close()
+                self.pool.join()
+                
         return self.pop, self.hof
 
     def mutate(self, individual):
