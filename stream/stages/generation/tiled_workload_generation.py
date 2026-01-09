@@ -151,11 +151,8 @@ class TiledWorkloadGenerationStage(Stage):
                 producer_tiles = self.tiles_dict[producer]
                 consumer_tiles = self.tiles_dict[consumer]
 
-                logger.debug(f"Getting edges between {producer} and {consumer}, complex: {is_complex}")
-                if is_complex:
-                    inter_edges = self.get_inter_edges_numpy(producer, consumer, producer_tiles, consumer_tiles)
-                else:
-                    inter_edges = self.get_inter_edges_rtree(producer, consumer, producer_tiles, consumer_tiles)
+                logger.debug(f"Getting edges between {producer} and {consumer}, complex: {is_complex} (Using Geometric)")
+                inter_edges = self.get_inter_edges_geometric(producer, consumer, producer_tiles, consumer_tiles)
                 all_edges += inter_edges
 
             # The graph construction needs to happen after the base priority and nb_real_predecessors are set
@@ -1038,3 +1035,126 @@ class TiledWorkloadGenerationStage(Stage):
         if os.path.exists(self.tiled_workload_path):
             return pickle_load(self.tiled_workload_path)
         return None
+
+    def get_inter_edges_geometric(
+        self,
+        producer: ComputationNode,
+        consumer: ComputationNode,
+        producer_tiles: list[ComputationNode],
+        consumer_tiles: list[ComputationNode],
+    ):
+        """
+        Unified Geometric Dependency Propagation.
+        Finds edges between producer and consumer tiles by propagating bounding boxes
+        through intermediate nodes (Transforms) using propagate_ranges.
+        """
+        all_inter_edges = []
+        
+        # 1. Identify all paths (Direct and Indirect via PropagationNode)
+        # Structure: (operand, intermediate_nodes_list, path_nodes_for_context)
+        paths_to_process = []
+        
+        # A. Direct Connections
+        for operand, parent_id in consumer.input_operand_source.items():
+            if parent_id == producer.id:
+                paths_to_process.append((operand, [], [producer, consumer]))
+                
+        # B. Complex Paths
+        # ZigZag's find_paths_with_intermediate_type returns [Producer, I1, I2, Consumer]
+        complex_paths = self.workload.find_paths_with_intermediate_type(producer, consumer, PropagationNode)
+        for path in complex_paths:
+            # Determine which operand this path feeds
+            last_node = path[-2]
+            try:
+                # Find operand that connects to last_node
+                operand = next(op for op, uid in consumer.input_operand_source.items() if uid == last_node.id)
+                intermediates = path[1:-1]
+                paths_to_process.append((operand, intermediates, path))
+            except StopIteration:
+                continue
+
+        # 2. Process each path
+        for operand, intermediates, path_context in paths_to_process:
+            # Build Consumer RTree for this operand (Consumer Input Space)
+            consumer_tree = self.build_rtree(producer, consumer, consumer_tiles, operand)
+            nb_rtree_dims = consumer_tree.properties.dimension
+            
+            # Producer Output Info
+            producer_r_dims_output = producer.operand_dimensionality_order[Constants.OUTPUT_LAYER_OP]
+            producer_ir_dims_output = producer.loop_relevancy_info.get_ir_layer_dims(Constants.OUTPUT_LAYER_OP)
+
+            for producer_tile in producer_tiles:
+                # Check Irrelevant Loop Constraints (Only max-irrelevant tiles produce valid data)
+                ir_dims_not_at_max = [
+                    producer_tile.loop_ranges[ir_dim][1] < producer.loop_ranges[ir_dim][1]
+                    for ir_dim in producer_ir_dims_output
+                ]
+                if any(ir_dims_not_at_max):
+                    continue
+
+                # Get Producer Output Bounds (Flat: min0, max0, min1, max1...)
+                # Note: interleaved=False gives (min0, max0, min1, max1...)
+                p_inclusive_ranges = self.convert_to_inclusive_data_range(producer_tile.loop_ranges)
+                p_bounds_flat = self.get_bounding_box_dimensions(
+                    producer, consumer, producer_r_dims_output, p_inclusive_ranges, interleaved=False
+                )
+                
+                # Convert to Dict {dim_idx: (start, end)}
+                # get_bounding_box returns inclusive [min, max]. We want python range [start, end).
+                current_ranges = {}
+                nb_dims = len(p_bounds_flat) // 2
+                for d in range(nb_dims):
+                    current_ranges[d] = (p_bounds_flat[2*d], p_bounds_flat[2*d+1] + 1)
+                
+                # Propagate through Intermediate Nodes
+                valid_path = True
+                if intermediates:
+                    if path_context:
+                        # Use path_context to provide prev/next nodes
+                        # path_context = [Producer, I1, I2, Consumer]
+                        # intermediates = [I1, I2]
+                        # I1 is at index 1 in path_context.
+                        for i, node in enumerate(intermediates):
+                            # node is path_context[i+1]
+                            prev_node = path_context[i]
+                            next_node = path_context[i+2]
+                            current_ranges = node.propagate_ranges(current_ranges, previous_node=prev_node, next_node=next_node)
+                            if current_ranges is None:
+                                valid_path = False
+                                break
+                    else:
+                        # Should not happen for complex path
+                        pass
+                
+                if not valid_path:
+                    continue
+                    
+                # Prepare Query Bounds for RTree (Format: min0, min1, ..., max0, max1)
+                min_vals = []
+                max_vals = []
+                # Iterate up to RTree dimensions
+                # If current_ranges is missing a dimension, it is unconstrained (Full)
+                
+                for d in range(nb_rtree_dims):
+                    if d in current_ranges:
+                        s, e = current_ranges[d]
+                        min_vals.append(s)
+                        max_vals.append(e - 1) # Inclusive Max for RTree
+                    else:
+                        min_vals.append(-2**30)
+                        max_vals.append(2**30)
+                
+                query_bounds = tuple(min_vals + max_vals)
+                
+                # Intersection
+                intersecting_ids = consumer_tree.intersection(query_bounds)
+                
+                for cid in intersecting_ids:
+                    c_tile = consumer_tiles[cid]
+                    all_inter_edges.append((
+                        producer_tile, 
+                        c_tile, 
+                        {"operand": operand, "bits": producer_tile.data_produced_unique}
+                    ))
+                    
+        return all_inter_edges

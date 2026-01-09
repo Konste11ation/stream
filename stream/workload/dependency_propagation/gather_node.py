@@ -55,3 +55,40 @@ class GatherNode(PropagationNode):
         relevant_axes[self.gather_axis] = True
 
         return tensor.gather(self.gather_indices, axis=self.gather_axis), relevant_axes
+
+    def propagate_ranges(
+        self,
+        input_ranges: dict,
+        previous_node: Node | None = None,
+        next_node: Node | None = None,
+    ) -> dict | None:
+        """
+        Propagate ranges through Gather.
+        Check which indices fall into input_ranges[axis].
+        Return bounding box of output indices.
+        """
+        output_ranges = input_ranges.copy()
+        
+        if self.gather_axis in output_ranges:
+            in_start, in_end = output_ranges[self.gather_axis]
+            
+            # Check overlap 
+            indices = self.gather_indices
+            if isinstance(indices, int):
+                indices = [indices]
+            
+            # Find indices in 'indices' that are within [in_start, in_end)
+            matching_positions = [
+                i for i, val in enumerate(indices) 
+                if in_start <= val < in_end
+            ]
+            
+            if not matching_positions:
+                return None
+            
+            # Output range is the hull of positions
+            out_start = min(matching_positions)
+            out_end = max(matching_positions) + 1
+            output_ranges[self.gather_axis] = (out_start, out_end)
+            
+        return output_ranges

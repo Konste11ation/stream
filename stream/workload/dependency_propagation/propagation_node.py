@@ -32,3 +32,18 @@ class PropagationNode(Node, LayerNodeABC):
         next_node: Node | None = None,
         relevant_axes: list[bool] | None = None,
     ) -> tuple[NodeTensor, list[bool]]: ...
+
+
+    def propagate_ranges(
+        self,
+        input_ranges: dict,
+        previous_node: Node | None = None,
+        next_node: Node | None = None,
+    ) -> dict | None:
+        """
+        Propagate the data ranges (bounding boxes) through this node.
+        Default implementation returns input_ranges unchanged (Identity).
+        Subclasses should override this if they modify coordinates/dimensions.
+        Returns None if the resulting range is empty (no dependency).
+        """
+        return input_ranges

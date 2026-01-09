@@ -41,3 +41,25 @@ class TransposeNode(PropagationNode):
             return transposed_tensor, new_relevant_axes
         
         return transposed_tensor, relevant_axes
+
+    def propagate_ranges(
+        self,
+        input_ranges: dict,
+        previous_node: Node | None = None,
+        next_node: Node | None = None,
+    ) -> dict | None:
+        """
+        Propagate the input ranges through the specific operation of this node.
+        For Transpose, we just swap the keys of the dictionary.
+        
+        input_ranges: keys are input dimension indices.
+        output_ranges: keys are output dimension indices.
+        """
+        if self.permute_axes is None:
+            return input_ranges
+            
+        output_ranges = {}
+        for output_dim, input_dim in enumerate(self.permute_axes):
+            if input_dim in input_ranges:
+                output_ranges[output_dim] = input_ranges[input_dim]
+        return output_ranges

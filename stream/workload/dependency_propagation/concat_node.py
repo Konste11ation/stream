@@ -48,6 +48,30 @@ class ConcatConstantNode(PropagationNode):
             case _:
                 raise ValueError("More than two inputs for ConcatConstantNode")
 
+    def propagate_ranges(
+        self,
+        input_ranges: dict,
+        previous_node: Node | None = None,
+        next_node: Node | None = None,
+    ) -> dict | None:
+        """
+        Propagate ranges through ConcatConstant.
+        If variable is first, identity.
+        If variable is second, shift by constant size.
+        """
+        output_ranges = input_ranges.copy()
+        axis = self.axis
+        
+        if axis in output_ranges:
+            if not self.variable_input_first:
+                # Variable comes after Constant
+                # Shift range UP by constant_shape[axis]
+                shift = self.constant_shape[axis]
+                start, end = output_ranges[axis]
+                output_ranges[axis] = (start + shift, end + shift)
+        
+        return output_ranges
+
     def propagate(
         self,
         tensor: NodeTensor,
@@ -128,6 +152,23 @@ class ConcatNode(PropagationNode):
 
         return extended_tensor, relevant_axes
 
+    def propagate_ranges(
+        self,
+        input_ranges: dict,
+        previous_node: Node | None = None,
+        next_node: Node | None = None,
+    ) -> dict | None:
+        """
+        Propagate ranges through ConcatNode.
+        Since we don't know the exact offset without input shapes, we assume the 
+        concatenation axis becomes 'Full' (unconstrained) for safety.
+        Drop the axis from ranges.
+        """
+        output_ranges = input_ranges.copy()
+        if self.axis in output_ranges:
+            del output_ranges[self.axis]
+        return output_ranges
+
 
 class BlockConcatNode(PropagationNode):
     """Class that represents an onnx Concat node where input blocks (size > 1) are concatenated."""
@@ -194,4 +235,21 @@ class BlockConcatNode(PropagationNode):
         relevant_axes[self.axis] = True
 
         return extended_tensor, relevant_axes
+
+    def propagate_ranges(
+        self,
+        input_ranges: dict,
+        previous_node: Node | None = None,
+        next_node: Node | None = None,
+    ) -> dict | None:
+        """
+        Propagate ranges through BlockConcatNode.
+        Inputs are blocks (tiles).
+        Usually they map to specific offsets.
+        Drop axis for safety as per ConcatNode.
+        """
+        output_ranges = input_ranges.copy()
+        if self.axis in output_ranges:
+            del output_ranges[self.axis]
+        return output_ranges
 

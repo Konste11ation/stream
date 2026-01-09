@@ -65,6 +65,54 @@ class SplitNode(PropagationNode):
         assert len(tensor.tensor_shape) == len(output_tensor.tensor_shape)
         return output_tensor, relevant_axes
 
+    def propagate_ranges(
+        self,
+        input_ranges: dict,
+        previous_node: Node | None = None,
+        next_node: Node | None = None,
+    ) -> dict | None:
+        """
+        Propagate ranges through Split.
+        Intersect with the specific split window involved and shift to local coordinates.
+        """
+        if next_node is None:
+            # If we don't know where we are going, we can't narrow down the range.
+            # We assume we go to ALL splits? No, that's impossible.
+            # Return None or empty?
+            # Safe fallback: Identity (assuming next node takes everything? NO).
+            return input_ranges
+
+        # Find which split we are traversing
+        try:
+            index = self.find_split_index(next_node)
+        except ValueError:
+            return None # Not a valid connection?
+
+        start_idx = sum(self.splits[:index])
+        split_size = self.splits[index]
+        end_idx = start_idx + split_size
+
+        output_ranges = input_ranges.copy()
+        
+        # Check if split axis is tracked
+        if self.axis in output_ranges:
+            in_start, in_end = output_ranges[self.axis]
+            
+            # Intersect [in_start, in_end) with [start_idx, end_idx)
+            inter_start = max(in_start, start_idx)
+            inter_end = min(in_end, end_idx)
+            
+            if inter_start >= inter_end:
+                return None
+            
+            # Shift to local coordinates (0-based)
+            out_start = inter_start - start_idx
+            out_end = inter_end - start_idx
+            
+            output_ranges[self.axis] = (out_start, out_end)
+            
+        return output_ranges
+
     def find_split_index(self, next_node: Node):
         """Given the next node that comes after this split node, return the index of this node's splitted outputs that
         corresponds to the next node's input"""

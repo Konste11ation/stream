@@ -77,4 +77,48 @@ class DiagNode(PropagationNode):
         
         return output_tensor, updated_relevant_axes
 
+    def propagate_ranges(
+        self,
+        input_ranges: dict,
+        previous_node: Node | None = None,
+        next_node: Node | None = None,
+    ) -> dict | None:
+        """
+        Propagate ranges through DiagNode.
+        Input: [..., N]
+        Output: [..., N, N] (Diagonal)
+        
+        Logic:
+        - Dimensions 0..Rank-2 are Batch dimensions: Identity mapping.
+        - Dimension Rank-1 (Input N) maps to BOTH Rank-1 (Row N) and Rank (Col N) in Output.
+        - Because it's a Diagonal Matrix:
+            Output[i, j] is non-zero ONLY if i == j.
+            The input vector at index k corresponds to Output[k, k].
+            So Output Row k depends on Input k.
+            Output Col k depends on Input k.
+        """
+        output_ranges = input_ranges.copy()
+        
+        # We assume the last dimension of input is the one being diagonalized.
+        # How do we know the rank without the tensor shape?
+        # We can infer from the input_ranges keys. Max key is Rank-1.
+        if not input_ranges:
+            # If no constraints, return empty (Full Dependency)
+            return {}
+            
+        max_dim = max(input_ranges.keys())
+        
+        # The key assumptions:
+        # Input: D0, D1, ... Dn
+        # Output: D0, D1, ... Dn, Dn' (where Dn' is the new column dimension)
+        # Dn and Dn' are coupled.
+        
+        # Map Input Dn -> Output Dn AND Output Dn+1
+        if max_dim in input_ranges:
+            val_range = input_ranges[max_dim]
+            output_ranges[max_dim] = val_range     # Row Index constrained
+            output_ranges[max_dim + 1] = val_range # Col Index constrained (Diagonal)
+            
+        return output_ranges
+
     
