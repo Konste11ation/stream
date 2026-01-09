@@ -19,6 +19,7 @@ from stream.workload.dependency_propagation.reshape_node import ReshapeNode
 from stream.workload.dependency_propagation.slice_node import SliceNode
 from stream.workload.dependency_propagation.concat_node import ConcatNode, BlockConcatNode
 from stream.workload.dependency_propagation.diag_node import DiagNode
+from stream.workload.dependency_propagation.transpose_node import TransposeNode
 # Dummy node for diagonal
 from stream.workload.dependency_propagation.dummy_node import DummyNode
 logger = logging.getLogger(__name__)
@@ -154,14 +155,13 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
     # Below are some helper functions to create the nodes needed for FlashAttention
     def _helper_create_reshape_k_node(self, node_id, pred_id):
         # This function create the reshape k node
-        # Kj_T = reshape(Kj)
-        # Kj: [Batch, Seq_Len, Hidden_Dim] -> Kj_T: [Batch, Hidden_Dim, Seq_Len]
-        # The shape is the new shape after reshape
-        return ReshapeNode(
+        # We use TransposeNode identity [0, 1, 2] to pass K as [Batch, Seq_Len, Hidden_Dim]
+        # This aligns with Gemm QK expectation and avoids broadcasting issues
+        return TransposeNode(
             node_id=node_id,
             node_name=f"reshape_k",
             predecessor=pred_id,
-            shape=(self.batch, self.hidden_dim, self.seq_len),
+            permute_axes=[0, 1, 2],
             input_names=list(self.node.input[1]),
         )
     def _helper_create_slice_qkv_node(self, input_name, idx, node_id, pred_id):
@@ -179,13 +179,13 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             start = idx * self.tile_Bc
             end = start + self.tile_Bc
             axe = 1
-            input_name = "reshape_k"
+            input_name = self.node.input[1]
             output_names = [f"K_tile_{idx}" ]
         if input_name == "V":
             node_name = f"slice_v_j_{idx}"
             start = idx * self.tile_Bc
             end = start + self.tile_Bc
-            axe = 2
+            axe = 1
             input_name = self.node.input[2]
             output_names = [f"V_tile_j_{idx}"]
         return SliceNode(
@@ -215,14 +215,14 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_data["operand_precision"] = self.operand_precision
         node_data["loop_dims"] = ["BATCH", "BR", "HIDDEN", "BC"]
         node_data["loop_sizes"] = [self.batch, self.tile_Br, self.hidden_dim, self.tile_Bc]
-        node_data["equation"] = "O[batch][br][bc]+=I[batch][br][hidden]*W[batch][hidden][bc]"
+        node_data["equation"] = "O[batch][br][bc]+=I[batch][br][hidden]*W[batch][bc][hidden]"
         node_data["dimension_relations"] = []
         node_factory = LayerNodeFactory(node_data, mapping_data=[])
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"Q_tile_{idx}", f"K_tile_{jdx}"]
         
-        return ComputationNode(
+        node = ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
@@ -230,6 +230,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             mapping_attr=mapping_attr,
             input_names=input_names,           
         )
+        self._util_apply_loop_offsets(node, idx, jdx)
+        return node
     
     def _helper_create_simd_scale_node(self, idx, jdx, id, pred_id):
         # This is the second step for the FA
@@ -248,7 +250,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"gemm_qk_i_{idx}_j_{jdx}"]
-        return ComputationNode(
+        node = ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
@@ -256,6 +258,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             mapping_attr=mapping_attr,
             input_names=input_names,           
         )
+        self._util_apply_loop_offsets(node, idx, jdx)
+        return node
     
     def _helper_create_compute_m_node(self, idx, jdx, id, pred_id_s, pred_id_mg):
         # This is the third step for the FA
@@ -279,7 +283,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"scale_i_{idx}_j_{jdx}"]
-        return ComputationNode(
+        node = ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
@@ -287,6 +291,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             mapping_attr=mapping_attr,
             input_names=input_names,           
         )
+        self._util_apply_loop_offsets(node, idx, jdx)
+        return node
     
     def _helper_create_compute_p_node(self, idx, jdx, id, pred_id_s, pred_id_m):
         # This is the fourth step for the FA
@@ -308,7 +314,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"scale_i_{idx}_j_{jdx}", f"compute_m_i_{idx}_j_{jdx}"]
-        return ComputationNode(
+        node = ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
@@ -316,6 +322,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             mapping_attr=mapping_attr,
             input_names=input_names,           
         )
+        self._util_apply_loop_offsets(node, idx, jdx)
+        return node
     
     def _helper_create_compute_l_node(self, idx, jdx, id, pred_id_input):
         # This is the fifth step for the FA
@@ -334,7 +342,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"compute_p_i_{idx}_j_{jdx}"]
-        return ComputationNode(
+        node = ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
@@ -342,6 +350,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             mapping_attr=mapping_attr,
             input_names=input_names,           
         )
+        self._util_apply_loop_offsets(node, idx, jdx)
+        return node
     
     def _helper_create_gemm_pv_node(self, idx, jdx, id, pred_id_input, pred_id_weight):
         # This function create the gemm pv node
@@ -363,7 +373,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"compute_p_i_{idx}_j_{jdx}", f"V_tile_{jdx}"]
-        return ComputationNode(
+        node = ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
@@ -371,6 +381,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             mapping_attr=mapping_attr,
             input_names=input_names,           
         )
+        self._util_apply_loop_offsets(node, idx, jdx)
+        return node
     
     def _helper_create_simd_scale_factor_node(self, idx, jdx, id, pred_id_m, pred_id_mg):
         # This is the seventh step for the FA
@@ -396,7 +408,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"compute_m_i_{idx}_j_{jdx}"]
-        return ComputationNode(
+        node = ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
@@ -404,6 +416,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             mapping_attr=mapping_attr,
             input_names=input_names,
         )
+        self._util_apply_loop_offsets(node, idx, jdx)
+        return node
     def _helper_create_diag_sf_node(self, idx, jdx, id, pred_id):
         # This is the diag node
         # Basically it will create a diagonal matrix from the input vector
@@ -439,7 +453,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"scaling_factor_i_{idx}_j_{jdx}", f"og_partial_i_{idx}_j_{jdx}"]
-        return ComputationNode(
+        node = ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
@@ -447,6 +461,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             mapping_attr=mapping_attr,
             input_names=input_names,
         )
+        self._util_apply_loop_offsets(node, idx, jdx)
+        return node
         
     def _helper_create_update_og_node(self, idx, jdx, id, pred_id_partial_og, pred_id_o):
         # This is the eigth step for the FA
@@ -469,7 +485,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"partial_og_i_{idx}_j_{jdx}", f"gemm_pv_i_{idx}_j_{jdx}"]
-        return ComputationNode(
+        node = ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
@@ -477,6 +493,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             mapping_attr=mapping_attr,
             input_names=input_names,
         )
+        self._util_apply_loop_offsets(node, idx, jdx)
+        return node
         
     def _helper_create_dummy_update_og_node(self, idx, jdx, id, pred_id_o):
         # This is the dummy node for og update when j=0 such that o_g = o
@@ -508,7 +526,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"scaling_factor_i_{idx}_j_{jdx}", f"compute_l_i_{idx}_j_{jdx}"]
-        return ComputationNode(
+        node = ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
@@ -516,6 +534,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             mapping_attr=mapping_attr,
             input_names=input_names,
         )
+        self._util_apply_loop_offsets(node, idx, jdx)
+        return node
     
     def _helper_create_update_lg_node(self, idx, jdx, id, pred_id_partial_lg, pred_id_l):
         # This is the ninth step for the FA
@@ -538,7 +558,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"partial_lg_i_{idx}_j_{jdx}", f"compute_l_i_{idx}_j_{jdx}"]
-        return ComputationNode(
+        node = ComputationNode(
             node_id=node_data["id"],
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
@@ -546,6 +566,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             mapping_attr=mapping_attr,
             input_names=input_names,
         )
+        self._util_apply_loop_offsets(node, idx, jdx)
+        return node
     
     def _helper_create_dummy_update_lg_node(self, idx, jdx, id, pred_id_l):
         # This is the dummy node for lg update when j=0 such that lg = l
@@ -613,6 +635,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             mapping_attr=mapping_attr,
             input_names=input_names,
         )
+        self._util_apply_loop_offsets(node, idx, 0)
         return node
 
     def _helper_create_concat_o_node(self, id, pred_id_partial_o_nodes):
@@ -686,22 +709,38 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         if not mapping.inter_core_tiling:
             mapping.inter_core_tiling = default_mapping.inter_core_tiling
         return mapping
+
+    def _util_apply_loop_offsets(self, node: ComputationNode, idx: int, jdx: int):
+        """
+        Apply offsets to loop ranges of a ComputationNode based on tile indices.
+        idx corresponds to BR (Row/Q sequence dim).
+        jdx corresponds to BC (Col/K/V sequence dim).
+        """
+        br_offset = idx * self.tile_Br
+        bc_offset = jdx * self.tile_Bc
+        
+        # We need to update loop_ranges
+        # loop_ranges is a dict {loop_name: (start, end)}
+        new_loop_ranges = {}
+        for loop_name, (start, end) in node.loop_ranges.items():
+            if str(loop_name) == "BR":
+                new_loop_ranges[loop_name] = (start + br_offset, end + br_offset)
+            elif str(loop_name) == "BC":
+                new_loop_ranges[loop_name] = (start + bc_offset, end + bc_offset)
+            else:
+                new_loop_ranges[loop_name] = (start, end)
+        
+        node.loop_ranges = new_loop_ranges
+        
+        # Refresh operand tensors to reflect new loop ranges
+        node.set_operand_tensors()
     # Main get_nodes function
     def get_preprocessing_nodes(self):
         """Get the preprocessing nodes for FlashAttention"""
         # Mainly the slice QKV nodes and reshape K node
         nodes = []
-        for idx in range(self.Tr):
-            current_id = self._util_get_and_increment_id()
-            # Slice Q node
-            slice_q_node = self._helper_create_slice_qkv_node(
-                input_name="Q",
-                idx=idx,
-                node_id=current_id,
-                pred_id=self.get_node_predecessors()[0], # Q input
-            )
-            nodes.append(slice_q_node)
-            self._util_add_node(slice_q_node)
+        # Slice Q node - SKIPPED
+        
         # Reshape K node
         current_id = self._util_get_and_increment_id()
         reshape_k_node = self._helper_create_reshape_k_node(
@@ -710,28 +749,10 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         )
         nodes.append(reshape_k_node)
         self._util_add_node(reshape_k_node)
-        # Slice K node
-        for idx in range(self.Tc):
-            current_id = self._util_get_and_increment_id()
-            slice_k_node = self._helper_create_slice_qkv_node(
-                input_name="K",
-                idx=idx,
-                node_id=current_id,
-                pred_id=self._util_get_id_from_node_name("reshape_k"), # reshape K node id
-            )
-            nodes.append(slice_k_node)
-            self._util_add_node(slice_k_node)
-        for idx in range(self.Tc):
-            # Slice V node
-            current_id = self._util_get_and_increment_id()
-            slice_v_node = self._helper_create_slice_qkv_node(
-                input_name="V",
-                idx=idx,
-                node_id=current_id,
-                pred_id=self.get_node_predecessors()[2], # V input
-            )
-            nodes.append(slice_v_node)
-            self._util_add_node(slice_v_node)
+        # Slice K node - SKIPPED
+        
+        # Slice V node - SKIPPED
+
         return nodes
     def get_compute_qkv_tile_nodes(self, idx: int, jdx: int):
         """Get the compute nodes for one tile of FlashAttention"""
@@ -754,8 +775,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         current_id = self._util_get_and_increment_id()
         gemm_qk_node = self._helper_create_gemm_qk_node(
             id=current_id,
-            pred_id_input_Qi=self._util_get_id_from_node_name(f"slice_q_i_{idx}"),
-            pred_id_input_Kj=self._util_get_id_from_node_name(f"slice_k_j_{jdx}"),
+            pred_id_input_Qi=self.get_node_predecessors()[0], # Q Input directly
+            pred_id_input_Kj=self._util_get_id_from_node_name("reshape_k"), # K Reshaped
             idx=idx,
             jdx=jdx,
         )
@@ -808,7 +829,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         gemm_pv_node = self._helper_create_gemm_pv_node(
             id=current_id,
             pred_id_input=self._util_get_id_from_node_name(f"compute_p_i_{idx}_j_{jdx}"),
-            pred_id_weight=self._util_get_id_from_node_name(f"slice_v_j_{jdx}"),
+            pred_id_weight=self.get_node_predecessors()[2], # V Input directly
             idx=idx,
             jdx=jdx,
         )

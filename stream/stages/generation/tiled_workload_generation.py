@@ -136,10 +136,8 @@ class TiledWorkloadGenerationStage(Stage):
                 logger.info(f"{node}: Generated {len(tiles)} tile(s).")
             self.tiles_dict[node] = tiles
             all_unique_tiles += unique_tiles
-            intra_edges = self.get_intra_edges(tiles)
-            # Add the tiles and intra edges to the lists
+            # Add the tiles to the list
             all_tiles += tiles
-            all_edges += intra_edges
 
         # Load in cached tiles and reuse cached tiled_workload if they match
         cached_workload = self.load_cached_tiled_workload()
@@ -150,11 +148,14 @@ class TiledWorkloadGenerationStage(Stage):
             # Get all pairs of nodes that we have to extract inter edges for
             all_pairs = self.get_all_node_pairs(self.workload)
             for producer, consumer, is_complex in all_pairs:
+                producer_tiles = self.tiles_dict[producer]
+                consumer_tiles = self.tiles_dict[consumer]
+
                 logger.debug(f"Getting edges between {producer} and {consumer}, complex: {is_complex}")
                 if is_complex:
-                    inter_edges = self.get_inter_edges_numpy(producer, consumer)
+                    inter_edges = self.get_inter_edges_numpy(producer, consumer, producer_tiles, consumer_tiles)
                 else:
-                    inter_edges = self.get_inter_edges_rtree(producer, consumer)
+                    inter_edges = self.get_inter_edges_rtree(producer, consumer, producer_tiles, consumer_tiles)
                 all_edges += inter_edges
 
             # The graph construction needs to happen after the base priority and nb_real_predecessors are set
@@ -478,7 +479,9 @@ class TiledWorkloadGenerationStage(Stage):
         dim_min_max: LOOP_RANGES_T = {}
         for loop_dim in original_node.layer_dims:
             # multiply all outer-cn loop values that iterate over this loop_dim by their mult_factor
-            dim_min = 0
+            # dim_min = 0
+            # Initialize dim_min to the start of the loop range of the original node
+            dim_min = original_node.loop_ranges[loop_dim][0] if loop_dim in original_node.loop_ranges else 0
             for i, outer_loop in enumerate(outer_temporal_loops):
                 if outer_loop.dimension == loop_dim:
                     # current loop value of this outer-cn loop
@@ -708,6 +711,8 @@ class TiledWorkloadGenerationStage(Stage):
         self,
         producer: ComputationNode,
         consumer: ComputationNode,
+        producer_tiles: list[ComputationNode],
+        consumer_tiles: list[ComputationNode],
     ):
         """Function that finds the edges between producer and consumer tiles.
 
@@ -715,9 +720,6 @@ class TiledWorkloadGenerationStage(Stage):
             producer: the producer node
             consumer: the consumer node
         """
-        producer_tiles = self.tiles_dict[producer]
-        consumer_tiles = self.tiles_dict[consumer]
-
         # Check all the different input operands of the consumer node that stem from the producer node
         # The direct predecessor of an input operand might be a DummyNode so we need to propagate back
         dependent_input_operands: list[LayerOperand] = []
@@ -765,7 +767,6 @@ class TiledWorkloadGenerationStage(Stage):
 
                 # Get the consumer tile ids that intersect with this producer tile
                 intersecting_consumer_node_ids = consumer_tree.intersection(p_bounding_box)
-
                 for intersecting_consumer_node_id in intersecting_consumer_node_ids:
                     intersecting_consumer = consumer_tiles[intersecting_consumer_node_id]
                     # Create a new communication node that will reside between the producer and consumer node
@@ -786,6 +787,8 @@ class TiledWorkloadGenerationStage(Stage):
         self,
         producer: ComputationNode,
         consumer: ComputationNode,
+        producer_tiles: list[ComputationNode],
+        consumer_tiles: list[ComputationNode],
     ):
         all_inter_edges: list[tuple[ComputationNode, ComputationNode, dict[str, Any]]] = []
         paths_between = self.workload.find_paths_with_intermediate_type(producer, consumer, PropagationNode)
@@ -798,6 +801,12 @@ class TiledWorkloadGenerationStage(Stage):
             # First node in the path is a ComputationNode, of which we extract the output operand dependency tensor
             first_node = path_between[0]
             assert isinstance(first_node, ComputationNode), "First node in path should be ComputationNode"
+            # Pass producer_tiles to reuse the cached tensor map instead of rebuilding from scratch if possible.
+            # But get_tensor_cn_for_op uses self.tiles_dict[node] implicitly if not patched or if we pass it explicitly.
+            # For now we rely on the implementation of get_tensor_cn_for_op looking up the tiles.
+            # However, since we now generate ALL tiles in phase 1, `self.tiles_dict` is fully populated, so
+            # get_tensor_cn_for_op will work correctly.
+            
             tensor = self.get_tensor_cn_for_op(first_node, dependent_operand=Constants.OUTPUT_LAYER_OP)
             timesteps += (time.time(),)
 

@@ -36,7 +36,8 @@ class TransposeNode(PropagationNode):
         """Transpose an input tensor."""
         transposed_tensor = tensor.transpose(axes=self.permute_axes)
         if self.permute_axes is not None:
-            for axis in self.permute_axes:
-                relevant_axes[axis] = True
-
+             # Permute the relevant_axes list to match the new tensor shape
+            new_relevant_axes = [relevant_axes[i] for i in self.permute_axes]
+            return transposed_tensor, new_relevant_axes
+        
         return transposed_tensor, relevant_axes
