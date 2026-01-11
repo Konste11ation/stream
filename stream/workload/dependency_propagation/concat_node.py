@@ -1,7 +1,7 @@
 from zigzag.datatypes import LayerOperand
 
 from stream.node_tensor import NodeTensor
-from stream.workload.computation.computation_node import GeneratedComputationNode
+from stream.workload.computation.computation_node import ComputationNode, GeneratedComputationNode
 from stream.workload.dependency_propagation.propagation_node import PropagationNode
 from stream.workload.node import Node
 
@@ -47,30 +47,6 @@ class ConcatConstantNode(PropagationNode):
                 self.input_operand_source = {LayerOperand("W"): predecessors[0], LayerOperand("I"): predecessors[1]}
             case _:
                 raise ValueError("More than two inputs for ConcatConstantNode")
-
-    def propagate_ranges(
-        self,
-        input_ranges: dict,
-        previous_node: Node | None = None,
-        next_node: Node | None = None,
-    ) -> dict | None:
-        """
-        Propagate ranges through ConcatConstant.
-        If variable is first, identity.
-        If variable is second, shift by constant size.
-        """
-        output_ranges = input_ranges.copy()
-        axis = self.axis
-        
-        if axis in output_ranges:
-            if not self.variable_input_first:
-                # Variable comes after Constant
-                # Shift range UP by constant_shape[axis]
-                shift = self.constant_shape[axis]
-                start, end = output_ranges[axis]
-                output_ranges[axis] = (start + shift, end + shift)
-        
-        return output_ranges
 
     def propagate(
         self,
@@ -152,23 +128,6 @@ class ConcatNode(PropagationNode):
 
         return extended_tensor, relevant_axes
 
-    def propagate_ranges(
-        self,
-        input_ranges: dict,
-        previous_node: Node | None = None,
-        next_node: Node | None = None,
-    ) -> dict | None:
-        """
-        Propagate ranges through ConcatNode.
-        Since we don't know the exact offset without input shapes, we assume the 
-        concatenation axis becomes 'Full' (unconstrained) for safety.
-        Drop the axis from ranges.
-        """
-        output_ranges = input_ranges.copy()
-        if self.axis in output_ranges:
-            del output_ranges[self.axis]
-        return output_ranges
-
 
 class BlockConcatNode(PropagationNode):
     """Class that represents an onnx Concat node where input blocks (size > 1) are concatenated."""
@@ -246,10 +205,52 @@ class BlockConcatNode(PropagationNode):
         Propagate ranges through BlockConcatNode.
         Inputs are blocks (tiles).
         Usually they map to specific offsets.
-        Drop axis for safety as per ConcatNode.
         """
         output_ranges = input_ranges.copy()
+        
+        # Determine the slice index (same logic as in propagate)
+        slice_idx = -1
+        for operand, pred_id in self.input_operand_source.items():
+            if pred_id == previous_node.id:
+                slice_idx = int(str(operand)[1:])
+                break
+        
+        if slice_idx == -1:
+             raise ValueError(f"Predecessor {previous_node} not found in BlockConcatNode predecessors: {self.input_operand_source}")
+
+        # Calculate block size and offset
+        output_dim_size = self.output_shape[self.axis]
+        num_preds = len(self.input_operand_source)
+        if num_preds == 0:
+            return output_ranges
+        block_size = output_dim_size // num_preds
+        offset = slice_idx * block_size
+
+        # Strategy: Use next_node (consumer) to find the target dimension name.
+        # The consumer knows which input dimension corresponds to the axis 
+        # because the Concat output feeds into strict input operand slots.
+        if next_node and isinstance(next_node, ComputationNode) and hasattr(next_node, 'input_operand_source'):
+            relevant_operand = None
+            # Find which operand of next_node connects to this BlockConcatNode (self)
+            for op, source_id in next_node.input_operand_source.items():
+                if source_id == self.id:
+                    relevant_operand = op
+                    break
+            
+            # Use dimensionality order to find the LayerDim
+            if relevant_operand and hasattr(next_node, 'operand_dimensionality_order'):
+                dims = next_node.operand_dimensionality_order.get(relevant_operand)
+                # self.axis is the index in the tensor. Matches the index in dims list.
+                if dims and self.axis < len(dims):
+                    target_dim = dims[self.axis]
+                    # We override the range for this dimension to be the specific block range
+                    output_ranges[target_dim] = (offset, offset + block_size)
+                    return output_ranges
+
+        # Fallback
+        # If we can't determine the target dimension from consumer, remove axis from ranges
         if self.axis in output_ranges:
             del output_ranges[self.axis]
+
         return output_ranges
 

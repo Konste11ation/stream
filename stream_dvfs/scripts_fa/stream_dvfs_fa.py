@@ -100,10 +100,10 @@ if __name__ == "__main__":
     #     run_stream_dvfs_fa(seq_len, embedding_dim, tile_size=tile_size, output_dir=str(CURRENT_DIR / "outputs"))
     
     # Test code
-    num_cores = 1
-    seq_len = 128
-    embedding_dim = 1024
-    tile_size = 64
+    num_cores = 4
+    seq_len = 64
+    embedding_dim = 16
+    tile_size = 16
     gen_flash_attention_onnx(seq_len, embedding_dim, tile_size, output_dir=str(CURRENT_DIR / "inputs" / "workloads"))
     gen_flash_attention_mapping_config(num_qkv_tiles=seq_len//tile_size, num_cores=num_cores)
     run_stream_dvfs_fa(seq_len, embedding_dim, tile_size=tile_size, num_cores=num_cores, output_dir=str(CURRENT_DIR / "outputs"))

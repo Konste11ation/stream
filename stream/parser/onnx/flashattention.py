@@ -603,7 +603,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         # [Br x Br] * [Br x Hidden_Dim]
         node_data: dict[str, Any] = {}
         node_data["id"] = id
-        node_data["name"] = f"rescale_o_i"
+        node_data["name"] = f"rescale_o_{idx}"
         node_data["operator_type"] = "FA_Gemm"
         node_data["operand_source"] = {
             "I": pred_id_lg_updated,
@@ -618,17 +618,9 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         node_attrs = node_factory.create_node_attr()
         mapping_attr = self._util_get_mapping_this_node(node_data)
         input_names = [f"update_lg_i{idx}_j{self.Tc-1}", f"update_og_i{idx}_j{self.Tc-1}"]
-        # We need to create a generated computation node here to indicate that this node is generated
-        # for the concat node later
-        if idx == 0:
-            base_id = id
-        else:
-            base_id = self._util_get_id_from_node_name(f"rescale_o_i_0")
-        node = GeneratedComputationNode(
-            node_id=node_data["id"],
-            gen_id = idx,
-            gen_split_layer_dim=LayerDim("BR"),
-            base_id=base_id,
+        
+        node = ComputationNode(
+            node_id=id,
             node_name=node_data["name"],
             op_type=node_data["operator_type"],
             node_attr=node_attrs,
@@ -649,34 +641,6 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             output_shape = (self.batch, self.seq_len, self.hidden_dim),
             axis_exists_in_input=True
         )
-
-    def _helper_create_dummy_final_o_node(self, id, pred_id):
-        # This is a dummy computation node to represent the final output O for the CO
-        node_data: dict[str, Any] = {}
-        node_data["id"] = id
-        node_data["name"] = "final_o"
-        node_data["operator_type"] = "FA_Gemm"
-        node_data["operand_source"] = {"I": pred_id}
-        node_data["operand_precision"] = self.operand_precision
-        node_data["loop_dims"] = ["BATCH", "L", "HIDDEN"]
-        node_data["loop_sizes"] = [self.batch, self.seq_len, self.hidden_dim]
-        node_data["equation"] = "O[batch][l][hidden]+=I[batch][l][hidden]*W[]"
-        node_data["dimension_relations"] = []
-        node_factory = LayerNodeFactory(node_data, mapping_data=[])
-        node_attrs = node_factory.create_node_attr()
-        mapping_attr = self._util_get_mapping_this_node(node_data)
-        input_names = ["concat_o"]
-        return ComputationNode(
-            node_id=node_data["id"],
-            node_name=node_data["name"],
-            op_type=node_data["operator_type"],
-            node_attr=node_attrs,
-            mapping_attr=mapping_attr,
-            input_names=input_names,
-        )
-
-
-
     def _util_get_and_increment_id(self):
         """Keeps track of how many nodes have been created. Returns a new id that has not been used before"""
         curr_id = self.__node_id_tracker
@@ -686,6 +650,16 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
     def _util_add_node(self, node):
         """Add a node to the node_name_to_id dictionary"""
         name = node.name
+        # If the node is a GeneratedComputationNode, use the correct naming convention
+        if isinstance(node, GeneratedComputationNode):
+             # For rescale_o nodes, they keep the 'tile' name but get an index appended by TiledWorkloadGeneration
+             # But here we want to store the base name for retrieval
+             # The internal name for rescale_o is just 'rescale_o_tile', but TiledWorkloadGeneration will append _X
+             # However, get_id_from_node_name relies on what we generated HERE.
+             # The problem is that GeneratedComputationNode gets renamed during generation? NO.
+             # The issue is that the `name` attribute of the node is what matters.
+             pass
+
         id = node.id
         self.node_name_to_id[name] = id
 
@@ -965,72 +939,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         current_id = self._util_get_and_increment_id()
         concat_o_node = self._helper_create_concat_o_node(
             id=current_id,
-            pred_id_partial_o_nodes=[self._util_get_id_from_node_name(f"rescale_o_i_{idx}") for idx in range(self.Tr)],
+            pred_id_partial_o_nodes=[self._util_get_id_from_node_name(f"rescale_o_{idx}") for idx in range(self.Tr)],
         )
         nodes.append(concat_o_node)
         self._util_add_node(concat_o_node)
-        # # Final dummy O computation node
-        # current_id = self._util_get_and_increment_id()
-        # final_o_node = self._helper_create_dummy_final_o_node(
-        #     id=current_id,
-        #     pred_id=self._util_get_id_from_node_name("concat_o"),
-        # )
-        # nodes.append(final_o_node)
-        # self._util_add_node(final_o_node)
         return nodes
-
-    def plot_dfg(self):
-        """Plot the Data Flow Graph of the generated nodes"""
-        try:
-            import networkx as nx
-            import matplotlib.pyplot as plt
-        except ImportError:
-            logger.warning("NetworkX or Matplotlib not found. Skipping DFG plotting.")
-            return
-
-        G = nx.DiGraph()
-        id_to_name = {}
-
-        # First pass: register all nodes
-        for node in self.nodes:
-            if isinstance(node, dict):
-                node_id = node["id"]
-                node_name = node["name"]
-            else:
-                node_id = node.node_id
-                node_name = node.node_name
-            
-            id_to_name[node_id] = node_name
-            G.add_node(node_name)
-
-        # Second pass: add edges
-        for node in self.nodes:
-            node_name = node.node_name
-            sources = node.input_operand_source.values()
-            
-            for src_id in sources:
-                if isinstance(src_id, list): # Handle list of predecessors (e.g. Concat)
-                    src_ids = src_id
-                else:
-                    src_ids = [src_id]
-                
-                for s_id in src_ids:
-                    if s_id in id_to_name:
-                        src_name = id_to_name[s_id]
-                        G.add_edge(src_name, node_name)
-                    else:
-                        # External dependency
-                        ext_name = f"External_{s_id}"
-                        G.add_edge(ext_name, node_name)
-
-        plt.figure(figsize=(20, 20))
-        try:
-            pos = nx.kamada_kawai_layout(G)
-        except:
-            pos = nx.spring_layout(G)
-            
-        nx.draw(G, pos, with_labels=True, node_size=1500, node_color="lightblue", font_size=8, arrowsize=20)
-        plt.title("FlashAttention DFG")
-        plt.savefig("flash_attention_dfg.png")
-        print("DFG plot saved to flash_attention_dfg.png")
-        

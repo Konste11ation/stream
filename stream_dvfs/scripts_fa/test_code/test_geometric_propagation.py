@@ -92,11 +92,15 @@ class GeometricPropagationValidationStage(Stage):
         # Identify producer/consumer pairs based on edges
         # Just print a few sample edges to verify they look sane (correct operands)
         sample_count = 0
-        for u, v, data in tiled_workload.edges(data=True):
-            if sample_count < 10:
-                logger.info(f"Edge: {u} -> {v}  | Operand: {data.get('operand')}")
-                sample_count += 1
+        projection_layers = ["/q_proj", "/k_proj", "/v_proj", "/o_proj"]
+        logger.info("Printing edges for projection layers:")
         
+        for u, v, data in tiled_workload.edges(data=True):
+             # Print if u or v contains one of the projection layer strings
+             u_name = str(u.name)
+             v_name = str(v.name)
+             if any(proj in u_name for proj in projection_layers) or any(proj in v_name for proj in projection_layers):
+                 logger.info(f"Edge: {u} -> {v}  | Operand: {data.get('operand')}")
         # 4. Visualize the graph
         output_dir = self.kwargs.get("output_dir", "outputs_test_geometric")
         vis_path = str(Path(output_dir) / "tiled_workload_geometric.png")
