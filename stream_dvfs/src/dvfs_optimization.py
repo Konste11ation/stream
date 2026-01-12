@@ -46,7 +46,7 @@ class DvfsOptimizationStage(Stage):
         self.brute_force_latency = None
         # Assume the system clock is 1GHz
         # Can be modified later
-        self.dvfs_switching_speed = 100000 # in cycles, assume the system clock is 1GHz, so 100000 cycles = 0.1ms
+        self.dvfs_switching_speed = 50000 # in cycles, assume the system clock is 1GHz, so 50000 cycles = 0.05ms
     
     def run(self):
         logger.info(f"Start DVFS optimization stage")     

@@ -19,6 +19,8 @@ from stream.utils import CostModelEvaluationLUT
 from stream.visualization.perfetto import convert_scme_to_perfetto_json
 import re
 from stream_dvfs.scripts_fa.utils import sanity_check, compare_energy
+import pickle
+from stream_dvfs.src.dvfs_optimization import DvfsOptimizationStage
 _logging_level = _logging.INFO
 _logging_format = "%(asctime)s - %(name)s.%(funcName)s +%(lineno)s - %(levelname)s - %(message)s"
 _logging.basicConfig(level=_logging_level, format=_logging_format)
@@ -89,7 +91,7 @@ def gen_flash_attention_multicore_config(output_dir: str):
     # We should generate the multicore config files here if needed
     pass
 
-def run_stream_dvfs_fa(seq_len:int, embedding_dim:int, tile_size:int, num_cores: int, output_dir: str):
+def run_stream_fa(seq_len:int, embedding_dim:int, tile_size:int, num_cores: int, output_dir: str):
     workload_path = str(CURRENT_DIR / "inputs" / "workloads" / f"FlashAttention_B=1_Seq={seq_len}_Embed={embedding_dim}_TileBr={tile_size}_TileBc={tile_size}_W8A8.onnx")
     accelerator = str(CURRENT_DIR / "inputs" / "multicores" / f"FA_{num_cores}gemm_{num_cores}simd.yaml")
     mapping_path = str(CURRENT_DIR / "inputs" / "mappings" / f"FA_{num_cores}gemm_{num_cores}simd_{seq_len//tile_size}tiles.yaml")
@@ -124,7 +126,7 @@ def run_stream_dvfs_fa(seq_len:int, embedding_dim:int, tile_size:int, num_cores:
     convert_scme_to_perfetto_json(scme, cost_lut, json_path=json_path)
     return scme
 
-def run_stream_dvfs_attention(seq_len:int, embedding_dim:int, num_cores: int, output_dir: str):
+def run_stream_attention(seq_len:int, embedding_dim:int, num_cores: int, output_dir: str):
     workload_path = str(CURRENT_DIR / "inputs" / "workloads" / f"AttentionHead_B=1_Seq={seq_len}_Embed={embedding_dim}_W8A8.onnx")
     accelerator = str(CURRENT_DIR / "inputs" / "multicores" / f"FA_{num_cores}gemm_{num_cores}simd.yaml")
     mapping_path = str(CURRENT_DIR / "inputs" / "mappings" / f"AH_{num_cores}gemm_{num_cores}simd.yaml")
@@ -159,6 +161,33 @@ def run_stream_dvfs_attention(seq_len:int, embedding_dim:int, num_cores: int, ou
     return scme
 
 
+def run_dvfs_optimization(output_dir:str, experiment_id:str):
+    exp_output_dir = os.path.join(output_dir, experiment_id)
+    dvfs_cfg = str(CURRENT_DIR / "inputs" / "dvfs" / "fine_dvfs.yaml")
+    print("Steps: 1. Load base SCME from STREAM simulation")
+    base_scme_path = os.path.join(exp_output_dir, "scme.pickle")
+    print(f"Base scme Path:", base_scme_path)
+    with open(base_scme_path, "rb") as file:
+        scme_original = pickle.load(file)    
+    print("Steps: 2. Run DVFS Optimization")
+    ga_nb_generations = 8
+    ga_nb_individuals = 8
+    dvfs_opt_stage = DvfsOptimizationStage(list_of_callables=[],
+                                        workload=scme_original.workload,
+                                        accelerator=scme_original.accelerator,
+                                        scheduling_order=scme_original.scheduling_order,
+                                        operands_to_prefetch=scme_original.operands_to_prefetch,
+                                        dvfs_output_path=exp_output_dir,
+                                        ga_nb_generations=ga_nb_generations,
+                                        ga_nb_individuals=ga_nb_individuals,
+                                        dvfs_cfg_path=dvfs_cfg
+                                        )
+    dvfs_opt_scme=dvfs_opt_stage.run()
+    # Load in the CostModelEvaluationLUT from the run
+    cost_lut_path = os.path.join(exp_output_dir,"cost_lut.pickle")
+    cost_lut = CostModelEvaluationLUT(cost_lut_path)
+    json_path = os.path.join(exp_output_dir,"dvfs_scme.json")
+    convert_scme_to_perfetto_json(dvfs_opt_scme, cost_lut, json_path=json_path)    
 if __name__ == "__main__":
     # future main code
     # for seq_len in [32, 64, 128]:
@@ -169,17 +198,21 @@ if __name__ == "__main__":
     #     run_stream_dvfs_fa(seq_len, embedding_dim, tile_size=tile_size, output_dir=str(CURRENT_DIR / "outputs"))
     
     # Test code
-    num_cores = 1
+    num_cores = 2
     seq_len = 256
     embedding_dim = 1024
     tile_size = 64
     # Run the FA test
     gen_flash_attention_onnx(seq_len, embedding_dim, tile_size, output_dir=str(CURRENT_DIR / "inputs" / "workloads"))
     gen_flash_attention_mapping_config(num_qkv_tiles=seq_len//tile_size, num_cores=num_cores)
-    scme_fa = run_stream_dvfs_fa(seq_len, embedding_dim, tile_size=tile_size, num_cores=num_cores, output_dir=str(CURRENT_DIR / "outputs"))
+    scme_fa = run_stream_fa(seq_len, embedding_dim, tile_size=tile_size, num_cores=num_cores, output_dir=str(CURRENT_DIR / "outputs"))
     # Run the Attention Head test
-    gen_attention_head_onnx(seq_len, embedding_dim, output_dir=str(CURRENT_DIR / "inputs" / "workloads"))
-    scme_ah = run_stream_dvfs_attention(seq_len, embedding_dim, num_cores=num_cores, output_dir=str(CURRENT_DIR / "outputs"))
+    # gen_attention_head_onnx(seq_len, embedding_dim, output_dir=str(CURRENT_DIR / "inputs" / "workloads"))
+    # scme_ah = run_stream_attention(seq_len, embedding_dim, num_cores=num_cores, output_dir=str(CURRENT_DIR / "outputs"))
     
     # Compare
-    compare_energy(scme_fa, scme_ah)
+    # compare_energy(scme_fa, scme_ah)
+    
+    # Run DVFS optimization on FA
+    experiment_id = f"{num_cores}gemm_{num_cores}simd_FlashAttention_Seq{seq_len}_Embed{embedding_dim}_Tile{tile_size}_W8A8_ga"
+    run_dvfs_optimization(output_dir=str(CURRENT_DIR / "outputs"), experiment_id=experiment_id)
