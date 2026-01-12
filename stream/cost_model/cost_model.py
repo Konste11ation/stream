@@ -82,6 +82,7 @@ class StreamCostModelEvaluation:
             + self.total_core_to_core_link_energy
             + self.total_core_to_core_memory_energy
         )
+        print(f"SCME Evaluation Complete: Energy={self.energy:.2e} pJ, Latency={self.latency} cycles")
 
     def plot_schedule(
         self,

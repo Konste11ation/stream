@@ -67,15 +67,6 @@ class GeneticAlgorithmAllocationStage(Stage):
         self.valid_allocations: list[list[int]] = []
         for flexible_node in self.flexible_nodes:
             self.valid_allocations.append(flexible_node.core_allocation)
-        # for layer_id, group_id in self.layer_groups:
-        #     # Find the unique node that corresponds to this layer
-        #     # This assumes all the nodes of this layer are identical
-        #     unique_node = next(n for n in self.unique_nodes if n.id == layer_id)
-        #     if unique_node in self.unique_nodes_flexible:
-        #         cores = self.cost_lut.get_cores(unique_node)
-        #         valid_core_ids = [core.id for core in cores if core.id < len(self.unique_nodes_flexible)]
-        #         self.layer_groups_flexible.append((layer_id, group_id))
-        #         self.valid_allocations.append(valid_core_ids)
 
         # Initialize the fitness evaluator of different core allocations
         self.fitness_evaluator = StandardFitnessEvaluator(

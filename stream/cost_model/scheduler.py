@@ -339,8 +339,13 @@ class CoalaScheduler:
         if not active_schedulers:
              raise RuntimeError("Scheduler failed to complete.")
 
-        # Best scheduler is the first one
-        best_scheduler = active_schedulers[0]
+        # Best scheduler
+        if active_schedulers[0].latency > baseline_latency:
+            logger.info("Baseline scheduler is better than beam search result. Using baseline.")
+            best_scheduler = baseline_scheduler
+        else:
+            logger.info("Beam search scheduler is better than baseline. Using beam search result.")
+            best_scheduler = active_schedulers[0]
         
         # Update self to reflect the best schedule found
         if best_scheduler is not self:
