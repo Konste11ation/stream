@@ -18,6 +18,7 @@ class StreamCostModelEvaluation:
         accelerator: Accelerator,
         operands_to_prefetch: list[LayerOperand],
         scheduling_order: list[tuple[int, int]],
+        beam_width: int = 2,
     ) -> None:
         # Initialize the SCME by setting the workload graph to be scheduled
         self.workload = workload
@@ -38,6 +39,7 @@ class StreamCostModelEvaluation:
         self.core_timesteps_delta_cumsums = None
         self.operands_to_prefetch = operands_to_prefetch
         self.scheduling_order = scheduling_order
+        self.beam_width = beam_width
 
     def __str__(self):
         return f"SCME(energy={self.energy:.2e}, latency={self.latency:.2e})"
@@ -53,7 +55,7 @@ class StreamCostModelEvaluation:
             accelerator=self.accelerator,
             scheduling_order=self.scheduling_order,
             operands_to_prefetch=self.operands_to_prefetch,
-            beam_width=2, # Configurable beam width for exploration
+            beam_width=self.beam_width, # Configurable beam width for exploration
         )
         schedule.run()
         # Update the accelerator to the one used in the best schedule (since beam search creates copies)

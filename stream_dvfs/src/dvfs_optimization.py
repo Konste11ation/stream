@@ -28,6 +28,8 @@ class DvfsOptimizationStage(Stage):
                 accelerator: Accelerator,
                 scheduling_order: list[tuple[int, int]],
                 operands_to_prefetch: list,
+                base_energy: float,
+                base_latency: float,
                 **kwargs
                 ):
         super().__init__(list_of_callables, **kwargs)
@@ -40,17 +42,32 @@ class DvfsOptimizationStage(Stage):
         self.ga_nb_individuals = kwargs["ga_nb_individuals"]
         self.dvfs_parser = DvfsParser(kwargs["dvfs_cfg_path"])
         self.dvfs_luts = {}
-        self.base_energy = sum(n.get_onchip_energy() for n in workload.node_list)
-        self.base_latency = max(n.get_end() for n in workload.node_list)
+        self.base_energy = base_energy
+        self.base_latency = base_latency
         self.brute_force_energy = None
         self.brute_force_latency = None
         # Assume the system clock is 1GHz
         # Can be modified later
-        self.dvfs_switching_speed = 50000 # in cycles, assume the system clock is 1GHz, so 50000 cycles = 0.05ms
+        self.dvfs_switching_speed = 200 # in cycles, assume the system clock is 1GHz, so 50000 cycles = 0.05ms
+        
+        # Pre-process communication events from the input accelerator (which has history)
+        # This is needed for brute_dvfs_opt
+        self.node_events = self.get_communication_dic()
+        
+        # Clean the accelerator to remove history. 
+        # This speeds up deepcopy operations significantly in GA and subsequent runs.
+        self.accelerator.clean_accelerator()
     
     def run(self):
         logger.info(f"Start DVFS optimization stage")     
         self.parse_and_set_dvfs_data()
+        
+        # Test clean vs dirty speed with a dry run
+        t0 = __import__("time").time()
+        self.run_coala(return_scme=False)
+        t1 = __import__("time").time()
+        logger.info(f"Dry run CAOLA with clean accelerator took {t1-t0:.4f}s")
+
         (best_result, best_dvfs_allocation), (latency_10pct_result, latency_10pct_dvfs_allocation), hof = self.run_dvfs_ga()
         # Optimal results
         opt_energy = best_result[0]
@@ -208,7 +225,8 @@ class DvfsOptimizationStage(Stage):
         slack = deadline - cur_end
         return slack
     def brute_dvfs_opt(self):
-        node_event_dic = self.get_communication_dic()
+        # Use the pre-calculated node_events instead of regenerating them from cleaned accelerator
+        node_event_dic = self.node_events
         start_time_per_core = self.get_start_time_per_core()
         runtime_per_node = self.get_runtime_per_node()
         node_id_dvfs_dict: dict[int, int] = defaultdict(list)
@@ -227,23 +245,26 @@ class DvfsOptimizationStage(Stage):
                     sub_node.set_dvfs_level(dvfs_level)
                 node_id_dvfs_dict[node_id] = dvfs_level
         return sorted(node_id_dvfs_dict.items(), key=lambda x: x[1])
-    def run_coala(self):
+    def run_coala(self, return_scme: bool = False):
         """
         Run the cost model evaluation with current DVFS settings.
         
         Args:
             return_scme: If True, return (scme, energy, latency), otherwise return (energy, latency)
         """
+        # Accelerator should already be clean from __init__
         scme_dvfs = StreamCostModelEvaluation(
             pickle_deepcopy(self.workload),
             pickle_deepcopy(self.accelerator),
             self.operands_to_prefetch,
             self.scheduling_order,
+            beam_width=1 # Use Greedy scheduling for DVFS evaluation speed
         )
         scme_dvfs.evaluate()
-        dvfs_workload = scme_dvfs.workload
-        dvfs_energy = sum(n.get_onchip_energy() for n in dvfs_workload.node_list)
-        dvfs_latency = max(n.get_end() for n in dvfs_workload.node_list)
+        dvfs_energy = scme_dvfs.energy
+        dvfs_latency = scme_dvfs.latency
+        if not return_scme:
+            return dvfs_energy, dvfs_latency
         
         return scme_dvfs, dvfs_energy, dvfs_latency
     def compute_metrics(self, energy, latency):
@@ -253,7 +274,7 @@ class DvfsOptimizationStage(Stage):
     def run_dvfs_ga(self):
         # run the brute force first to get a baseline
         brute_force_dvfs = self.brute_dvfs_opt()
-        brute_scme, brute_energy, brute_latency = self.run_coala()
+        brute_energy, brute_latency = self.run_coala(return_scme=False)
         self.brute_force_energy = brute_energy
         self.brute_force_latency = brute_latency
         print("Base Energy:", self.base_energy, "Base Latency:", self.base_latency)
@@ -262,8 +283,19 @@ class DvfsOptimizationStage(Stage):
         print(f"Brute Force DVFS Energy Reduction: {brute_energy_reduction*100:.2f}%, Latency Overhead: {brute_latency_overhead*100:.2f}%")
         self.plot_brute_force_dvfs(brute_energy, brute_latency)
         runtime_per_node = self.get_runtime_per_node()
+        print("Runtimes per node:")
+        for node_id, runtime in sorted(runtime_per_node.items()):
+            print(f"  Node {node_id}: {runtime} cycles")
+        
         dvfs_node_id_list = [node_id for node_id, runtime in runtime_per_node.items() if runtime >= self.dvfs_switching_speed]
         print(f"Nodes considered for DVFS optimization: {dvfs_node_id_list}")
+        if not dvfs_node_id_list:
+            print("No nodes found for DVFS optimization. Skipping GA.")
+            # Return the base SCME
+            scme_base, energy_base, latency_base = self.run_coala(return_scme=True)
+            res = (energy_base, latency_base, scme_base)
+            return (res, []), (res, []), []
+
         fitness_evaluator = DvfsFitnessEvaluator(self.workload,
                                                  self.accelerator,
                                                  [],
@@ -283,7 +315,8 @@ class DvfsOptimizationStage(Stage):
             valid_allocations,
             self.ga_nb_generations,
             self.ga_nb_individuals,
-            pop_init
+            num_processes=8, # Use 8 processes
+            pop_init=pop_init # Pass pop_init correctly
         )
         pop, hof = genetic_alg.run()
         # Extract the best individual from the hall of fame

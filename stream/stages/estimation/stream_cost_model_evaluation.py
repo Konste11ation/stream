@@ -39,6 +39,7 @@ class StreamCostModelEvaluationStage(Stage):
         self.accelerator = accelerator
         self.operands_to_prefetch = operands_to_prefetch
         self.scheduling_order = kwargs["scheduling_order"]
+        self.coala_beam_width = kwargs.get("coala_beam_width", 2)
 
     def run(self) -> Generator[tuple[StreamCostModelEvaluation, Any], None, None]:
         """! Run the StreamCostModelEvaluation."""
@@ -48,6 +49,7 @@ class StreamCostModelEvaluationStage(Stage):
             accelerator=self.accelerator,
             operands_to_prefetch=self.operands_to_prefetch,
             scheduling_order=self.scheduling_order,
+            beam_width=self.coala_beam_width,
         )
         scme.evaluate()
         logger.info("Finished StreamCostModelEvaluationStage.")

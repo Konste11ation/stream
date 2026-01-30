@@ -42,10 +42,11 @@ class DvfsFitnessEvaluator(FitnessEvaluator):
             pickle_deepcopy(self.accelerator),
             self.operands_to_prefetch,
             self.scheduling_order,
+            beam_width=1 # Use Greedy
         )
         scme.evaluate()
-        energy = sum(n.get_onchip_energy() for n in scme.workload.node_list)
-        latency = max(n.get_end() for n in scme.workload.node_list)
+        energy = scme.energy
+        latency = scme.latency
         if not return_scme:
             return energy, latency
         return energy, latency, scme

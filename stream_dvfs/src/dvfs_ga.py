@@ -13,7 +13,7 @@ from stream.opt.allocation.genetic_algorithm.statistics_evaluator import (
     StatisticsEvaluator,
 )
 import matplotlib.pyplot as plt
-from multiprocessing import Pool
+import multiprocessing
 
 class DvfsGeneticAlgorithm:
     def __init__(
@@ -23,6 +23,7 @@ class DvfsGeneticAlgorithm:
         valid_allocations,
         num_generations=250,
         num_individuals=64,
+        num_processes=4,
         pop_init=[],
     ) -> None:
         if hasattr(creator, 'FitnessMulti'):
@@ -36,6 +37,7 @@ class DvfsGeneticAlgorithm:
         self.prob_crossover = 0.3  # probablility to perform corssover
         self.prob_mutation = 0.7  # probablility to perform mutation
         self.valid_allocations = valid_allocations
+        self.num_processes = num_processes
 
         self.individual_length = individual_length
 
@@ -72,8 +74,12 @@ class DvfsGeneticAlgorithm:
         self.toolbox.register("evaluate", self.fitness_evaluator.get_fitness)
         if self.individual_length > 10:
             self.toolbox.register("mate", tools.cxOrdered)  # for big graphs use cxOrdered crossover function
-        else:
+        elif self.individual_length >= 2:
             self.toolbox.register("mate", tools.cxTwoPoint)  # for small graphs use two point crossover function
+        else:
+            # For indivual length 0 or 1, crossover is not possible/doesn't make sense.
+            # We register a dummy mate function that returns the individuals unchanged.
+            self.toolbox.register("mate", lambda ind1, ind2: (ind1, ind2))
 
         self.toolbox.register("mutate", tools.mutUniformInt, low=valid_allocations[0], up=valid_allocations[1], indpb=0.1)
         # use non-dominated sorting genetic algorithm for multi-objective optimization
@@ -120,44 +126,52 @@ class DvfsGeneticAlgorithm:
         return sum(distances) / len(distances) if distances else 0
 
     def run(self):
-        # Enable parallel execution
-        with Pool() as pool:
+        # Register map with multiprocessing pool if num_processes > 1
+        pool = None
+        if self.num_processes > 1:
+            pool = multiprocessing.Pool(processes=self.num_processes)
             self.toolbox.register("map", pool.map)
 
-            # plot statistics during evolution
-            stats = tools.Statistics(lambda ind: ind.fitness.values)
-            stats.register(
-                "avg (" + ", ".join(self.fitness_evaluator.metrics) + ")",
-                self.statistics_evaluator.get_avg,
-            )
-            stats.register(
-                "std (" + ", ".join(self.fitness_evaluator.metrics) + ")",
-                self.statistics_evaluator.get_std,
-            )
-            stats.register(
-                "min (" + ", ".join(self.fitness_evaluator.metrics) + ")",
-                self.statistics_evaluator.get_min,
-            )
-            stats.register(
-                "max (" + ", ".join(self.fitness_evaluator.metrics) + ")",
-                self.statistics_evaluator.get_max,
-            )
+        # plot statistics during evolution
+        stats = tools.Statistics(lambda ind: ind.fitness.values)
+        stats.register(
+            "avg (" + ", ".join(self.fitness_evaluator.metrics) + ")",
+            self.statistics_evaluator.get_avg,
+        )
+        stats.register(
+            "std (" + ", ".join(self.fitness_evaluator.metrics) + ")",
+            self.statistics_evaluator.get_std,
+        )
+        stats.register(
+            "min (" + ", ".join(self.fitness_evaluator.metrics) + ")",
+            self.statistics_evaluator.get_min,
+        )
+        stats.register(
+            "max (" + ", ".join(self.fitness_evaluator.metrics) + ")",
+            self.statistics_evaluator.get_max,
+        )
 
-            for gen in range(self.num_generations):
-                diversity = self._compute_diversity()
-                self.toolbox.cxpb = self._adjust_crossover_probability(diversity)
-                self.toolbox.mutpb = self._adjust_mutation_probability(gen)
-                algorithms.eaMuPlusLambda(
-                    self.pop,
-                    self.toolbox,
-                    mu=self.para_mu,
-                    lambda_=self.para_lambda,
-                    cxpb=self.prob_crossover,
-                    mutpb=self.toolbox.mutpb,
-                    ngen=1,  # Run one generation at a time
-                    stats=stats,
-                    halloffame=self.hof,
-                )
+        for gen in range(self.num_generations):
+            diversity = self._compute_diversity()
+            self.toolbox.cxpb = self._adjust_crossover_probability(diversity)
+            self.toolbox.mutpb = self._adjust_mutation_probability(gen)
+            algorithms.eaMuPlusLambda(
+                self.pop,
+                self.toolbox,
+                mu=self.para_mu,
+                lambda_=self.para_lambda,
+                cxpb=self.prob_crossover,
+                mutpb=self.toolbox.mutpb,
+                ngen=1,  # Run one generation at a time
+                stats=stats,
+                halloffame=self.hof,
+            )
+        
+        # Close the pool correctly
+        if pool:
+            pool.close()
+            pool.join()
+            
         return self.pop, self.hof
     
     def plot_pareto_front(self,filename=None):

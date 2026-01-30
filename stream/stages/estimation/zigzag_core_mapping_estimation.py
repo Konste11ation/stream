@@ -1,6 +1,8 @@
 import logging
+import multiprocessing
 import os
 from math import ceil, prod
+from time import time
 from typing import Any
 
 from zigzag.cost_model.cost_model import CostModelEvaluation
@@ -25,6 +27,82 @@ from stream.workload.computation.computation_node import ComputationNode
 from stream.workload.onnx_workload import ComputationNodeWorkload
 
 logger = logging.getLogger(__name__)
+
+
+def run_zigzag_standalone(
+    node: ComputationNode,
+    too_large_operands: list[MemoryOperand],
+    core_id: int,
+    accelerator: Accelerator,
+    loma_lpf_limit: int,
+    loma_show_progress_bar: bool,
+    temporal_mapping_type: TemporalMappingType,
+) -> CostModelEvaluation:
+    core = accelerator.get_core(core_id)
+    nb_parallel_nodes: int = (
+        1 if contains_wildcard(node.inter_core_tiling) else prod(size for _, size in node.inter_core_tiling)
+    )  # type: ignore
+
+    if too_large_operands:
+        core = add_offchip_to_core_standalone(accelerator, core, too_large_operands, node.id)
+
+    main_stage = MainStage(
+        [  # Initializes the MainStage as entry point
+            MinimalBandwidthLatencyStage,  # type: ignore
+            SpatialMappingGeneratorStage,  # Generates multiple spatial mappings (SM)
+            MinimalBandwidthLatencyStage,  # Reduces all CMEs, returning minimal EDP one
+            TemporalMappingGeneratorStage,  # Generates multiple temporal mappings (TM)
+            CostModelStage,  # Evaluates generated SM and TM through cost model
+        ],
+        layer=node,
+        accelerator=core,  # Accelerator in zigzag corresponds to Core in stream
+        loma_lpf_limit=loma_lpf_limit,  # required by LomaEngine
+        loma_show_progress_bar=loma_show_progress_bar,
+        temporal_mapping_type=temporal_mapping_type,
+        nb_parallel_nodes=nb_parallel_nodes,
+        has_dram_level=(len(too_large_operands) > 0),
+    )
+    answers = main_stage.run()
+    assert len(answers) == 1, "ZigZagCoreMappingEstimationStage's subflow returned more than one CME"
+    cme: CostModelEvaluation = answers[0][0]  # type: ignore
+    return cme
+
+
+def add_offchip_to_core_standalone(
+    accelerator: Accelerator, core: Core, too_large_operands: list[MemoryOperand], layer_idx: int
+):
+    """Add the offchip memory as the top level memory of the core in a copy of the accelerator"""
+    assert accelerator.offchip_core_id is not None
+    offchip_core: Core = pickle_deepcopy(accelerator.get_core(accelerator.offchip_core_id))
+
+    # Sanity checks: make sure that there is only one offchip memory
+    offchip_memory_levels = offchip_core.memory_hierarchy.mem_level_list
+    assert len(offchip_memory_levels) == 1, (
+        "There is more than one offchip memory, unsure which one to take for intra core mapping"
+    )
+
+    offchip_memory_level: MemoryLevel = pickle_deepcopy(offchip_memory_levels[0])
+    offchip_memory_instance = offchip_memory_level.memory_instance
+    offchip_memory_operands = too_large_operands
+    # Recreate the port allocation
+    offchip_port_alloc_raw: dict[MemoryOperand, dict[DataDirection, str]] = {}
+    for memory_operand in offchip_memory_operands:
+        offchip_port_alloc_raw[memory_operand] = offchip_memory_level.port_alloc_raw.get_alloc_for_mem_op(memory_operand)
+
+    offchip_port_alloc = PortAllocation(offchip_port_alloc_raw)
+    offchip_served_dimensions = offchip_memory_level.served_dimensions
+
+    # Create new core with updated memory hierarchy
+    updated_core: Core = pickle_deepcopy(core)
+    updated_core.memory_hierarchy.add_memory(
+        offchip_memory_instance,
+        offchip_memory_operands,
+        offchip_port_alloc,
+        offchip_served_dimensions,
+    )
+    updated_core.recalculate_memory_hierarchy_information()  # Recalculates some internals of the Core object
+
+    return updated_core
 
 
 class ZigZagCoreMappingEstimationStage(Stage):
@@ -76,61 +154,72 @@ class ZigZagCoreMappingEstimationStage(Stage):
         yield from sub_stage.run()
 
     def update_cost_lut(self):
-        for node in self.workload.node_list:
+        """Update the cost look-up table by evaluating unique node-core mappings."""
+        # 1. Get unique nodes
+        unique_nodes = get_unique_nodes(self.workload)
+        logger.info(f"ZigZagCoreMappingEstimationStage: {len(unique_nodes)} unique nodes identified.")
+
+        # 2. Collect unique node-core tasks that are not in LUT
+        tasks_to_compute = []
+        for node in unique_nodes:
             core_ids = self.valid_allocations[node]
             for core_id in core_ids:
                 core = self.accelerator.get_core(core_id)
-                # Offchip memory core doesn't have operational units
                 if core.operational_array.total_unit_count == 0:
                     continue
-                # If the (node, core) combination has already been optimized, we skip it
                 if self.cost_lut.has_cme(node, core):
                     continue
-                # If an equal performance has already been computed, we take it
-                equal_node = self.cost_lut.get_equal_node(node)
-                equal_core = self.cost_lut.get_equal_core(equal_node, core) if equal_node else None
-                if equal_node and equal_core:
-                    logger.debug(f"Reusing CME for node {node} on core {core_id} from equal node {equal_node} on core {equal_core.id}.")
-                    cme = pickle_deepcopy(self.cost_lut.get_cme(equal_node, equal_core))
-                    # Update the CME attributes for this node-core combination
-                    cme.layer.core_allocation = [core_id]
-                    cme.core_id = core_id
-                    self.cost_lut.add_cme(node, core, cme, allow_overwrite=False)
-                    continue
-                else:
-                    node_duplicate = pickle_deepcopy(node)
-                    # Remove duplicate cores with same id in case the core definition has changed
-                    self.cost_lut.remove_cores_with_same_id(node, core)
-                    # Compute the optimal performance for this node-core combination. If this node does not fully fit
-                    # within the core's top level memories, we update the core to include an offchip memory.
-                    too_large_operands_for_cme = self.check_core_capacity_for_node(core, node_duplicate)
-                    # # ! --- ensure all constant weights are accessed via blocking behavior i.s.o. transfer -RG
-                    # for layer_op in node.constant_operands:
-                    #     mem_op = node.memory_operand_links.layer_to_mem_op(layer_op)
-                    #     if mem_op not in too_large_operands_for_cme and node.operand_precision[layer_op] > 0:
-                    #         too_large_operands_for_cme.append(mem_op)
-                    # # ! ---
-                    node_duplicate.set_chosen_core_allocation(core_id)
+                tasks_to_compute.append((node, core_id))
 
-                    # Attempt to override the node's spatial mapping based on the core's dataflow
-                    if core.dataflows:
-                        node_duplicate.spatial_mapping = core.dataflows
+        if not tasks_to_compute:
+            logger.info("All unique node-core combinations already in LUT.")
+            return
 
-                    cme = self.run_zigzag(node_duplicate, too_large_operands_for_cme, core_id)
-                    cme = self.increase_cc_per_op(cme, node.type)
+        # 3. Prepare tasks (capacity checks and deepcopies)
+        logger.info(f"Preparing {len(tasks_to_compute)} ZigZag estimation tasks...")
+        prepared_tasks = []
+        for node, core_id in tasks_to_compute:
+            core = self.accelerator.get_core(core_id)
+            node_duplicate = pickle_deepcopy(node)
+            too_large_operands = self.check_core_capacity_for_node(core, node_duplicate)
+            node_duplicate.set_chosen_core_allocation(core_id)
+            if core.dataflows:
+                node_duplicate.spatial_mapping = core.dataflows
+            prepared_tasks.append((node, node_duplicate, too_large_operands, core_id))
 
-                    node_duplicate.set_chosen_core_allocation(None)  # Reset the node's chosen core allocation
-                    self.cost_lut.add_cme(node, core, cme, allow_overwrite=False)
-            self.cost_lut.save()
+        # 4. Run tasks (parallel or sequential)
+        num_cores = self.kwargs.get("num_procs", 8)  # Limit parallel processes
+        if num_cores > 1:
+            logger.info(f"Running {len(prepared_tasks)} ZigZag estimations in parallel with {num_cores} processes.")
+            pool_args = [
+                (node_dup, too_large, c_id, self.accelerator, self.loma_lpf_limit,
+                 self.loma_show_progress_bar, self.temporal_mapping_type)
+                for _, node_dup, too_large, c_id in prepared_tasks
+            ]
+            with multiprocessing.Pool(processes=num_cores) as pool:
+                results = pool.starmap(run_zigzag_standalone, pool_args)
+        else:
+            logger.info(f"Running {len(prepared_tasks)} ZigZag estimations sequentially.")
+            results = [
+                run_zigzag_standalone(node_dup, too_large, c_id, self.accelerator, self.loma_lpf_limit,
+                                      self.loma_show_progress_bar, self.temporal_mapping_type)
+                for _, node_dup, too_large, c_id in prepared_tasks
+            ]
 
-    def get_cc_per_op(self, op_type: str):
+        # 5. Store results in LUT
+        for (node_orig, node_dup, _, core_id), cme in zip(prepared_tasks, results):
+            core = self.accelerator.get_core(core_id)
+            cme = self.increase_cc_per_op(cme, node_dup.type)
+            # Add to LUT using original node to ensure it's found
+            self.cost_lut.add_cme(node_orig, core, cme)
+
+        self.cost_lut.save()
+
+    @staticmethod
+    def get_cc_per_op(op_type: str):
         """Return the number of cycles that the operational units need to finish the given operation."""
         match op_type:
-            case "silu":
-                return 4
-            case "sigmoid":
-                return 4
-            case "exp":
+            case "silu" | "sigmoid" | "exp":
                 return 4
             case _:
                 return 1
@@ -140,7 +229,7 @@ class ZigZagCoreMappingEstimationStage(Stage):
         the operation might take more than one cycle."""
         cc_per_op = self.get_cc_per_op(op_type)
         if cc_per_op > 1:
-            logger.warning(f"Setting cycles per mac of {op_type} node to {cc_per_op}")
+            logger.debug(f"Setting cycles per mac of {op_type} node to {cc_per_op}")
 
         new_cme = CostModelEvaluation(
             accelerator=cme.accelerator,
@@ -160,46 +249,6 @@ class ZigZagCoreMappingEstimationStage(Stage):
             for n in self.cost_lut.get_nodes()
         }
         visualize_cost_lut_pickle(self.cost_lut, scale_factors, self.visualize_cost_lut_path)
-
-    def run_zigzag(
-        self, node: ComputationNode, too_large_operands: list[MemoryOperand], core_id: int
-    ) -> CostModelEvaluation:
-        """Run the ZigZag flow to estimate performance of a given node on a core."""
-
-        main_stage = self.instantiate_zigzag_flow(node, too_large_operands, core_id)
-        logger.info(f"Launching intra-core mapping optimization for {node} -> core {core_id} ...")
-        answers = main_stage.run()
-        assert len(answers) == 1, "ZigZagCoreMappingEstimationStage's subflow returned more than one CME"
-        cme: CostModelEvaluation = answers[0][0]  # type: ignore
-        return cme
-
-    def instantiate_zigzag_flow(self, node: ComputationNode, too_large_operands: list[MemoryOperand], core_id: int):
-        """Instantiate a runnable ZigZag mainstage"""
-        core = self.accelerator.get_core(core_id)
-        nb_parallel_nodes: int = (
-            1 if contains_wildcard(node.inter_core_tiling) else prod(size for _, size in node.inter_core_tiling)
-        )  # type: ignore
-
-        if too_large_operands:
-            core = self.add_offchip_to_core(core, too_large_operands, node.id)
-
-        main_stage = MainStage(
-            [  # Initializes the MainStage as entry point
-                MinimalBandwidthLatencyStage,  # type: ignore
-                SpatialMappingGeneratorStage,  # Generates multiple spatial mappings (SM)
-                MinimalBandwidthLatencyStage,  # Reduces all CMEs, returning minimal EDP one
-                TemporalMappingGeneratorStage,  # Generates multiple temporal mappings (TM)
-                CostModelStage,  # Evaluates generated SM and TM through cost model
-            ],
-            layer=node,
-            accelerator=core,  # Accelerator in zigzag corresponds to Core in stream
-            loma_lpf_limit=self.loma_lpf_limit,  # required by LomaEngine
-            loma_show_progress_bar=self.loma_show_progress_bar,
-            temporal_mapping_type=self.temporal_mapping_type,
-            nb_parallel_nodes=nb_parallel_nodes,
-            has_dram_level=(len(too_large_operands) > 0),
-        )
-        return main_stage
 
     def check_core_capacity_for_node(self, core: Core, node: ComputationNode) -> list[MemoryOperand]:
         """Check if we need to add a DRAM memory to the given core for the given node.
@@ -342,48 +391,6 @@ class ZigZagCoreMappingEstimationStage(Stage):
             unroll_dict[mem_operand] = capacity
         return round(sum(unroll_dict.values()))
 
-    def add_offchip_to_core(self, core: Core, too_large_operands: list[MemoryOperand], layer_idx: int):
-        """Add the offchip memory as the top level memory of the core with core_id in a copy of the accelerator
-
-        Args:
-            core_id: The id of the core to which we want to add the off-chip memory for cost evaluation.
-            too_large_operands: The memory operands the off-chip memory should store.
-            layer_idx: workload layer index.
-        """
-        assert self.accelerator.offchip_core_id is not None
-        logger.warning(f"Adding offchip memory for {core}, layer={layer_idx}, memory_operands={too_large_operands}.")
-        offchip_core: Core = pickle_deepcopy(self.accelerator.get_core(self.accelerator.offchip_core_id))
-
-        # Sanity checks: make sure that there is only one offchip memory
-        offchip_memory_levels = offchip_core.memory_hierarchy.mem_level_list
-        assert len(offchip_memory_levels) == 1, (
-            "There is more than one offchip memory, unsure which one to take for intra core mapping"
-        )
-
-        offchip_memory_level: MemoryLevel = pickle_deepcopy(offchip_memory_levels[0])
-        offchip_memory_instance = offchip_memory_level.memory_instance
-        offchip_memory_operands = too_large_operands
-        # Recreate the port allocation
-        offchip_port_alloc_raw: dict[MemoryOperand, dict[DataDirection, str]] = {}
-        for memory_operand in offchip_memory_operands:
-            offchip_port_alloc_raw[memory_operand] = offchip_memory_level.port_alloc_raw.get_alloc_for_mem_op(
-                memory_operand
-            )
-
-        offchip_port_alloc = PortAllocation(offchip_port_alloc_raw)
-        offchip_served_dimensions = offchip_memory_level.served_dimensions
-
-        # Create new core with updated memory hierarchy
-        updated_core: Core = pickle_deepcopy(core)
-        updated_core.memory_hierarchy.add_memory(
-            offchip_memory_instance,
-            offchip_memory_operands,
-            offchip_port_alloc,
-            offchip_served_dimensions,
-        )
-        updated_core.recalculate_memory_hierarchy_information()  # Recalculates some internals of the Core object
-
-        return updated_core
 
 
 class MinimalBandwidthLatencyStage(Stage):

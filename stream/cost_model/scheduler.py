@@ -5,6 +5,7 @@ from enum import Enum, auto
 from math import ceil
 from operator import itemgetter
 from typing import TYPE_CHECKING
+import time
 
 from zigzag.datatypes import Constants, LayerDim, LayerOperand, MemoryOperand
 
@@ -78,6 +79,7 @@ class CoalaScheduler:
         self.offchip_top_instances = self.accelerator.get_top_instances_of_core(self.offchip_core)
         self.nb_graph_nodes = g.number_of_nodes()
         self._initialize_scheduling_order_lookup()
+        self._initialize_base_memo()
 
         # Initialize bookkeeping
         self.node_timesteps: dict[ComputationNode, tuple[int, int]] = {}
@@ -89,6 +91,31 @@ class CoalaScheduler:
         self.initialize_tensor_priorities()
         self.initialize_offchip_tensors()
 
+    def _initialize_base_memo(self):
+        """
+        Initialize the base memo dictionary for deepcopying.
+        This dictionary contains all nodes and tensors in the graph, ensuring that
+        when the accelerator is deepcopied, references to these static objects are preserved.
+        Also includes static hardware components (Cores, MemoryInstances) to avoid recreating them.
+        """
+        self._base_memo = {}
+        # Workload components
+        for n in self.G.node_list:
+            self._base_memo[id(n)] = n
+            for t in n.operand_tensors.values():
+                self._base_memo[id(t)] = t
+        
+        # Hardware components
+        # Cores
+        for core in self.accelerator.core_list:
+            self._base_memo[id(core)] = core
+            # Safe to share memory hierarchy components if they are static?
+            # Core checks equality on memory_hierarchy.
+            # Assuming memory hierarchy objects are static configuration.
+            for mem_level in core.memory_hierarchy.nodes():
+                self._base_memo[id(mem_level)] = mem_level
+                self._base_memo[id(mem_level.memory_instance)] = mem_level.memory_instance
+                
     def _initialize_workload_accelerator(self):
         for n in self.G.node_list:
             self.node_timesteps[n] = (-1, -1)
@@ -123,15 +150,10 @@ class CoalaScheduler:
         new_instance.sink_layer_nodes = self.sink_layer_nodes
         new_instance.nb_graph_nodes = self.nb_graph_nodes
         
-        # Create memo to preserve identity of Workload components (Nodes, Tensors)
-        # across the deepcopy of Accelerator. This ensures that if Accelerator references
-        # any node/tensor, it points to the SAME shared object in G, not a copy.
-        # This is critical because Tensor does not implement __eq__ and relies on identity.
-        memo = {}
-        for n in self.G.node_list:
-            memo[id(n)] = n
-            for t in n.operand_tensors.values():
-                memo[id(t)] = t
+        # Reuse base memo for deepcopying the accelerator.
+        # This avoids iterating over all nodes/tensors in every copy(), which is a major speedup.
+        new_instance._base_memo = self._base_memo
+        memo = self._base_memo.copy()
         
         # Deep Copy Mutable Component (Accelerator) with memo
         new_instance.accelerator = copy.deepcopy(self.accelerator, memo)
@@ -304,22 +326,56 @@ class CoalaScheduler:
                      # Or maybe some graph structure issue.
                      continue
 
-                # Optimization for beam_width=1 (Greedy DFS/Lookahead 1)
-                # If we only keep 1, we can use the optimized in-place simulation
-                # used in original schedule_next_node modification if we wanted, 
-                # but generic logic is cleaner for maintenance.
+                # Limit candidates to beam_width to prevent explosion
+                candidates_to_explore = scheduler.candidates
+                # Sort for deterministic behavior
+                candidates_to_explore.sort(key=lambda x: (x[0], x[1].id))
                 
-                for i, (preds_end, candidate) in enumerate(scheduler.candidates):
-                    # Create a branch for this candidate
-                    # We must copy current state.
-                    child = scheduler.copy()
+                if len(candidates_to_explore) > self.beam_width:
+                    candidates_to_explore = candidates_to_explore[:self.beam_width]
+
+                start_time = time.time()
+                nb_candidates = len(candidates_to_explore)
+                
+                for i, (preds_end, candidate) in enumerate(candidates_to_explore):
+                    # Optimization: In-place update for the LAST candidate
+                    # We can reuse the parent 'scheduler' object because we won't need its original state 
+                    # for any subsequent iterations (since this is the last one).
+                    # This reduces copies by 1 per expansion (and eliminates them if only 1 candidate exists).
+                    is_last_candidate = (i == nb_candidates - 1)
                     
-                    # Remove the candidate from child's candidate list
-                    del child.candidates[i]
+                    if is_last_candidate:
+                         # Direct in-place scheduling
+                        try:
+                            idx = scheduler.candidates.index((preds_end, candidate))
+                            del scheduler.candidates[idx]
+                        except ValueError:
+                            pass
+                        scheduler._schedule_node(candidate, preds_end)
+                        child = scheduler
+                    else:
+                        # Create a branch for this candidate
+                        # We must copy current state.
+                        t0 = time.time()
+                        child = scheduler.copy()
+                        t1 = time.time()
+                        
+                        # Remove the candidate from child's candidate list
+                        try:
+                            idx = child.candidates.index((preds_end, candidate))
+                            del child.candidates[idx]
+                        except ValueError:
+                            pass
+                        
+                        # Schedule it
+                        child._schedule_node(candidate, preds_end)
+                        t2 = time.time()
+                        
+                        if step % 50 == 0 and i == 0:
+                            logger.info(f"    Copy: {t1-t0:.4f}s, Schedule: {t2-t1:.4f}s")
                     
-                    # Schedule it
-                    child._schedule_node(candidate, preds_end)
                     next_generation_beam.append(child)
+                end_time = time.time()
             
             if not next_generation_beam:
                 # Dead end?
@@ -342,10 +398,10 @@ class CoalaScheduler:
 
         # Best scheduler
         if active_schedulers[0].latency > baseline_latency:
-            logger.info("Baseline scheduler is better than beam search result. Using baseline.")
+            logger.debug("Baseline scheduler is better than beam search result. Using baseline.")
             best_scheduler = baseline_scheduler
         else:
-            logger.info("Beam search scheduler is better than baseline. Using beam search result.")
+            logger.debug("Beam search scheduler is better than baseline. Using beam search result.")
             best_scheduler = active_schedulers[0]
         
         # Update self to reflect the best schedule found

@@ -174,26 +174,53 @@ class CostModelEvaluationLUT:
         the CostModelEvaluation is added to that node."""
         if not allow_overwrite and self.has_cme(node, core):
             raise ValueError(f"CostModelEvaluation for node {node} and core {core} already exists.")
-        if node not in self.lut:
-            self.lut[node] = {}
-        self.lut[node][core] = cme
+
+        equal_node = self.get_equal_node(node)
+        if equal_node:
+            node_to_add = equal_node
+        else:
+            node_to_add = node
+            self.lut[node_to_add] = {}
+
+        equal_core = self.get_equal_core(node_to_add, core)
+        if equal_core:
+            core_to_add = equal_core
+        else:
+            core_to_add = core
+
+        self.lut[node_to_add][core_to_add] = cme
 
     def has_cme(self, node: "ComputationNode", core: Core):
         """Check if a CostModelEvaluation exists for a given node and core."""
-        return self.get_equal_node(node) is not None and node in self.get_nodes() and core in self.lut[node]
+        equal_node = self.get_equal_node(node)
+        if equal_node is None:
+            return False
+        return self.get_equal_core(equal_node, core) is not None
 
     def get_cme(self, node: "ComputationNode", core: Core):
         """Retrieve the CostModelEvaluation for a given node and core."""
-        if not self.has_cme(node, core):
+        equal_node = self.get_equal_node(node)
+        if equal_node is None:
+            raise ValueError(f"No CostModelEvaluation found for node {node}.")
+        equal_core = self.get_equal_core(equal_node, core)
+        if equal_core is None:
             raise ValueError(f"No CostModelEvaluation found for node {node} and core {core}.")
-        return self.lut[node][core]
+        return self.lut[equal_node][equal_core]
 
     def get_equal_node(self, node: "ComputationNode"):
         """Retrieve the node in the look-up table that is equal to the given node."""
-        if any(n.has_same_performance(node) for n in self.lut):
-            return next(n for n in self.lut if n.has_same_performance(node))
-        else:
-            return None
+        # Use id(node) as a first-level cache for speed
+        if not hasattr(self, "_equal_node_cache"):
+            self._equal_node_cache = {}
+        node_id = id(node)
+        if node_id in self._equal_node_cache:
+            return self._equal_node_cache[node_id]
+
+        for n in self.lut:
+            if n.has_same_performance(node):
+                self._equal_node_cache[node_id] = n
+                return n
+        return None
 
     def get_equal_core(self, node: "ComputationNode", core: Core):
         """Retrieve the core in the look-up table that is equal to the given core."""
