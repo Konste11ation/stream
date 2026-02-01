@@ -7,6 +7,19 @@ from deap import algorithms, base, creator, tools
 from stream.opt.allocation.genetic_algorithm.statistics_evaluator import StatisticsEvaluator
 
 
+def init_worker(weights):
+    """
+    Initialize the worker process by creating the Fitness and Individual classes in the worker's global scope.
+    This is necessary because DEAP's creator.create dynamically creates classes that are not automatically
+    available in worker processes spawned by multiprocessing.
+    """
+    if not hasattr(creator, "FitnessMulti"):
+        creator.create("FitnessMulti", base.Fitness, weights=weights)
+    if not hasattr(creator, "Individual"):
+        import array
+        creator.create("Individual", array.array, typecode="i", fitness=creator.FitnessMulti)
+
+
 class GeneticAlgorithm:
     def __init__(
         self,
@@ -71,7 +84,11 @@ class GeneticAlgorithm:
 
         # Register map with multiprocessing pool if num_processes > 1
         if self.num_processes > 1:
-            self.pool = multiprocessing.Pool(processes=self.num_processes)
+            self.pool = multiprocessing.Pool(
+                processes=self.num_processes,
+                initializer=init_worker,
+                initargs=(self.fitness_evaluator.weights,)
+            )
             self.toolbox.register("map", self.pool.map)
 
         # Always use cxTwoPoint. 
@@ -88,12 +105,14 @@ class GeneticAlgorithm:
         self.pop = self.toolbox.population(n=self.num_individuals)  # type: ignore
 
         # replace sub part of initial generation with user provided individuals
-        for indv_index in range(len(pop)):
-            for i in range(self.fitness_evaluator.workload.number_of_nodes()):
-                self.pop[indv_index][i] = pop[indv_index][i]
+        for indv_index, seed_ind in enumerate(pop):
+            if indv_index >= self.num_individuals:
+                break
+            for i in range(min(len(seed_ind), self.individual_length)):
+                self.pop[indv_index][i] = seed_ind[i]
 
             # don't bias initial population too much
-            if indv_index >= self.num_individuals / 4:
+            if indv_index >= self.num_individuals / 2:
                 break
 
     def run(self):

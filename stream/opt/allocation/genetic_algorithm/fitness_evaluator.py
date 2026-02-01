@@ -37,6 +37,7 @@ class StandardFitnessEvaluator(FitnessEvaluator):
         operands_to_prefetch: list[LayerOperand],
         scheduling_order: list[tuple[int, int]],
         latency_attr: str,
+        beam_width: int = 1,
     ) -> None:
         super().__init__(workload, accelerator, cost_lut)
 
@@ -47,6 +48,7 @@ class StandardFitnessEvaluator(FitnessEvaluator):
         self.operands_to_prefetch = operands_to_prefetch
         self.scheduling_order = scheduling_order
         self.latency_attr = latency_attr
+        self.beam_width = beam_width
 
     def get_fitness(self, core_allocations: list[int], return_scme: bool = False):
         """Get the fitness of the given core_allocations
@@ -60,6 +62,7 @@ class StandardFitnessEvaluator(FitnessEvaluator):
             pickle_deepcopy(self.accelerator),
             self.operands_to_prefetch,
             self.scheduling_order,
+            self.beam_width,
         )
         scme.evaluate()
         energy = scme.energy
@@ -106,3 +109,63 @@ class StandardFitnessEvaluator(FitnessEvaluator):
             node.set_chosen_core_allocation(core_allocation)
             node.set_too_large_operands(too_large_operands)
             node.set_offchip_bandwidth(offchip_bandwidth_per_op)
+
+
+class CoOptimizationFitnessEvaluator(StandardFitnessEvaluator):
+    """Fitness evaluator for co-optimization of node-core allocation and DVFS level."""
+
+    def __init__(
+        self,
+        workload: ComputationNodeWorkload,
+        accelerator: Accelerator,
+        cost_lut: CostModelEvaluationLUT,
+        flexible_nodes: list[ComputationNode],
+        flexible_nodes_dvfs: list[ComputationNode],
+        operands_to_prefetch: list[LayerOperand],
+        scheduling_order: list[tuple[int, int]],
+        latency_attr: str,
+        beam_width: int = 1,
+    ) -> None:
+        super().__init__(
+            workload,
+            accelerator,
+            cost_lut,
+            flexible_nodes,
+            operands_to_prefetch,
+            scheduling_order,
+            latency_attr,
+            beam_width,
+        )
+        self.flexible_nodes_dvfs = flexible_nodes_dvfs
+
+    def get_fitness(self, chromosome: list[int], return_scme: bool = False):
+        """Get the fitness of the given individual (chromosome).
+        The chromosome contains core allocations followed by DVFS levels.
+        """
+        self.set_node_attributes(chromosome)
+        scme = StreamCostModelEvaluation(
+            pickle_deepcopy(self.workload),
+            pickle_deepcopy(self.accelerator),
+            self.operands_to_prefetch,
+            self.scheduling_order,
+            self.beam_width,
+        )
+        scme.evaluate()
+        energy = scme.energy
+        latency = scme.latency
+        if not return_scme:
+            return energy, latency
+        return energy, latency, scme
+
+    def set_node_attributes(self, chromosome: list[int]):
+        """Sets both core allocation and DVFS levels for nodes."""
+        # 1. Set core allocations (first part of chromosome)
+        num_alloc = len(self.flexible_nodes)
+        core_allocations = chromosome[:num_alloc]
+        self.set_node_core_allocations(core_allocations)
+
+        # 2. Set DVFS levels (second part of chromosome)
+        dvfs_levels = chromosome[num_alloc:]
+        for i, level in enumerate(dvfs_levels):
+            node = self.flexible_nodes_dvfs[i]
+            node.set_dvfs_level(level)

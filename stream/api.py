@@ -66,6 +66,11 @@ def optimize_allocation_ga(  # noqa: PLR0913
     output_path: str,
     skip_if_exists: bool = False,
     temporal_mapping_type: str = "uneven",
+    loma_lpf_limit: int = 6,
+    coala_beam_width: int = 1,
+    num_procs: int = 1,
+    do_dvfs_cooptimization: bool = False,
+    dvfs_config_path: str | None = None,
 ) -> StreamCostModelEvaluation:
     _sanity_check_inputs(hardware, workload, mapping, mode, output_path)
 
@@ -108,7 +113,7 @@ def optimize_allocation_ga(  # noqa: PLR0913
             accelerator=hardware,  # required by AcceleratorParserStage
             workload_path=workload,  # required by ModelParserStage
             mapping_path=mapping,  # required by ModelParserStage
-            loma_lpf_limit=6,  # required by LomaEngine
+            loma_lpf_limit=loma_lpf_limit,  # required by LomaEngine
             nb_ga_generations=nb_ga_generations,  # number of genetic algorithm (ga) generations
             nb_ga_individuals=nb_ga_individuals,  # number of individuals in each ga generation
             mode=mode,
@@ -117,6 +122,11 @@ def optimize_allocation_ga(  # noqa: PLR0913
             cost_lut_path=cost_lut_path,
             temporal_mapping_type=temporal_mapping_type,  # required by ZigZagCoreMappingEstimationStage
             operands_to_prefetch=[],  # required by GeneticAlgorithmAllocationStage
+            coala_beam_width=coala_beam_width,
+            num_procs=num_procs,
+            do_dvfs_cooptimization=do_dvfs_cooptimization,
+            dvfs_config_path=dvfs_config_path,
+            output_path=f"{output_path}/{experiment_id}",
         )
         # Launch the MainStage
         answers = mainstage.run()
@@ -135,6 +145,8 @@ def optimize_allocation_co(  # noqa: PLR0913
     output_path: str,
     skip_if_exists: bool = False,
     temporal_mapping_type: str = "uneven",
+    loma_lpf_limit: int = 6,
+    num_procs: int = 1,
 ) -> StreamCostModelEvaluation:
     _sanity_check_inputs(hardware, workload, mapping, mode, output_path)
     _sanity_check_gurobi_license()
@@ -179,7 +191,7 @@ def optimize_allocation_co(  # noqa: PLR0913
             accelerator=hardware,  # required by AcceleratorParserStage
             workload_path=workload,  # required by ModelParserStage
             mapping_path=mapping,  # required by ModelParserStage
-            loma_lpf_limit=6,  # required by LomaEngine
+            loma_lpf_limit=loma_lpf_limit,  # required by LomaEngine
             mode=mode,
             layer_stacks=layer_stacks,
             tiled_workload_path=tiled_workload_path,
@@ -189,6 +201,7 @@ def optimize_allocation_co(  # noqa: PLR0913
             cost_lut_post_co_path=cost_lut_post_co_path,
             temporal_mapping_type=temporal_mapping_type,  # required by ZigZagCoreMappingEstimationStage
             operands_to_prefetch=[],  # required by ConstraintOptimizationAllocationStage
+            num_procs=num_procs,
         )
         # Launch the MainStage
         answers = mainstage.run()

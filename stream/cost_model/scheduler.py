@@ -391,8 +391,8 @@ class CoalaScheduler:
             logger.debug(f"Step {step + 1}/{self.nb_graph_nodes}: Beam Size {len(active_schedulers)}, Best Latency: {best_current_latency}")
 
             step += 1
-            print(f"Completed scheduling step {step}/{self.nb_graph_nodes} in beam search." if step % 10 == 0 else "", end="\r")
-        logger.info(f"Beam search best latency: {active_schedulers[0].latency}, Naive baseline latency: {baseline_latency}, Improvement: {baseline_latency - active_schedulers[0].latency if baseline_latency != float('inf') else 'N/A'}(absolute), {f'{(baseline_latency - active_schedulers[0].latency) / baseline_latency * 100:.1f}' if baseline_latency != float('inf') else 'N/A'}%(relative)")
+            logger.debug(f"Completed scheduling step {step}/{self.nb_graph_nodes} in beam search." if step % 10 == 0 else "")
+        logger.debug(f"Beam search best latency: {active_schedulers[0].latency}, Naive baseline latency: {baseline_latency}, Improvement: {baseline_latency - active_schedulers[0].latency if baseline_latency != float('inf') else 'N/A'}(absolute), {f'{(baseline_latency - active_schedulers[0].latency) / baseline_latency * 100:.1f}' if baseline_latency != float('inf') else 'N/A'}%(relative)")
         if not active_schedulers:
              raise RuntimeError("Scheduler failed to complete.")
 
