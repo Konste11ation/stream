@@ -78,6 +78,11 @@ def get_spatial_utilizations(
             f"Chosen core allocation for {node} should be an integer, got {type(node.chosen_core_allocation)}."
         )
         core = scme.accelerator.get_core(node.chosen_core_allocation)
+        
+        # Check if CME exists before accessing (for Co-Optimization robustness)
+        if not cost_lut.has_cme(equal_node, core):
+             return np.nan, np.nan
+             
         cme = cost_lut.get_cme(equal_node, core)
         return cme.mac_spatial_utilization, cme.mac_utilization1
     return np.nan, np.nan
@@ -94,6 +99,11 @@ def get_stalls(
             f"Chosen core allocation for {node} should be an integer, got {type(node.chosen_core_allocation)}."
         )
         core = scme.accelerator.get_core(node.chosen_core_allocation)
+        
+        # Check if CME exists before accessing
+        if not cost_lut.has_cme(equal_node, core):
+             return np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+             
         cme = cost_lut.get_cme(equal_node, core)
         ideal_cycle = cme.ideal_temporal_cycle
         spatial_stall = cme.ideal_temporal_cycle - cme.ideal_cycle
@@ -116,6 +126,11 @@ def get_energy_breakdown(
             f"Chosen core allocation for {node} should be an integer, got {type(node.chosen_core_allocation)}."
         )
         core = scme.accelerator.get_core(node.chosen_core_allocation)
+        
+        # Check if CME exists
+        if not cost_lut.has_cme(equal_node, core):
+             return np.nan, np.nan
+             
         cme = cost_lut.get_cme(equal_node, core)
         total_ops = cme.layer.total_mac_count
         en_total_per_op = cme.energy_total / total_ops
@@ -153,6 +168,7 @@ def get_dataframe_from_scme(
         end = node.end
         runtime = node.get_runtime()
         dvfs_level = node.get_dvfs_level()
+        dvfs_mode = getattr(node, "dvfs_mode", "Unknown") # Safely get mode if it exists
         su_perfect_temporal, su_nonperfect_temporal = get_spatial_utilizations(scme, node, cost_lut)
         en_total_per_op, en_breakdown_per_op = get_energy_breakdown(scme, node, cost_lut)
         ideal_cycle,spatial_stalls, temporal_stalls, stall_slacks_comb, onloading, offloading = get_stalls(scme, node, cost_lut)
@@ -168,6 +184,7 @@ def get_dataframe_from_scme(
             Resource=f"Core {core_id}",
             Layer=layer,
             DVFSLevel=dvfs_level,
+            DVFSMode=dvfs_mode, # Export Mode to JSON
             Runtime=runtime,
             SpatialUtilization=su_perfect_temporal,
             SpatialUtilizationWithTemporal=su_nonperfect_temporal,

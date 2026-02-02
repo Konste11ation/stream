@@ -71,6 +71,9 @@ def optimize_allocation_ga(  # noqa: PLR0913
     num_procs: int = 1,
     do_dvfs_cooptimization: bool = False,
     dvfs_config_path: str | None = None,
+    # GA parameters to tune performance
+    prob_crossover: float = 0.7,
+    prob_mutation: float = 0.2,
 ) -> StreamCostModelEvaluation:
     _sanity_check_inputs(hardware, workload, mapping, mode, output_path)
 
@@ -127,6 +130,8 @@ def optimize_allocation_ga(  # noqa: PLR0913
             do_dvfs_cooptimization=do_dvfs_cooptimization,
             dvfs_config_path=dvfs_config_path,
             output_path=f"{output_path}/{experiment_id}",
+            prob_crossover=prob_crossover,
+            prob_mutation=prob_mutation,
         )
         # Launch the MainStage
         answers = mainstage.run()

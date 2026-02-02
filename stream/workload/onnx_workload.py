@@ -26,14 +26,22 @@ class ONNXWorkload(DiGraphWrapper[Node]):
         self.add_node(node_obj)
         edges: list[tuple[Node, Node]] = []
         for parent_id in node_obj.input_operand_source.values():
+            if parent_id is None:
+                continue
             if parent_id in self.first_to_last_expanded_id:
                 # If the parent node was replaced with multiple stream nodes, take the last generated one as parent
                 parent_id_updated = self.first_to_last_expanded_id[parent_id]
             else:
                 parent_id_updated = parent_id
-            parent_node_obj = self.node_id_to_obj[parent_id_updated]
-            edges.append((parent_node_obj, node_obj))
-            self.add_edges_from(edges)
+            
+            if parent_id_updated in self.node_id_to_obj:
+                parent_node_obj = self.node_id_to_obj[parent_id_updated]
+                edges.append((parent_node_obj, node_obj))
+            else:
+                # This might happen if parent_id is referring to an external input or constant not tracked as a node
+                pass
+            
+        self.add_edges_from(edges)
 
     def find_paths_with_intermediate_type(
         self, start: Node, end: Node, only_intermediate_type: type

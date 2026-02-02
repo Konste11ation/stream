@@ -183,29 +183,46 @@ def export_flash_attention_to_onnx(
     print(f"Generating ONNX model at {output_path}")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    dummy_input = torch.randn(
-        flash_attention_config.batch_size,
-        flash_attention_config.seq_len,
-        flash_attention_config.input_dim,
-    )
-    # For now the input_dim and dim_k, dim_v must be equal
     pytorch_model = FlashAttentionModel(
         flash_attention_config.input_dim,
         flash_attention_config.dim_k,
         flash_attention_config.dim_v,
+        include_linear_layers=flash_attention_config.include_linear_layers
     )
 
-    torch.onnx.export(
-        pytorch_model,
-        dummy_input,
-        output_path,
-        opset_version=16,
-        input_names=["input"],
-        output_names=["output"],
-        verbose=False,
-        do_constant_folding=True,
-        export_params=False,
-    )
+    if flash_attention_config.include_linear_layers:
+        dummy_input = torch.randn(
+            flash_attention_config.batch_size,
+            flash_attention_config.seq_len,
+            flash_attention_config.input_dim,
+        )
+        torch.onnx.export(
+            pytorch_model,
+            dummy_input,
+            output_path,
+            opset_version=16,
+            input_names=["input"],
+            output_names=["output"],
+            verbose=False,
+            do_constant_folding=True,
+            export_params=False,
+        )
+    else:
+        q = torch.randn(flash_attention_config.batch_size, flash_attention_config.seq_len, flash_attention_config.dim_k)
+        k = torch.randn(flash_attention_config.batch_size, flash_attention_config.seq_len, flash_attention_config.dim_k)
+        v = torch.randn(flash_attention_config.batch_size, flash_attention_config.seq_len, flash_attention_config.dim_v)
+        
+        torch.onnx.export(
+            pytorch_model,
+            (q, k, v),
+            output_path,
+            opset_version=16,
+            input_names=["Q", "K", "V"],
+            output_names=["Output"],
+            verbose=False,
+            do_constant_folding=True,
+            export_params=False,
+        )
 
 
 

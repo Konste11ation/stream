@@ -121,4 +121,4 @@ operational_array:
   unit_energy: 1 # pJ
   unit_area: 0.01 # unit
   dimensions: [D1, D2]
-  sizes: [128, 1]
+  sizes: [64, 1]

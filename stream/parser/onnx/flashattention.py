@@ -1,5 +1,6 @@
 # The flash attention parser
 import logging
+from math import ceil
 from enum import StrEnum
 from typing import Any
 from zigzag.datatypes import Constants
@@ -88,12 +89,14 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         # For now we set to a fix value
         self.tile_Br = get_attribute_ints_with_name("tile_Br", self.node.attribute, default=16)
         self.tile_Bc = get_attribute_ints_with_name("tile_Bc", self.node.attribute, default=16)
-        self.Tr = self.seq_len // self.tile_Br # Number of row tiles, for Q and O
-        self.Tc = self.seq_len // self.tile_Bc # Number of column tiles, for K and V
-        # For now we assume seq_len is divisible by tile sizes
-        assert self.seq_len % self.tile_Br == 0, "Sequence length must be divisible by tile size Br"
-        assert self.seq_len % self.tile_Bc == 0, "Sequence length must be divisible by tile size Bc"
-        # TODO 2: Handle the case where seq_len is not divisible by tile sizes
+        self.Tr = ceil(self.seq_len / self.tile_Br) # Number of row tiles, for Q and O
+        self.Tc = ceil(self.seq_len / self.tile_Bc) # Number of column tiles, for K and V
+        # If seq_len is not divisible by tile sizes, we need padding or partial tiles
+        # The computation logic handles loop ranges, so partial tiles should be handled by adjusting loop sizes per node
+        if self.seq_len % self.tile_Br != 0:
+            logger.warning(f"Sequence length {self.seq_len} is not divisible by tile_Br {self.tile_Br}. Last tile will be padded/partial.")
+        if self.seq_len % self.tile_Bc != 0:
+            logger.warning(f"Sequence length {self.seq_len} is not divisible by tile_Bc {self.tile_Bc}. Last tile will be padded/partial.")
     def init_set_operand_precision(self):
         """ Set the operand precision for FlashAttention """
         act_precision: int = self.get_activation_precision()
@@ -692,15 +695,36 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         """
         br_offset = idx * self.tile_Br
         bc_offset = jdx * self.tile_Bc
+
+        # Update the loop sizes if this tile is the last one and partial
+        # Indices are 0-based
+        current_br_size = self.tile_Br
+        current_bc_size = self.tile_Bc
+        
+        # Check if this is the last row tile
+        if idx == self.Tr - 1:
+            remainder = self.seq_len % self.tile_Br
+            if remainder != 0:
+                current_br_size = remainder
+        
+        # Check if this is the last col tile
+        if jdx == self.Tc - 1:
+            remainder = self.seq_len % self.tile_Bc
+            if remainder != 0:
+                current_bc_size = remainder
         
         # We need to update loop_ranges
         # loop_ranges is a dict {loop_name: (start, end)}
         new_loop_ranges = {}
         for loop_name, (start, end) in node.loop_ranges.items():
             if str(loop_name) == "BR":
-                new_loop_ranges[loop_name] = (start + br_offset, end + br_offset)
+                # For BR, the original range is (0, tile_Br).
+                # We want (offset, offset + current_size)
+                # But typically the node is created with range (0, tile_Br)
+                # So we just shift start by offset and set end to start + current_size
+                new_loop_ranges[loop_name] = (br_offset, br_offset + current_br_size)
             elif str(loop_name) == "BC":
-                new_loop_ranges[loop_name] = (start + bc_offset, end + bc_offset)
+                 new_loop_ranges[loop_name] = (bc_offset, bc_offset + current_bc_size)
             else:
                 new_loop_ranges[loop_name] = (start, end)
         
@@ -711,21 +735,20 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
     # Main get_nodes function
     def get_preprocessing_nodes(self):
         """Get the preprocessing nodes for FlashAttention"""
-        # Mainly the slice QKV nodes and reshape K node
+        # Mainly the reshape K node
         nodes = []
-        # Slice Q node - SKIPPED
-        
         # Reshape K node
         current_id = self._util_get_and_increment_id()
+        
+        preds = self.get_node_predecessors()
+        k_pred_id = preds[1] if len(preds) > 1 else None
+        
         reshape_k_node = self._helper_create_reshape_k_node(
             node_id=current_id,
-            pred_id=self.get_node_predecessors()[1], # K input
+            pred_id=k_pred_id, # K input
         )
         nodes.append(reshape_k_node)
         self._util_add_node(reshape_k_node)
-        # Slice K node - SKIPPED
-        
-        # Slice V node - SKIPPED
 
         return nodes
     def get_compute_qkv_tile_nodes(self, idx: int, jdx: int):
@@ -746,10 +769,14 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         # The predecessor ids will be determined based on the base_ids dictionary
         
         # 1. Gemm QK
+        # If Q comes directly from input (KernelOnly Mode), we might not have a predecessor node
+        preds = self.get_node_predecessors()
+        q_pred_id = preds[0] if len(preds) > 0 else None
+        
         current_id = self._util_get_and_increment_id()
         gemm_qk_node = self._helper_create_gemm_qk_node(
             id=current_id,
-            pred_id_input_Qi=self.get_node_predecessors()[0], # Q Input directly
+            pred_id_input_Qi=q_pred_id, # Q Input directly
             pred_id_input_Kj=self._util_get_id_from_node_name("reshape_k"), # K Reshaped
             idx=idx,
             jdx=jdx,
@@ -800,10 +827,14 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         self._util_add_node(compute_l_node)
         # 6. Gemm PV
         current_id = self._util_get_and_increment_id()
+        
+        preds = self.get_node_predecessors()
+        v_pred_id = preds[2] if len(preds) > 2 else None
+        
         gemm_pv_node = self._helper_create_gemm_pv_node(
             id=current_id,
             pred_id_input=self._util_get_id_from_node_name(f"compute_p_i_{idx}_j_{jdx}"),
-            pred_id_weight=self.get_node_predecessors()[2], # V Input directly
+            pred_id_weight=v_pred_id, # V Input directly
             idx=idx,
             jdx=jdx,
         )

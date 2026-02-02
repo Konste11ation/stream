@@ -93,6 +93,7 @@ class FlashAttentionConfig(ModelConfig):
         tile_Bc: int = 16,
         name: str = "FlashAttention",
         type: Literal["FlashAttention"] = "FlashAttention",
+        include_linear_layers: bool = True,
     ):
         self.seq_len = seq_len
         self.input_dim = input_dim
@@ -104,6 +105,7 @@ class FlashAttentionConfig(ModelConfig):
         self.tile_Bc = tile_Bc
         self.num_layer = 1  # Single layer
         self.type = type
+        self.include_linear_layers = include_linear_layers
 
     def to_single_layer_config(self) -> "ModelConfig":
         return deepcopy(self)  # Already single layer
@@ -126,7 +128,8 @@ class FlashAttentionConfig(ModelConfig):
 
     @property
     def parameterized_name(self) -> str:
-        return f"{self.name}_B={self.batch_size}_Seq={self.seq_len}_Embed={self.dim_k}_TileBr={self.tile_Br}_TileBc={self.tile_Bc}"
+        suffix = "_KernelOnly" if not self.include_linear_layers else ""
+        return f"{self.name}_B={self.batch_size}_Seq={self.seq_len}_Embed={self.dim_k}_TileBr={self.tile_Br}_TileBc={self.tile_Bc}{suffix}"
     
 class TransformerConfig(ModelConfig):
     def __init__(

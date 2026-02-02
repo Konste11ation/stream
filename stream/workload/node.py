@@ -53,6 +53,7 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
         self.data_produced_unique = 0
         # DVFS related
         self.dvfs_level: int = 0  # default DVFS level
+        self.dvfs_mode: str = "Unset" # one of "DFS", "DVFS", "Unset", "Global"
         self.vdd_lut: dict[int, float] = {0: 1.0}  # default VDD LUT
         self.freq_lut: dict[int, float] = {0: 1.0}
         self.dyn_energy_lut: dict[int, float] = {0: 1.0}
@@ -63,16 +64,28 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
         return self.onchip_energy + self.offchip_energy
 
     def get_onchip_energy(self):
-        """Get the on-chip energy of running this node."""
-        onchip_energy = self.onchip_energy
-        if self.dvfs_level!=0:
+        """Get the on-chip energy of running this node.
+        
+        Energy = Dynamic Energy + Static Energy
+        - Dynamic Energy scales with dyn_energy_lut (representing V^2 drop or activity scaling)
+        - Static Energy = Power * Time. 
+          We assume onchip_energy is purely dynamic in the base case, 
+        """
+        onchip_energy_base = self.onchip_energy
+        if self.dvfs_level != 0:
             if self.dvfs_level in self.dyn_energy_lut and self.dvfs_level in self.sta_energy_lut:
-                dyn_energy = onchip_energy*self.dyn_energy_lut[self.dvfs_level]
-                sta_energy = 0
-                onchip_dvfs_energy = dyn_energy + sta_energy
-                return onchip_dvfs_energy
-        else:
-            return self.onchip_energy
+                # 1. Scaling Factors
+                dyn_factor = self.dyn_energy_lut[self.dvfs_level]
+                sta_factor = self.sta_energy_lut[self.dvfs_level] # Represents Leakage Power scaling
+                
+                # 2. Runtime scaling
+                freq_factor = self.freq_lut.get(self.dvfs_level, 1.0)
+                time_scaling = 1.0 / freq_factor if freq_factor > 0 else 1.0
+                
+                # 3. Component Estimation (Simplified)
+                return onchip_energy_base * dyn_factor
+                
+        return onchip_energy_base
 
     def get_offchip_energy(self):
         """Get the off-chip energy of running this node."""
@@ -161,6 +174,10 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
     def set_dvfs_level(self, dvfs_level: int):
         """Set the DVFS level for this node."""
         self.dvfs_level = dvfs_level
+
+    def set_dvfs_mode(self, dvfs_mode: str):
+        """Set the DVFS mode for this node. Expected 'DFS' or 'DVFS'."""
+        self.dvfs_mode = dvfs_mode
         
     def set_vdd_lut(self, vdd_lut: dict[int, float]):
         """Set the VDD LUT for DVFS levels."""

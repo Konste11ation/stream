@@ -7,14 +7,15 @@ import argparse
 CURRENT_DIR = Path(__file__).resolve().parent  
 STREAM_DVFS_DIR = CURRENT_DIR.parent
 STREAM_WORKDIR = STREAM_DVFS_DIR.parent
-
+STREAM_DEV_DIR = STREAM_WORKDIR.parent
+os.environ['GRB_LICENSE_FILE'] = f'{STREAM_DEV_DIR}/gurobi.lic'
 sys.path.append(str(STREAM_WORKDIR))  
 import logging as _logging
 from stream_dvfs.src.config_library import W8A8
 from stream_dvfs.src.config import AttentionHeadConfig, FlashAttentionConfig
 from stream_dvfs.src.util import Stage, get_onnx_path  # noqa: E402 
 from stream_dvfs.src.export_onnx import export_model_to_onnx  # noqa: E402 
-from stream.api import optimize_allocation_ga
+from stream.api import optimize_allocation_ga, optimize_allocation_co
 from stream.utils import CostModelEvaluationLUT
 from stream.visualization.perfetto import convert_scme_to_perfetto_json
 import re
@@ -26,7 +27,7 @@ _logging_format = "%(asctime)s - %(name)s.%(funcName)s +%(lineno)s - %(levelname
 _logging.basicConfig(level=_logging_level, format=_logging_format)
 
 
-def gen_flash_attention_onnx(seq_len:int, embedding_dim:int, tile_size:int, output_dir: str):
+def gen_flash_attention_onnx(seq_len:int, embedding_dim:int, tile_size:int, output_dir: str, include_linear_layers: bool = True):
     flash_attention_config = FlashAttentionConfig(
         seq_len=seq_len,
         input_dim=embedding_dim,
@@ -35,7 +36,8 @@ def gen_flash_attention_onnx(seq_len:int, embedding_dim:int, tile_size:int, outp
         tile_Br=tile_size,
         tile_Bc=tile_size,
         batch_size=1,
-        name=f"FlashAttention"
+        name=f"FlashAttention",
+        include_linear_layers=include_linear_layers
     )
     onnx_output_path = get_onnx_path(output_dir=output_dir,
                               model=flash_attention_config,
@@ -75,8 +77,8 @@ def gen_attention_head_onnx(seq_len:int, embedding_dim:int, output_dir: str):
 
 def gen_flash_attention_mapping_config(num_qkv_tiles: int, num_cores: int =1):
     # We should generate the mapping files here if needed
-    tpl_mapping_path = str(CURRENT_DIR / "inputs" / "mappings" / f"FA_{num_cores}gemm_{num_cores}simd.yaml.tpl")
-    mapping_output_path = str(CURRENT_DIR / "inputs" / "mappings" / f"FA_{num_cores}gemm_{num_cores}simd_{num_qkv_tiles}tiles.yaml")
+    tpl_mapping_path = str(CURRENT_DIR / "inputs" / "mappings" / f"FA_{num_cores}gemm.yaml.tpl")
+    mapping_output_path = str(CURRENT_DIR / "inputs" / "mappings" / f"FA_{num_cores}gemm_{num_qkv_tiles}tiles.yaml")
     if os.path.exists(mapping_output_path):
         print(f"Mapping config already exists at: {mapping_output_path}, skipping generation.")
         return
@@ -91,17 +93,19 @@ def gen_flash_attention_multicore_config(output_dir: str):
     # We should generate the multicore config files here if needed
     pass
 
-def run_stream_fa(seq_len:int, embedding_dim:int, tile_size:int, num_cores: int, output_dir: str):
-    workload_path = str(CURRENT_DIR / "inputs" / "workloads" / f"FlashAttention_B=1_Seq={seq_len}_Embed={embedding_dim}_TileBr={tile_size}_TileBc={tile_size}_W8A8.onnx")
-    accelerator = str(CURRENT_DIR / "inputs" / "multicores" / f"FA_{num_cores}gemm_{num_cores}simd.yaml")
-    mapping_path = str(CURRENT_DIR / "inputs" / "mappings" / f"FA_{num_cores}gemm_{num_cores}simd_{seq_len//tile_size}tiles.yaml")
-
-    output_dir = str(CURRENT_DIR / "outputs/")
+def run_stream_fa(seq_len:int, embedding_dim:int, tile_size:int, num_cores: int, output_dir: str, include_linear_layers: bool = True):
+    suffix = "_KernelOnly" if not include_linear_layers else ""
+    workload_path = str(CURRENT_DIR / "inputs" / "workloads" / f"FlashAttention_B=1_Seq={seq_len}_Embed={embedding_dim}_TileBr={tile_size}_TileBc={tile_size}{suffix}_W8A8.onnx")
+    accelerator = str(CURRENT_DIR / "inputs" / "multicores" / f"FA_{num_cores}gemm.yaml")
+    mapping_path = str(CURRENT_DIR / "inputs" / "mappings" / f"FA_{num_cores}gemm_{seq_len//tile_size}tiles.yaml")
+    dvfs_cfg = str(CURRENT_DIR / "inputs" / "dvfs" / "coarse_dvfs.yaml")
+    # output_dir is passed as argument
     mode = "fused"
-    layer_stacks = [tuple(range(0, 1000))]
-    experiment_id = f"{num_cores}gemm_{num_cores}simd_FlashAttention_Seq{seq_len}_Embed{embedding_dim}_Tile{tile_size}_W8A8_ga"
-    nb_ga_generations = 8
-    nb_ga_individuals = 8
+    layer_stacks = [tuple(range(0, 100000))]
+    experiment_id = f"{num_cores}gemm_FlashAttention_Seq{seq_len}_Embed{embedding_dim}_Tile{tile_size}{suffix}_W8A8_ga"
+    # Optimization Strategy:
+    nb_ga_generations = 64
+    nb_ga_individuals = 256
     sanity_check(
         workload_path=workload_path,
         accelerator_path=accelerator,
@@ -118,8 +122,26 @@ def run_stream_fa(seq_len:int, embedding_dim:int, tile_size:int, num_cores: int,
         nb_ga_individuals=nb_ga_individuals,
         experiment_id=experiment_id,
         output_path=output_dir,
-        skip_if_exists=True,
+        skip_if_exists=False,
+        num_procs=32,
+        coala_beam_width=1,
+        do_dvfs_cooptimization=True,
+        dvfs_config_path=dvfs_cfg,
+        # Tuned GA parameters for convergence
+        prob_crossover=0.7,
+        prob_mutation=0.3, # Sum must be <= 1.0 for DEAP varOr
     )
+    # scme = optimize_allocation_co(
+    #     hardware=accelerator,
+    #     workload=workload_path,
+    #     mapping=mapping_path,
+    #     mode=mode,
+    #     layer_stacks=layer_stacks,
+    #     experiment_id=experiment_id,
+    #     output_path=output_dir,
+    #     skip_if_exists=False,
+    #     num_procs=32,
+    # )
     cost_lut_path = f"{output_dir}/{experiment_id}/cost_lut.pickle"
     cost_lut = CostModelEvaluationLUT(cost_lut_path)
     json_path = f"{output_dir}/{experiment_id}/scme.json"
@@ -128,12 +150,13 @@ def run_stream_fa(seq_len:int, embedding_dim:int, tile_size:int, num_cores: int,
 
 def run_stream_attention(seq_len:int, embedding_dim:int, num_cores: int, output_dir: str):
     workload_path = str(CURRENT_DIR / "inputs" / "workloads" / f"AttentionHead_B=1_Seq={seq_len}_Embed={embedding_dim}_W8A8.onnx")
-    accelerator = str(CURRENT_DIR / "inputs" / "multicores" / f"FA_{num_cores}gemm_{num_cores}simd.yaml")
-    mapping_path = str(CURRENT_DIR / "inputs" / "mappings" / f"AH_{num_cores}gemm_{num_cores}simd.yaml")
+    accelerator = str(CURRENT_DIR / "inputs" / "multicores" / f"FA_{num_cores}gemm.yaml")
+    mapping_path = str(CURRENT_DIR / "inputs" / "mappings" / f"AH_{num_cores}gemm.yaml")
+    dvfs_cfg = str(CURRENT_DIR / "inputs" / "dvfs" / "coarse_dvfs.yaml")
     output_dir = str(CURRENT_DIR / "outputs/")
     mode = "lbl"
     layer_stacks = []
-    experiment_id = f"{num_cores}gemm_{num_cores}simd_AttentionHead_Seq{seq_len}_Embed{embedding_dim}_W8A8_ga"
+    experiment_id = f"{num_cores}gemm_AttentionHead_Seq{seq_len}_Embed{embedding_dim}_W8A8_ga"
     nb_ga_generations = 8
     nb_ga_individuals = 8
     sanity_check(
@@ -153,6 +176,8 @@ def run_stream_attention(seq_len:int, embedding_dim:int, num_cores: int, output_
         experiment_id=experiment_id,
         output_path=output_dir,
         skip_if_exists=True,
+        num_procs=16,
+        coala_beam_width=1,
     )
     cost_lut_path = f"{output_dir}/{experiment_id}/cost_lut.pickle"
     cost_lut = CostModelEvaluationLUT(cost_lut_path)
@@ -160,59 +185,20 @@ def run_stream_attention(seq_len:int, embedding_dim:int, num_cores: int, output_
     convert_scme_to_perfetto_json(scme, cost_lut, json_path=json_path)
     return scme
 
-
-def run_dvfs_optimization(output_dir:str, experiment_id:str):
-    exp_output_dir = os.path.join(output_dir, experiment_id)
-    dvfs_cfg = str(CURRENT_DIR / "inputs" / "dvfs" / "fine_dvfs.yaml")
-    print("Steps: 1. Load base SCME from STREAM simulation")
-    base_scme_path = os.path.join(exp_output_dir, "scme.pickle")
-    print(f"Base scme Path:", base_scme_path)
-    with open(base_scme_path, "rb") as file:
-        scme_original = pickle.load(file)    
-    print("Steps: 2. Run DVFS Optimization")
-    ga_nb_generations = 8
-    ga_nb_individuals = 8
-    dvfs_opt_stage = DvfsOptimizationStage(list_of_callables=[],
-                                        workload=scme_original.workload,
-                                        accelerator=scme_original.accelerator,
-                                        scheduling_order=scme_original.scheduling_order,
-                                        operands_to_prefetch=scme_original.operands_to_prefetch,
-                                        dvfs_output_path=exp_output_dir,
-                                        ga_nb_generations=ga_nb_generations,
-                                        ga_nb_individuals=ga_nb_individuals,
-                                        dvfs_cfg_path=dvfs_cfg
-                                        )
-    dvfs_opt_scme=dvfs_opt_stage.run()
-    # Load in the CostModelEvaluationLUT from the run
-    cost_lut_path = os.path.join(exp_output_dir,"cost_lut.pickle")
-    cost_lut = CostModelEvaluationLUT(cost_lut_path)
-    json_path = os.path.join(exp_output_dir,"dvfs_scme.json")
-    convert_scme_to_perfetto_json(dvfs_opt_scme, cost_lut, json_path=json_path)    
 if __name__ == "__main__":
-    # future main code
-    # for seq_len in [32, 64, 128]:
-    #     embedding_dim = 128
-    #     tile_size = 16
-    #     gen_flash_attention_onnx(seq_len, embedding_dim, output_dir=str(CURRENT_DIR / "inputs" / "workloads"))
-    #     gen_flash_attention_mapping_config(num_qkv_tiles=seq_len//tile_size, output_dir=str(CURRENT_DIR / "inputs" / "mappings"))
-    #     run_stream_dvfs_fa(seq_len, embedding_dim, tile_size=tile_size, output_dir=str(CURRENT_DIR / "outputs"))
-    
+
     # Test code
-    num_cores = 2
-    seq_len = 256
-    embedding_dim = 1024
-    tile_size = 64
+    num_cores = 8
+    seq_len = 768
+    embedding_dim = 512
+    tile_size = 128
     # Run the FA test
-    gen_flash_attention_onnx(seq_len, embedding_dim, tile_size, output_dir=str(CURRENT_DIR / "inputs" / "workloads"))
+    gen_flash_attention_onnx(seq_len, embedding_dim, tile_size, output_dir=str(CURRENT_DIR / "inputs" / "workloads"), include_linear_layers=True)
     gen_flash_attention_mapping_config(num_qkv_tiles=seq_len//tile_size, num_cores=num_cores)
-    scme_fa = run_stream_fa(seq_len, embedding_dim, tile_size=tile_size, num_cores=num_cores, output_dir=str(CURRENT_DIR / "outputs"))
+    scme_fa = run_stream_fa(seq_len, embedding_dim, tile_size=tile_size, num_cores=num_cores, output_dir=str(CURRENT_DIR / "outputs"), include_linear_layers=True)
     # Run the Attention Head test
     # gen_attention_head_onnx(seq_len, embedding_dim, output_dir=str(CURRENT_DIR / "inputs" / "workloads"))
     # scme_ah = run_stream_attention(seq_len, embedding_dim, num_cores=num_cores, output_dir=str(CURRENT_DIR / "outputs"))
     
     # Compare
     # compare_energy(scme_fa, scme_ah)
-    
-    # Run DVFS optimization on FA
-    experiment_id = f"{num_cores}gemm_{num_cores}simd_FlashAttention_Seq{seq_len}_Embed{embedding_dim}_Tile{tile_size}_W8A8_ga"
-    run_dvfs_optimization(output_dir=str(CURRENT_DIR / "outputs"), experiment_id=experiment_id)

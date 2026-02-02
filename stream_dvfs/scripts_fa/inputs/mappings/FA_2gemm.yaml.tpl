@@ -15,7 +15,7 @@
   inter_core_tiling:
     - BR, 1
 - name: FA_Simd
-  core_allocation: [2,3]
+  core_allocation: [2]
   intra_core_tiling:
     - BATCH, 1
   inter_core_tiling:

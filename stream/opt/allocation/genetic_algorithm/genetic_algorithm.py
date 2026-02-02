@@ -7,17 +7,27 @@ from deap import algorithms, base, creator, tools
 from stream.opt.allocation.genetic_algorithm.statistics_evaluator import StatisticsEvaluator
 
 
-def init_worker(weights):
+# Global variable to hold the evaluator in worker processes
+global_fitness_evaluator = None
+
+def init_worker(weights, evaluator=None):
     """
     Initialize the worker process by creating the Fitness and Individual classes in the worker's global scope.
-    This is necessary because DEAP's creator.create dynamically creates classes that are not automatically
-    available in worker processes spawned by multiprocessing.
+    Also initializes the global fitness evaluator to avoid repeated pickling.
     """
+    global global_fitness_evaluator
+    if evaluator is not None:
+        global_fitness_evaluator = evaluator
+
     if not hasattr(creator, "FitnessMulti"):
         creator.create("FitnessMulti", base.Fitness, weights=weights)
     if not hasattr(creator, "Individual"):
         import array
         creator.create("Individual", array.array, typecode="i", fitness=creator.FitnessMulti)
+
+def evaluate_wrapper(individual):
+    """Wrapper to call the global evaluator's get_fitness method."""
+    return global_fitness_evaluator.get_fitness(individual)
 
 
 class GeneticAlgorithm:
@@ -30,6 +40,8 @@ class GeneticAlgorithm:
         num_individuals=64,
         pop=None,
         num_processes=4,
+        prob_crossover=0.7,
+        prob_mutation=0.2,
     ) -> None:
         if pop is None:
             pop = []
@@ -37,8 +49,8 @@ class GeneticAlgorithm:
         self.num_individuals = num_individuals  # number of individuals in initial generation
         self.para_mu = int(num_individuals / 2)  # number of indiviuals taken from previous generation
         self.para_lambda = num_individuals  # number of indiviuals in generation
-        self.prob_crossover = 0.3  # probablility to perform corssover
-        self.prob_mutation = 0.7  # probablility to perform mutation
+        self.prob_crossover = prob_crossover  # probablility to perform corssover
+        self.prob_mutation = prob_mutation  # probablility to perform mutation
         self.valid_allocations = valid_allocations
         self.num_processes = num_processes
 
@@ -79,15 +91,22 @@ class GeneticAlgorithm:
             self.toolbox.individual,  # type: ignore
         )  # define polulation based on indiviudal
 
-        # link user defined fitness function to toolbox
-        self.toolbox.register("evaluate", self.fitness_evaluator.get_fitness)
+        # REGISTER THE EVALUATE FUNCTION
+        # If using multiprocessing, use the wrapper. Otherwise use the method.
+        if self.num_processes > 1:
+            self.toolbox.register("evaluate", evaluate_wrapper)
+        else:
+             # If single process, just use the bound method (or we could set the global and use wrapper too)
+            global global_fitness_evaluator
+            global_fitness_evaluator = self.fitness_evaluator
+            self.toolbox.register("evaluate", evaluate_wrapper)
 
         # Register map with multiprocessing pool if num_processes > 1
         if self.num_processes > 1:
             self.pool = multiprocessing.Pool(
                 processes=self.num_processes,
                 initializer=init_worker,
-                initargs=(self.fitness_evaluator.weights,)
+                initargs=(self.fitness_evaluator.weights, self.fitness_evaluator)
             )
             self.toolbox.register("map", self.pool.map)
 

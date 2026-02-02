@@ -83,6 +83,16 @@ class CoalaScheduler:
 
         # Initialize bookkeeping
         self.node_timesteps: dict[ComputationNode, tuple[int, int]] = {}
+        # Optimization: Tracking dependencies and availability time to avoid repeated graph traversals
+        self.node_unmet_dependencies = {n: d for n, d in self.G.in_degree()}
+        self.node_available_at = {n: 0 for n in self.G.node_list}
+        
+        # Optimization: Cache successors to avoid repeated G.successors() calls in hot loops
+        self.node_successors = {n: list(self.G.successors(n)) for n in self.G.node_list}
+        
+        # Optimization: Track max end time of consumers for each tensor to assume O(1) removal check
+        self.tensor_last_used_time: dict[Tensor, int] = defaultdict(int)
+
         self._initialize_workload_accelerator()
         self.nb_scheduled_nodes = 0
         self.scheduled_nodes: set[ComputationNode] = set()
@@ -178,6 +188,10 @@ class CoalaScheduler:
         new_instance.scheduled_nodes = self.scheduled_nodes.copy()
         new_instance.bw_fraction_to_use_for_tensor = self.bw_fraction_to_use_for_tensor.copy()
         new_instance.node_timesteps = self.node_timesteps.copy()
+        new_instance.node_unmet_dependencies = self.node_unmet_dependencies.copy()
+        new_instance.node_available_at = self.node_available_at.copy()
+        new_instance.node_successors = self.node_successors  # Shared (Static)
+        new_instance.tensor_last_used_time = self.tensor_last_used_time.copy()
         new_instance.candidates = self.candidates[:]
         
         # New field
@@ -1016,6 +1030,13 @@ class CoalaScheduler:
         if runtime is None:
             runtime = 0
         end_time = start_time + runtime
+        
+        # Optimization: Track usage times for input tensors to speed up removal checks
+        tensors_this_candidate_needs, _ = self.get_tensors_needed_for_node(node)
+        for t in tensors_this_candidate_needs:
+             if end_time > self.tensor_last_used_time.get(t, 0):
+                 self.tensor_last_used_time[t] = end_time
+
         self.accelerator.spawn(
             output_tensor,
             core_to_add_output_to,
@@ -1072,28 +1093,12 @@ class CoalaScheduler:
                     ]
                     # If this tensor is an output tensor, find all nodes that needed it
                     # to get an accurate timestep at which it can be removed
+                    
+                    # Optimization: Use tracked max finish time instead of graph traversal
                     timestep_for_removal = timestep
                     if tensor_used_by_node.layer_operand == tensor_used_by_node.origin.output_operand:
-                        origin = tensor_used_by_node.origin
-                        if self.offchip_core.id in core_ids_of_instance:
-                            # If wanting to discard it from offchip, look at the max end time across all successors
-                            nodes_that_needed_tensor = [n for n in self.G.successors(origin) if n.id != origin.id]
-                        else:
-                            # If discarding it from a regular core, look at the max end time successors that used it
-                            # from that instance
-                            nodes_that_needed_tensor = [
-                                n
-                                for n in self.G.successors(origin)
-                                if n.chosen_core_allocation in core_ids_of_instance and n.id != origin.id
-                            ]
-                        end_times = [
-                            self.node_timesteps[n][1]
-                            for n in nodes_that_needed_tensor
-                            if n in self.node_timesteps and self.node_timesteps[n][1] >= 0
-                        ]
-                        max_end_time = max(end_times, default=timestep_for_removal)
-                        # assert max_end_time != -1, "There should be at least one successor."
-                        timestep_for_removal = max_end_time
+                        timestamp_from_tracker = self.tensor_last_used_time[tensor_used_by_node]
+                        timestep_for_removal = max(timestamp_from_tracker, timestep)
 
                     # Get a core tied to the top_instance we want to remove it on.
                     core = self.accelerator.memory_manager.cores_per_top_instance[instance_storing_tensor][0]
@@ -1122,16 +1127,14 @@ class CoalaScheduler:
 
     def extend_candidates(self, node: ComputationNode):
         """For each successor of this node, check if all of its predecessors have been scheduled"""
-        for successor in sorted(self.G.successors(node)):
-            if all(pred in self.scheduled_nodes for pred in self.G.predecessors(successor)):
-                preds_end = max(
-                    (
-                        self.node_timesteps[predecessor][1]
-                        for predecessor in self.G.predecessors(successor)
-                    ),
-                    default=0,
-                )
-                self.candidates.append((preds_end, successor))
+        node_finish_time = self.node_timesteps[node][1]
+        for successor in self.node_successors[node]:
+            self.node_unmet_dependencies[successor] -= 1
+            if node_finish_time > self.node_available_at[successor]:
+                self.node_available_at[successor] = node_finish_time
+            
+            if self.node_unmet_dependencies[successor] == 0:
+                self.candidates.append((self.node_available_at[successor], successor))
 
     def get_total_latency(self):
         """The total schedule latency is the max of all CN end times and the link end times"""

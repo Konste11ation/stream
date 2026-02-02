@@ -1,4 +1,4 @@
-name: FA_1gemm_1simd
+name: FA_1gemm
 cores:
   0: stream_dvfs/scripts_fa/inputs/cores/array_8x8.yaml
   1: stream_dvfs/scripts_fa/inputs/cores/vec_128.yaml
@@ -6,5 +6,8 @@ cores:
 offchip_core_id: 2
 unit_energy_cost: 1
 core_connectivity:
-  - {type: link, cores: [0, 1],  bandwidth: 512}
-  - {type: link, cores: [0, 2],  bandwidth: 512}
+# 0-1
+# | 
+# 2
+  - {type: link, cores: [0, 1],  bandwidth: 64}
+  - {type: link, cores: [0, 2],  bandwidth: 64}

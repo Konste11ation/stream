@@ -1,0 +1,32 @@
+name: coarse_dvfs
+# Switching penalties (in cycles)
+dvfs_switching_penalty: 100000 # 100k cycles ~ 1ms @ 1GHz
+
+# Level Definitions (Subset of fine_dvfs.yaml ~5 levels)
+# Selected points to cover the range [1.0V - 0.5V]
+dvfs_level:
+  0:
+    - vdd: 1.0
+    - freq: 1.0
+    - dyn_energy_dvfs: 1.0
+    - sta_energy: 1.0
+  1:
+    - vdd: 0.9
+    - freq: 0.85
+    - dyn_energy_dvfs: 0.82
+    - sta_energy: 0.90
+  2:
+    - vdd: 0.75
+    - freq: 0.61
+    - dyn_energy_dvfs: 0.55
+    - sta_energy: 0.75
+  3:
+    - vdd: 0.6
+    - freq: 0.34
+    - dyn_energy_dvfs: 0.34
+    - sta_energy: 0.60
+  4:
+    - vdd: 0.5
+    - freq: 0.11
+    - dyn_energy_dvfs: 0.25
+    - sta_energy: 0.50

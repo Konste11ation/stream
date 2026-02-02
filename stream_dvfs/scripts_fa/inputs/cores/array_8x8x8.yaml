@@ -34,7 +34,7 @@ memories:
         bandwidth_max: 128
         allocation: 
           - O, fl
-    served_dimensions: [D2]
+    served_dimensions: [D3]
 
   sram_1MB:
     size: 8388608
@@ -72,13 +72,13 @@ memories:
           - I2, fh
           - O, fh
           - O, th
-    served_dimensions: [D1, D2]
+    served_dimensions: [D1, D2, D3]
 
 operational_array:
   input_precision: [8, 8]
   unit_energy: 1 # pJ
   unit_area: 1 # unit
-  dimensions: [D1, D2]
-  sizes: [8, 8]
+  dimensions: [D1, D2, D3]
+  sizes: [16, 16, 8]
 
 

@@ -24,31 +24,35 @@ class FlashAttentionFunction(torch.autograd.Function):
 # For single head attention
 # dim_k = dim_v = hidden_dim/n_heads = hidden_dim
 class FlashAttentionModel(nn.Module):
-    def __init__(self, input_dim, dim_k, dim_v):
+    def __init__(self, input_dim, dim_k, dim_v, include_linear_layers=True):
         super().__init__()
+        self.include_linear_layers = include_linear_layers
         # input : seq_len * input_dim
         # q : input_dim * dim_k => Q=in
         # k : input_dim * dim_k
         # v : input_dim * dim_v
-        self.q_proj = nn.Linear(input_dim, dim_k, bias=False)
-        self.k_proj = nn.Linear(input_dim, dim_k, bias=False)
-        self.v_proj = nn.Linear(input_dim, dim_v, bias=False)
-        self.o_proj = nn.Linear(dim_v, input_dim, bias=False)
+        if self.include_linear_layers:
+            self.q_proj = nn.Linear(input_dim, dim_k, bias=False)
+            self.k_proj = nn.Linear(input_dim, dim_k, bias=False)
+            self.v_proj = nn.Linear(input_dim, dim_v, bias=False)
+            self.o_proj = nn.Linear(dim_v, input_dim, bias=False)
 
-    def forward(self, x):
-        # 1. Compute Q, K, V
-        q = self.q_proj(x)
-        k = self.k_proj(x)
-        v = self.v_proj(x)
-        
-        # 2. Use the custom function. 
-        # When exporting to ONNX, this will be replaced by a single "Flash_Attention" node
-        # taking q, k, v as inputs.
-        output = FlashAttentionFunction.apply(q, k, v)
-        # 3. Final output projection
-        output = self.o_proj(output)
-        
-        return output
+    def forward(self, q, k=None, v=None):
+        if self.include_linear_layers:
+            # Input is (batch, seq, input_dim) in 'q'
+            x = q
+            q_out = self.q_proj(x)
+            k_out = self.k_proj(x)
+            v_out = self.v_proj(x)
+            
+            output = FlashAttentionFunction.apply(q_out, k_out, v_out)
+            output = self.o_proj(output)
+            return output
+        else:
+            # Inputs are q, k, v directly
+            # Just run the attention kernel
+            return FlashAttentionFunction.apply(q, k, v)
+
 
 # --- Example of how to export ---
 if __name__ == "__main__":
@@ -56,27 +60,38 @@ if __name__ == "__main__":
     input_dim = 64
     dim_k = 64
     dim_v = 64
-    model = FlashAttentionModel(input_dim, dim_k, dim_v)
+    
+    # MODE A: Full Model
+    print("Exporting Full Model...")
+    model = FlashAttentionModel(input_dim, dim_k, dim_v, include_linear_layers=True)
     model.eval()
-
-    # 2. Create dummy input
     batch_size = 1
     seq_len = 128
     dummy_input = torch.randn(batch_size, seq_len, input_dim)
-
-    # 3. Export to ONNX
-    output_path = "flash_attention_custom.onnx"
+    output_path = "flash_attention_full.onnx"
     torch.onnx.export(
         model, 
-        dummy_input, 
+        (dummy_input), 
         output_path,
         input_names=["input"], 
         output_names=["output"],
-        verbose=False,
-        do_constant_folding=True,
-        export_params=False,
-        opset_version=16  # Use a recent opset
+        verbose=False, opset_version=16
     )
     
-    print(f"Successfully exported model to {output_path}")
-    print("The graph will look like: Input -> [Gemm, Gemm, Gemm] -> Flash_Attention -> Output")
+    # MODE B: Kernel Only
+    print("Exporting Kernel Only...")
+    model_kernel = FlashAttentionModel(input_dim, dim_k, dim_v, include_linear_layers=False)
+    model_kernel.eval()
+    q = torch.randn(batch_size, seq_len, dim_k)
+    k = torch.randn(batch_size, seq_len, dim_k)
+    v = torch.randn(batch_size, seq_len, dim_v)
+    output_path_kernel = "flash_attention_kernel.onnx"
+    torch.onnx.export(
+        model_kernel, 
+        (q, k, v), 
+        output_path_kernel,
+        input_names=["Q", "K", "V"], 
+        output_names=["Output"],
+        verbose=False, opset_version=16
+    )
+    print("Done.")
