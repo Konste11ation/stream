@@ -1,10 +1,14 @@
 import array
+import logging
 import random
 import multiprocessing
 
 from deap import algorithms, base, creator, tools
 
 from stream.opt.allocation.genetic_algorithm.statistics_evaluator import StatisticsEvaluator
+
+
+logger = logging.getLogger(__name__)
 
 
 # Global variable to hold the evaluator in worker processes
@@ -42,6 +46,9 @@ class GeneticAlgorithm:
         num_processes=4,
         prob_crossover=0.7,
         prob_mutation=0.2,
+        fitness_cache_size=200_000,
+        early_stopping_patience=0,
+        early_stopping_min_generations=0,
     ) -> None:
         if pop is None:
             pop = []
@@ -53,6 +60,9 @@ class GeneticAlgorithm:
         self.prob_mutation = prob_mutation  # probablility to perform mutation
         self.valid_allocations = valid_allocations
         self.num_processes = num_processes
+        self.fitness_cache_size = max(0, int(fitness_cache_size))
+        self.early_stopping_patience = max(0, int(early_stopping_patience))
+        self.early_stopping_min_generations = max(0, int(early_stopping_min_generations))
 
         self.individual_length = individual_length
 
@@ -67,6 +77,7 @@ class GeneticAlgorithm:
 
         self.toolbox = base.Toolbox()  # initialize DEAP toolbox
         self.hof = tools.ParetoFront()  # initialize Hall-of-Fame as Pareto Front
+        self.fitness_cache: dict[tuple[int, ...], tuple[float, ...]] = {}
 
         def get_random_individual():
             """Returns a random individual by randomly choosing from the valid allocations of each node"""
@@ -156,17 +167,55 @@ class GeneticAlgorithm:
         # stats.register("saved", self.save_population)
 
         try:
-            algorithms.eaMuPlusLambda(
-                self.pop,
-                self.toolbox,
-                mu=self.para_mu,
-                lambda_=self.para_lambda,
-                cxpb=self.prob_crossover,
-                mutpb=self.prob_mutation,
-                ngen=self.num_generations,
-                stats=stats,
-                halloffame=self.hof,
-            )
+            logbook = tools.Logbook()
+            logbook.header = ['gen', 'nevals'] + (stats.fields if stats else [])
+
+            # Evaluate initial population with caching + deduplication.
+            self._evaluate_invalid_individuals(self.pop)
+            self.pop = self.toolbox.select(self.pop, len(self.pop))
+            self.hof.update(self.pop)
+
+            if stats is not None:
+                record = stats.compile(self.pop)
+                logbook.record(gen=0, nevals=len(self.pop), **record)
+                logger.info(logbook.stream)
+
+            pareto_signature = self._get_pareto_signature()
+            stagnant_generations = 0
+
+            for generation in range(1, self.num_generations + 1):
+                offspring = algorithms.varOr(
+                    self.pop,
+                    self.toolbox,
+                    self.para_lambda,
+                    self.prob_crossover,
+                    self.prob_mutation,
+                )
+
+                self._evaluate_invalid_individuals(offspring)
+                self.hof.update(offspring)
+                self.pop = self.toolbox.select(self.pop + offspring, self.para_mu)
+
+                if stats is not None:
+                    record = stats.compile(self.pop)
+                    logbook.record(gen=generation, nevals=len(offspring), **record)
+                    logger.info(logbook.stream)
+
+                if self.early_stopping_patience > 0 and generation >= self.early_stopping_min_generations:
+                    new_signature = self._get_pareto_signature()
+                    if new_signature == pareto_signature:
+                        stagnant_generations += 1
+                    else:
+                        stagnant_generations = 0
+                        pareto_signature = new_signature
+
+                    if stagnant_generations >= self.early_stopping_patience:
+                        logger.info(
+                            "Early stopping GA at generation %s due to Pareto stagnation (patience=%s).",
+                            generation,
+                            self.early_stopping_patience,
+                        )
+                        break
         finally:
             if self.num_processes > 1 and hasattr(self, "pool"):
                 self.pool.close()
@@ -207,6 +256,63 @@ class GeneticAlgorithm:
                     break
 
         return (individual,)
+
+    def _get_pareto_signature(self) -> tuple[tuple[float, ...], ...]:
+        rounded = []
+        for individual in self.hof:
+            rounded.append(tuple(round(value, 9) for value in individual.fitness.values))
+        return tuple(sorted(rounded))
+
+    def _set_cache(self, key: tuple[int, ...], fitness: tuple[float, ...]):
+        if self.fitness_cache_size <= 0:
+            return
+        if key in self.fitness_cache:
+            self.fitness_cache[key] = fitness
+            return
+        if len(self.fitness_cache) >= self.fitness_cache_size:
+            self.fitness_cache.pop(next(iter(self.fitness_cache)))
+        self.fitness_cache[key] = fitness
+
+    def _evaluate_invalid_individuals(self, population):
+        invalid_individuals = [individual for individual in population if not individual.fitness.valid]
+        if not invalid_individuals:
+            return
+
+        unique_invalid_individuals = []
+        unique_keys = []
+        seen_keys = set()
+        evaluated_this_batch: dict[tuple[int, ...], tuple[float, ...]] = {}
+
+        for individual in invalid_individuals:
+            key = tuple(individual)
+            cached = self.fitness_cache.get(key)
+            if cached is not None:
+                individual.fitness.values = cached
+                continue
+            if key not in seen_keys:
+                unique_invalid_individuals.append(individual)
+                unique_keys.append(key)
+                seen_keys.add(key)
+
+        if unique_invalid_individuals:
+            computed_fitnesses = list(self.toolbox.map(self.toolbox.evaluate, unique_invalid_individuals))
+            for key, individual, fitness in zip(unique_keys, unique_invalid_individuals, computed_fitnesses):
+                fitness_tuple = tuple(fitness)
+                individual.fitness.values = fitness_tuple
+                evaluated_this_batch[key] = fitness_tuple
+                self._set_cache(key, fitness_tuple)
+
+        for individual in invalid_individuals:
+            if individual.fitness.valid:
+                continue
+            key = tuple(individual)
+            cached = self.fitness_cache.get(key)
+            if cached is not None:
+                individual.fitness.values = cached
+                continue
+            batch_fitness = evaluated_this_batch.get(key)
+            if batch_fitness is not None:
+                individual.fitness.values = batch_fitness
 
     def save_population(self, x):
         if self.statistics_evaluator.current_generation % self.statistics_evaluator.evaluation_periode == 0:

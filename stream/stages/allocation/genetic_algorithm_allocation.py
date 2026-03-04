@@ -73,6 +73,9 @@ class GeneticAlgorithmAllocationStage(Stage):
         # Tuning parameters for GA
         self.prob_crossover = kwargs.get("prob_crossover", 0.7)
         self.prob_mutation = kwargs.get("prob_mutation", 0.2)
+        self.fitness_cache_size = kwargs.get("fitness_cache_size", 200_000)
+        self.early_stopping_patience = kwargs.get("early_stopping_patience", 0)
+        self.early_stopping_min_generations = kwargs.get("early_stopping_min_generations", 0)
 
         self.flexible_nodes: list[ComputationNode] = []
         for n in self.workload.node_list:
@@ -96,6 +99,9 @@ class GeneticAlgorithmAllocationStage(Stage):
             
             # Initial setup of nodes with default LUTs
             # Since we removed the threshold logic, all nodes share the same DVFS configuration space
+            sys_clock = self.dvfs_luts.get("system_clock_mhz", 1000)
+            sta_power = self.dvfs_luts.get("base_static_power_mw", None)
+
             for node in self.workload.node_list:
                 node.set_dvfs_level(0) # Default to max performance (level 0 usually)
                 node.set_vdd_lut(self.dvfs_luts["vdd_lut"])
@@ -103,6 +109,11 @@ class GeneticAlgorithmAllocationStage(Stage):
                 node.set_dyn_energy_lut(self.dvfs_luts["dyn_energy_dvfs_lut"])
                 node.set_sta_energy_lut(self.dvfs_luts["sta_energy_lut"])
                 node.set_dvfs_mode("DVFS")
+                
+                # Apply absolute static power from CACTI if available
+                node.system_clock_mhz = sys_clock
+                if sta_power is not None:
+                    node.set_absolute_static_power(sta_power)
 
             self.flexible_nodes_dvfs = self.workload.node_list
             
@@ -203,6 +214,9 @@ class GeneticAlgorithmAllocationStage(Stage):
                 num_processes=self.num_procs,
                 prob_crossover=self.prob_crossover,
                 prob_mutation=self.prob_mutation,
+                fitness_cache_size=self.fitness_cache_size,
+                early_stopping_patience=self.early_stopping_patience,
+                early_stopping_min_generations=self.early_stopping_min_generations,
             )
             # Run the genetic algorithm and get the results
             pop, hof = self.genetic_algorithm.run()
@@ -367,13 +381,11 @@ class GeneticAlgorithmAllocationStage(Stage):
         # 1. GA Pareto Front: Sort by Energy and keep only non-dominated (lower-left) points for clean integration
         # Filter: Only keep points within the energy range [Min_Energy_Bound, 1.0]
         # We also implicitly check <= 1.0 (baseline), though GA usually explores that area naturally.
-        ga_points = sorted([p for p in zip(pf_energies, pf_latencies) if p[0] >= min_energy_bound]) 
-        
+        all_ga_points = sorted(zip(pf_energies, pf_latencies))
         ga_pareto_curve = []
-        if ga_points:
+        if all_ga_points:
             current_min_latency = float('inf')
-            for e, l in ga_points:
-                # Strictly strictly less than ensures we don't keep points with SAME energy but higher latency
+            for e, l in all_ga_points:
                 if l < current_min_latency:
                     ga_pareto_curve.append((e, l))
                     current_min_latency = l
@@ -382,58 +394,89 @@ class GeneticAlgorithmAllocationStage(Stage):
         global_points = sorted(zip(global_energies, global_latencies))
         
         # 3. Trapezoidal Rule
-        def calculate_auc(points):
-            if not points or len(points) < 2:
+        def calculate_auc(points, min_e_bound=0.0):
+            filtered_points = [p for p in points if p[0] >= min_e_bound]
+            if not filtered_points or len(filtered_points) < 2:
                 return 0.0
             area = 0.0
-            for i in range(len(points) - 1):
-                x1, y1 = points[i]
-                x2, y2 = points[i+1]
+            for i in range(len(filtered_points) - 1):
+                x1, y1 = filtered_points[i]
+                x2, y2 = filtered_points[i+1]
                 # Integrate with respect to x-axis (Energy)
                 area += (x2 - x1) * (y1 + y2) / 2.0
             return area
 
-        ga_auc = calculate_auc(ga_pareto_curve)
+        ga_auc = calculate_auc(ga_pareto_curve, min_energy_bound)
         global_auc = calculate_auc(global_points)
+        # AUC calculation disabled as it can be misleading when curves curve back
+        ga_auc, global_auc = 0.0, 0.0
         
         # --- NEW METRICS: Iso-Energy Analysis ---
-        def get_latency_at_target_energy(target_e, points):
-            """Interpolates Latency at a specific Normalized Energy value."""
-            # Points must be sorted by Energy (Ascending)
+        def get_value_at_target(target_val, points, x_axis='energy'):
+            """Interpolates or Extrapolates Y-value at a specific X-value.
+               Input points must be sorted by X-value (Ascending).
+            """
             if not points: 
                 return None
             
-            # Check bounds
-            min_e, max_e = points[0][0], points[-1][0]
-            if target_e < min_e or target_e > max_e:
-                return None
+            # Map index based on target axis
+            idx_x = 0 if x_axis == 'energy' else 1
+            idx_y = 1 if x_axis == 'energy' else 0
+
+            # Sort points by the requested X-axis if needed (they are already sorted by energy)
+            if x_axis == 'latency':
+                # For Pareto points, lower latency corresponds to higher energy
+                # To keep it ascending for interpolation, we sort by Latency
+                eval_points = sorted(points, key=lambda p: p[idx_x])
+            else:
+                eval_points = points
+
+            min_x = eval_points[0][idx_x]
+            max_x = eval_points[-1][idx_x]
             
+            # Extrapolate/Boundary cases
+            if target_val < min_x:
+                if len(eval_points) < 2: return eval_points[0][idx_y]
+                p1, p2 = eval_points[0], eval_points[1]
+                x1, y1 = p1[idx_x], p1[idx_y]
+                x2, y2 = p2[idx_x], p2[idx_y]
+                if x2 == x1: return y1
+                slope = (y2 - y1) / (x2 - x1)
+                return y1 + slope * (target_val - x1)
+            
+            if target_val > max_x:
+                 if len(eval_points) < 2: return eval_points[-1][idx_y]
+                 p1, p2 = eval_points[-2], eval_points[-1]
+                 x1, y1 = p1[idx_x], p1[idx_y]
+                 x2, y2 = p2[idx_x], p2[idx_y]
+                 if x2 == x1: return y1
+                 slope = (y2 - y1) / (x2 - x1)
+                 return y2 + slope * (target_val - x2)
+
             # Linear Interpolation
-            for i in range(len(points) - 1):
-                p1, p2 = points[i], points[i+1]
-                e1, l1 = p1
-                e2, l2 = p2
-                if e1 <= target_e <= e2:
-                    if e2 == e1: return l1
-                    ratio = (target_e - e1) / (e2 - e1)
-                    return l1 + ratio * (l2 - l1)
+            for i in range(len(eval_points) - 1):
+                p1, p2 = eval_points[i], eval_points[i+1]
+                x1, y1 = p1[idx_x], p1[idx_y]
+                x2, y2 = p2[idx_x], p2[idx_y]
+                if x1 <= target_val <= x2:
+                    if x2 == x1: return y1
+                    ratio = (target_val - x1) / (x2 - x1)
+                    return y1 + ratio * (y2 - y1)
             return None
 
-        # 1. Latency @ 50% Energy (Half Energy)
-        target_energy = 0.5
-        all_energies = [p[0] for p in ga_pareto_curve] + [p[0] for p in global_points]
-        min_common_e = max(min([p[0] for p in ga_pareto_curve]), min([p[0] for p in global_points]))
-        # Ensure we don't pick 0.5 if it's strictly out of range (e.g. if min energy > 0.5)
+        # --- Energy @ 2x Latency (Double Latency) ---
+        target_latency = 2.0
         
-        lat_50_ga = get_latency_at_target_energy(target_energy, ga_pareto_curve)
-        lat_50_global = get_latency_at_target_energy(target_energy, global_points)
+        energy_2x_ga = get_value_at_target(target_latency, ga_pareto_curve, x_axis='latency')
+        energy_2x_global = get_value_at_target(target_latency, global_points, x_axis='latency')
         
-        lat_50_gap_str = ""
-        if lat_50_ga and lat_50_global:
-            # How much lower is GA latency?
-            reduction = lat_50_global - lat_50_ga
-            percent_better = (reduction / lat_50_global) * 100
-            lat_50_gap_str = f" | GA is {percent_better:.1f}% fast/lower"
+        energy_2x_improvement = 0.0
+        energy_2x_gap_str = ""
+        if energy_2x_ga and energy_2x_global:
+            # How much lower is GA energy?
+            reduction = energy_2x_global - energy_2x_ga
+            energy_2x_improvement = (reduction / energy_2x_global) * 100
+            energy_2x_gap_str = f" | GA is {energy_2x_improvement:.1f}% lower energy"
 
         # 2. Average Latency Reduction (using Area Between Curves)
         # This describes the "Average Quality" over the shared energy range
@@ -448,26 +491,33 @@ class GeneticAlgorithmAllocationStage(Stage):
 
         logger.info("="*40)
         logger.info("DVFS Optimization Results")
+        logger.info("Global Level Physical Coordinates:")
+        for lvl, gp in zip(self.dvfs_level_choices, global_points):
+            logger.info(f"  Level {lvl}: Energy={gp[0]:.4f}, Latency={gp[1]:.4f}")
         logger.info(f"Baseline (Level 0) EDP: {baseline_edp:.4f} (Normalized)")
         logger.info(f"Best Global Scaling EDP: {best_global_edp:.4f} (at Level {best_global_level})")
         logger.info(f"Best GA Co-Optimization EDP: {best_ga_edp:.4f}")
         logger.info(f"Improvement over Baseline (EDP): {(baseline_edp - best_ga_edp)/baseline_edp * 100:.2f}%")
+        # logger.info("-" * 20)
+        # logger.info(f"Global Scaling AUC: {global_auc:.4f}")
+        # logger.info(f"GA Pareto AUC: {ga_auc:.4f}")
+        # logger.info(f"Improvement (AUC): {(global_auc - ga_auc)/global_auc * 100:.2f}%")
         logger.info("-" * 20)
-        logger.info(f"Global Scaling AUC: {global_auc:.4f}")
-        logger.info(f"GA Pareto AUC: {ga_auc:.4f}")
-        logger.info(f"Improvement (AUC): {(global_auc - ga_auc)/global_auc * 100:.2f}%")
-        logger.info("-" * 20)
-        logger.info(f"Latency @ 50% Energy (Iso-Energy):")
-        logger.info(f"  Global: {lat_50_global if lat_50_global else 'N/A'}")
-        logger.info(f"  GA    : {lat_50_ga if lat_50_ga else 'N/A'}{lat_50_gap_str}")
+        logger.info(f"Energy @ 2x Latency (Iso-Latency):")
+        logger.info(f"  Global: {energy_2x_global if energy_2x_global else 'N/A'}")
+        logger.info(f"  GA    : {energy_2x_ga if energy_2x_ga else 'N/A'}{energy_2x_gap_str}")
         if avg_latency_reduction:
             logger.info(f"Avg Latency Reduction: {avg_latency_reduction:.2f} (Avg distance between curves)")
         logger.info("="*40)
 
         # 5. Plot Comparison
-        plt.figure(figsize=(10, 6))
+        energy_2x_ga_str = f"{energy_2x_ga:.2f}" if energy_2x_ga else "N/A"
+        energy_2x_global_str = f"{energy_2x_global:.2f}" if energy_2x_global else "N/A"
+
+        plt.figure(figsize=(5, 4))
+
         # Plot Pareto Front from individuals
-        plt.scatter(pf_energies, pf_latencies, c="red", label=f"Co-optimized GA (AUC={ga_auc:.2f})", alpha=0.4, s=20, zorder=3)
+        plt.scatter(pf_energies, pf_latencies, c="red", label=f"Co-optimized GA (E@2xL={energy_2x_ga_str})", alpha=0.4, s=20, zorder=3)
         # Highlight best GA EDP point
         plt.scatter([pf_energies[best_ga_edp_idx]], [pf_latencies[best_ga_edp_idx]], c="gold", marker="*", s=200, label=f"Best GA EDP ({best_ga_edp:.2f})", zorder=6, edgecolors='black')
         
@@ -494,49 +544,36 @@ class GeneticAlgorithmAllocationStage(Stage):
             final_scme.best_ga_edp = best_ga_edp
             final_scme.ga_auc = ga_auc
             final_scme.global_auc = global_auc
-            final_scme.lat_50_ga = lat_50_ga
-            final_scme.lat_50_global = lat_50_global
+            final_scme.energy_2x_ga = energy_2x_ga
+            final_scme.energy_2x_global = energy_2x_global
+            final_scme.energy_2x_improvement = energy_2x_improvement
             final_scme.avg_latency_reduction = avg_latency_reduction
             final_scme_to_return = final_scme
             
             logger.info(f"Returning Best EDP allocation (Energy: {final_scme.energy:.2e}, Latency: {final_scme.latency:.2e})")
         
         # Plot Global Scaling Curve
-        plt.plot(global_energies, global_latencies, 'g-', alpha=0.6, label=f"Global Scaling Curve (AUC={global_auc:.2f})", zorder=1)
+        plt.plot(global_energies, global_latencies, 'g-', alpha=0.6, label=f"Global Scaling Curve (E@2xL={energy_2x_global_str})", zorder=1)
         plt.scatter(global_energies, global_latencies, c='green', marker='o', s=50, label="Global Levels", zorder=2)
         # Label points
         for i, lvl in enumerate(self.dvfs_level_choices):
              plt.annotate(f"L{lvl}", (global_energies[i], global_latencies[i]), fontsize=8, alpha=0.8)
 
-        if naive_energy is not None and naive_latency is not None:
-            plt.scatter([naive_energy], [naive_latency], c="blue", marker="D", s=120, label="Naive DVFS", zorder=4)
+        # if naive_energy is not None and naive_latency is not None:
+        #     plt.scatter([naive_energy], [naive_latency], c="blue", marker="D", s=120, label="Naive DVFS", zorder=4)
         if base_energy is not None and base_latency is not None:
             plt.scatter([base_energy_norm], [base_latency_norm], c="black", marker="x", s=120, label="Baseline (L0)", zorder=5)
 
         plt.xlabel("Normalized Energy")
         plt.ylabel("Normalized Latency")
         plt.title("DVFS Optimization Comparison (Normalized)")
-
-        # Add Metrics Text Box
-        if lat_50_ga and lat_50_global and avg_latency_reduction:
-            stats_text = (
-                f"Avg Latency Red.: {avg_latency_reduction:.2f}\n"
-                f"Global Lat @ 50% E: {lat_50_global:.2f}\n"
-                f"GA Lat @ 50% E: {lat_50_ga:.2f}"
-            )
-            props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-            plt.text(0.65, 0.55, stats_text, transform=plt.gca().transAxes, fontsize=8,
-                    verticalalignment='top', bbox=props, zorder=10)
+        plt.ylim(top=5)
 
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.7)
         plt.savefig(fig_path)
         plt.close()
         logger.info(f"Comparison figure saved to {fig_path}")
-        
-        # 6. Plot Bandwidth Visualization (Level 0 vs Level 1)
-        if 0 in global_scmes and 1 in global_scmes:
-             self.plot_bandwidth_comparison(global_scmes[0], global_scmes[1])
              
         return final_scme_to_return
 

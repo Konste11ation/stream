@@ -74,6 +74,9 @@ def optimize_allocation_ga(  # noqa: PLR0913
     # GA parameters to tune performance
     prob_crossover: float = 0.7,
     prob_mutation: float = 0.2,
+    fitness_cache_size: int = 200_000,
+    early_stopping_patience: int = 0,
+    early_stopping_min_generations: int = 0,
 ) -> StreamCostModelEvaluation:
     _sanity_check_inputs(hardware, workload, mapping, mode, output_path)
 
@@ -132,6 +135,9 @@ def optimize_allocation_ga(  # noqa: PLR0913
             output_path=f"{output_path}/{experiment_id}",
             prob_crossover=prob_crossover,
             prob_mutation=prob_mutation,
+            fitness_cache_size=fitness_cache_size,
+            early_stopping_patience=early_stopping_patience,
+            early_stopping_min_generations=early_stopping_min_generations,
         )
         # Launch the MainStage
         answers = mainstage.run()

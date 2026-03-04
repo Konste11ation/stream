@@ -19,7 +19,7 @@ from stream.api import optimize_allocation_ga, optimize_allocation_co
 from stream.utils import CostModelEvaluationLUT
 from stream.visualization.perfetto import convert_scme_to_perfetto_json
 import re
-from stream_dvfs.scripts_fa.utils import sanity_check, compare_energy
+from stream_dvfs.scripts_fa.utils import get_node_communication_energy, sanity_check, compare_energy
 import pickle
 from stream_dvfs.src.dvfs_optimization import DvfsOptimizationStage
 _logging_level = _logging.INFO
@@ -96,7 +96,7 @@ def gen_flash_attention_multicore_config(output_dir: str):
 def run_stream_fa(seq_len:int, embedding_dim:int, tile_size:int, num_cores: int, output_dir: str, include_linear_layers: bool = True):
     suffix = "_KernelOnly" if not include_linear_layers else ""
     workload_path = str(CURRENT_DIR / "inputs" / "workloads" / f"FlashAttention_B=1_Seq={seq_len}_Embed={embedding_dim}_TileBr={tile_size}_TileBc={tile_size}{suffix}_W8A8.onnx")
-    accelerator = str(CURRENT_DIR / "inputs" / "multicores" / f"FA_{num_cores}gemm.yaml")
+    accelerator = str(CURRENT_DIR / "inputs" / "multicores" / f"FA_{num_cores}gemm_32x32x4_512.yaml")
     mapping_path = str(CURRENT_DIR / "inputs" / "mappings" / f"FA_{num_cores}gemm_{seq_len//tile_size}tiles.yaml")
     dvfs_cfg = str(CURRENT_DIR / "inputs" / "dvfs" / "coarse_dvfs.yaml")
     # output_dir is passed as argument
@@ -104,8 +104,11 @@ def run_stream_fa(seq_len:int, embedding_dim:int, tile_size:int, num_cores: int,
     layer_stacks = [tuple(range(0, 100000))]
     experiment_id = f"{num_cores}gemm_FlashAttention_Seq{seq_len}_Embed{embedding_dim}_Tile{tile_size}{suffix}_W8A8_ga"
     # Optimization Strategy:
-    nb_ga_generations = 64
-    nb_ga_individuals = 256
+    nb_ga_generations = 128
+    nb_ga_individuals = 128
+    fitness_cache_size = 300_000
+    early_stopping_patience = 24
+    early_stopping_min_generations = 48
     sanity_check(
         workload_path=workload_path,
         accelerator_path=accelerator,
@@ -130,6 +133,9 @@ def run_stream_fa(seq_len:int, embedding_dim:int, tile_size:int, num_cores: int,
         # Tuned GA parameters for convergence
         prob_crossover=0.7,
         prob_mutation=0.3, # Sum must be <= 1.0 for DEAP varOr
+        fitness_cache_size=fitness_cache_size,
+        early_stopping_patience=early_stopping_patience,
+        early_stopping_min_generations=early_stopping_min_generations,
     )
     # scme = optimize_allocation_co(
     #     hardware=accelerator,
@@ -188,8 +194,8 @@ def run_stream_attention(seq_len:int, embedding_dim:int, num_cores: int, output_
 if __name__ == "__main__":
 
     # Test code
-    num_cores = 8
-    seq_len = 768
+    num_cores = 4
+    seq_len = 1024
     embedding_dim = 512
     tile_size = 128
     # Run the FA test
@@ -200,5 +206,5 @@ if __name__ == "__main__":
     # gen_attention_head_onnx(seq_len, embedding_dim, output_dir=str(CURRENT_DIR / "inputs" / "workloads"))
     # scme_ah = run_stream_attention(seq_len, embedding_dim, num_cores=num_cores, output_dir=str(CURRENT_DIR / "outputs"))
     
-    # Compare
+    # # Compare
     # compare_energy(scme_fa, scme_ah)

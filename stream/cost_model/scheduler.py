@@ -286,40 +286,41 @@ class CoalaScheduler:
 
         # --- Baseline Comparison (Naive Topological Sort) ---
         baseline_latency = float('inf')
-        try:
-            baseline_scheduler = self.copy()
-            # Construct a map for priority-based selection
-            baseline_order_nodes = list(nx.lexicographical_topological_sort(self.G))
-            # Just use the index in the list as priority (lower is better)
-            # ComputationNode needs to be hashable or we use IDs.
-            # Assuming nodes are consistent objects specific to G.
-            baseline_priority = {n: i for i, n in enumerate(baseline_order_nodes)}
+        if self.beam_width > 1:
+            try:
+                baseline_scheduler = self.copy()
+                # Construct a map for priority-based selection
+                baseline_order_nodes = list(nx.lexicographical_topological_sort(self.G))
+                # Just use the index in the list as priority (lower is better)
+                # ComputationNode needs to be hashable or we use IDs.
+                # Assuming nodes are consistent objects specific to G.
+                baseline_priority = {n: i for i, n in enumerate(baseline_order_nodes)}
 
-            step_base = 0
-            while step_base < baseline_scheduler.nb_graph_nodes:
-                if not baseline_scheduler.candidates:
-                     break
-                
-                # Pick the candidate with the lowest index in the topological sort
-                # candidates is list of (preds_end, node)
-                best_cand_tuple = min(
-                    baseline_scheduler.candidates, 
-                    key=lambda x: baseline_priority.get(x[1], float('inf'))
-                )
-                preds_end, best_candidate = best_cand_tuple
-                
-                # Remove from candidates
-                # Note: candidates is a list, we need to find the index to delete or just pop correctly
-                # Since we found the object, let's find the index
-                idx_to_remove = baseline_scheduler.candidates.index(best_cand_tuple)
-                del baseline_scheduler.candidates[idx_to_remove]
+                step_base = 0
+                while step_base < baseline_scheduler.nb_graph_nodes:
+                    if not baseline_scheduler.candidates:
+                         break
+                    
+                    # Pick the candidate with the lowest index in the topological sort
+                    # candidates is list of (preds_end, node)
+                    best_cand_tuple = min(
+                        baseline_scheduler.candidates, 
+                        key=lambda x: baseline_priority.get(x[1], float('inf'))
+                    )
+                    preds_end, best_candidate = best_cand_tuple
+                    
+                    # Remove from candidates
+                    # Note: candidates is a list, we need to find the index to delete or just pop correctly
+                    # Since we found the object, let's find the index
+                    idx_to_remove = baseline_scheduler.candidates.index(best_cand_tuple)
+                    del baseline_scheduler.candidates[idx_to_remove]
 
-                baseline_scheduler._schedule_node(best_candidate, preds_end)
-                step_base += 1
-            
-            baseline_latency = baseline_scheduler.get_total_latency()
-        except Exception as e:
-            logger.warning(f"Failed to run baseline comparison: {e}")
+                    baseline_scheduler._schedule_node(best_candidate, preds_end)
+                    step_base += 1
+                
+                baseline_latency = baseline_scheduler.get_total_latency()
+            except Exception as e:
+                logger.warning(f"Failed to run baseline comparison: {e}")
 
         
         # Initialize beam with self
@@ -411,7 +412,7 @@ class CoalaScheduler:
              raise RuntimeError("Scheduler failed to complete.")
 
         # Best scheduler
-        if active_schedulers[0].latency > baseline_latency:
+        if self.beam_width > 1 and active_schedulers[0].latency > baseline_latency:
             logger.debug("Baseline scheduler is better than beam search result. Using baseline.")
             best_scheduler = baseline_scheduler
         else:

@@ -57,9 +57,18 @@ class StandardFitnessEvaluator(FitnessEvaluator):
             core_allocations (list): core_allocations
         """
         self.set_node_core_allocations(core_allocations)
+        
+        # Only deepcopy if we need to return the SCME object, to avoid huge overhead
+        if return_scme:
+            workload = pickle_deepcopy(self.workload)
+            accelerator = pickle_deepcopy(self.accelerator)
+        else:
+            workload = self.workload
+            accelerator = self.accelerator
+            
         scme = StreamCostModelEvaluation(
-            pickle_deepcopy(self.workload),
-            pickle_deepcopy(self.accelerator),
+            workload,
+            accelerator,
             self.operands_to_prefetch,
             self.scheduling_order,
             self.beam_width,
@@ -143,9 +152,18 @@ class CoOptimizationFitnessEvaluator(StandardFitnessEvaluator):
         The chromosome contains core allocations followed by DVFS levels.
         """
         self.set_node_attributes(chromosome)
+        
+        # Only deepcopy if we need to return the SCME object, to avoid huge overhead
+        if return_scme:
+            workload = pickle_deepcopy(self.workload)
+            accelerator = pickle_deepcopy(self.accelerator)
+        else:
+            workload = self.workload
+            accelerator = self.accelerator
+            
         scme = StreamCostModelEvaluation(
-            pickle_deepcopy(self.workload),
-            pickle_deepcopy(self.accelerator),
+            workload,
+            accelerator,
             self.operands_to_prefetch,
             self.scheduling_order,
             self.beam_width,

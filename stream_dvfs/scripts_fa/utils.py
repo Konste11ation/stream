@@ -1,5 +1,7 @@
 import os
 import sys
+import re
+import io
 # Resolve paths early
 from pathlib import Path
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -146,7 +148,7 @@ def compare_energy(scme_fa, scme_ah):
     # Filter nodes that belong to the Flash Attention mechanism
     fa_nodes = [n for n in scme_fa.workload.node_list if "FlashAttention" in n.name]
     
-    fa_onchip = sum(n.onchip_energy for n in fa_nodes)
+    fa_onchip = sum(n.get_onchip_energy() for n in fa_nodes)
     # Gather offchip energy from data transfers since node attribute might be 0
     fa_offchip = get_node_communication_energy(scme_fa, fa_nodes)
     
@@ -166,9 +168,9 @@ def compare_energy(scme_fa, scme_ah):
     # Note: "/MatMul" starts with "/" and is distinct from "/q/MatMul"
     ah_nodes = [n for n in scme_ah.workload.node_list if any(n.name.startswith(pre) for pre in ah_target_prefixes)]
     
-    ah_onchip = sum(n.onchip_energy for n in ah_nodes)
+    ah_onchip = sum(n.get_onchip_energy() for n in ah_nodes)
     # For the attention head, since we use the lbl offchip energy attribute, we sum it directly
-    ah_offchip = sum(n.offchip_energy for n in ah_nodes)
+    ah_offchip = sum(n.get_offchip_energy() for n in ah_nodes)
 
     print(f"Attention Head (Standard):")
     print(f"  Nodes found: {len(ah_nodes)}")
@@ -176,4 +178,3 @@ def compare_energy(scme_fa, scme_ah):
     print(f"  Off-Chip Energy: {ah_offchip:,.2f} pJ")
     print(f"  Total Energy:    {ah_onchip + ah_offchip:,.2f} pJ")
     print("=" * 60)
-    
