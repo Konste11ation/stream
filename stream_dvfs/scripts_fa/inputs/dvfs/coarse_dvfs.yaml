@@ -1,4 +1,9 @@
 name: coarse_dvfs
+
+# Baseline Architectural Settings
+system_clock_mhz: 1000  # Baseline System Clock
+base_static_power_mw: 200  # Baseline static leakage power in mW (from CACTI)
+
 # Switching penalties (in cycles)
 dvfs_switching_penalty: 100000 # 100k cycles ~ 1ms @ 1GHz
 
@@ -17,16 +22,16 @@ dvfs_level:
     - sta_energy: 0.90
   2:
     - vdd: 0.75
-    - freq: 0.61
+    - freq: 0.6
     - dyn_energy_dvfs: 0.55
     - sta_energy: 0.75
   3:
     - vdd: 0.6
-    - freq: 0.34
+    - freq: 0.4
     - dyn_energy_dvfs: 0.34
     - sta_energy: 0.60
   4:
     - vdd: 0.5
-    - freq: 0.11
+    - freq: 0.2
     - dyn_energy_dvfs: 0.25
     - sta_energy: 0.50

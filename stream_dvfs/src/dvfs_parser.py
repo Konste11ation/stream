@@ -40,5 +40,7 @@ class DvfsParser:
             'dyn_energy_dvfs_lut': dyn_energy_dvfs_lut,
             'sta_energy_lut': sta_energy_lut,
             'dvfs_switching_penalty': dvfs_data.get('dvfs_switching_penalty', 20000),
+            'system_clock_mhz': dvfs_data.get('system_clock_mhz', 1000),
+            'base_static_power_mw': dvfs_data.get('base_static_power_mw', None),
         }
         return dvfs_luts

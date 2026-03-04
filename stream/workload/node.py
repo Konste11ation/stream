@@ -58,6 +58,7 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
         self.freq_lut: dict[int, float] = {0: 1.0}
         self.dyn_energy_lut: dict[int, float] = {0: 1.0}
         self.sta_energy_lut: dict[int, float] = {0: 1.0}
+        self.absolute_static_power: float | None = None
 
     def get_total_energy(self) -> float:
         """Get the total energy of running this node, including off-chip energy."""
@@ -69,9 +70,19 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
         Energy = Dynamic Energy + Static Energy
         - Dynamic Energy scales with dyn_energy_lut (representing V^2 drop or activity scaling)
         - Static Energy = Power * Time. 
-          We assume onchip_energy is purely dynamic in the base case, 
+          The user provides an absolute static power per core.
         """
-        onchip_energy_base = self.onchip_energy
+        base_dyn_energy = self.onchip_energy
+        
+        if self.absolute_static_power is not None:
+            # Power in mW is equivalent to pJ/ns.
+            # Cycles to Time (ns) = cycles * (1000 / MHz)
+            clock_mhz = getattr(self, 'system_clock_mhz', 1000.0)
+            time_ns = self.runtime * (1000.0 / clock_mhz)
+            base_sta_energy = self.absolute_static_power * time_ns
+        else:
+            base_sta_energy = 0.0
+        
         if self.dvfs_level != 0:
             if self.dvfs_level in self.dyn_energy_lut and self.dvfs_level in self.sta_energy_lut:
                 # 1. Scaling Factors
@@ -82,10 +93,14 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
                 freq_factor = self.freq_lut.get(self.dvfs_level, 1.0)
                 time_scaling = 1.0 / freq_factor if freq_factor > 0 else 1.0
                 
-                # 3. Component Estimation (Simplified)
-                return onchip_energy_base * dyn_factor
+                # 3. Component Estimation
+                scaled_dyn = base_dyn_energy * dyn_factor
+                scaled_sta = base_sta_energy * sta_factor * time_scaling
                 
-        return onchip_energy_base
+                return scaled_dyn + scaled_sta
+                
+        # Non-DVFS or missing LUT returns combined baseline
+        return base_dyn_energy + base_sta_energy
 
     def get_offchip_energy(self):
         """Get the off-chip energy of running this node."""
@@ -194,6 +209,10 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
     def set_sta_energy_lut(self, sta_energy_lut: dict[int, float]):
         """Set the static energy LUT for DVFS levels."""
         self.sta_energy_lut = sta_energy_lut
+
+    def set_absolute_static_power(self, power: float):
+        """Set the absolute static leakage power (per core)."""
+        self.absolute_static_power = power
 
     def __str__(self):
         return self.name

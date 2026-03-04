@@ -73,8 +73,54 @@ class StreamCostModelEvaluation:
         self.total_core_to_core_link_energy = schedule.total_core_to_core_link_energy
         self.total_core_to_core_memory_energy = schedule.total_core_to_core_memory_energy
 
+        # Calculate idle leakage energy for the cores
+        # For simplicity, approximate each core's baseline leakage power by taking the 
+        # average leakage power of nodes executed on it. Idle time = latency - active_time.
+        idle_energy = 0
+        core_active_times = {core.id: 0 for core in self.accelerator.cores}
+        core_leakage_powers = {core.id: [] for core in self.accelerator.cores}
+
+        for node in schedule.scheduled_nodes:
+            core_id = getattr(node, 'chosen_core_allocation', None)
+            if core_id is None:
+                core_id = node.core_allocation[0] if hasattr(node, 'core_allocation') and isinstance(node.core_allocation, list) else None
+                
+            if core_id is not None and core_id in core_active_times:
+                rt = node.get_runtime() if node.get_runtime() else 0
+                core_active_times[core_id] += rt
+                if rt > 0:
+                    # using the static ratio or absolute static power to compute base leakage
+                    abs_sta = getattr(node, 'absolute_static_power', None)
+                    if abs_sta is not None:
+                        # cost_model leakage arrays operate natively in pJ per cycle natively elsewhere.
+                        # We convert absolute static (mW = pJ/ns) to pJ/cycle.
+                        # Time per cycle (ns) = 1000.0 / System Clock (MHz)
+                        clock_mhz = getattr(node, 'system_clock_mhz', 1000.0)
+                        base_leakage_power = abs_sta * (1000.0 / clock_mhz)
+                    else:
+                        base_leakage_power = 0.0
+                    
+                    sta_factor = 1.0
+                    dvfs_lev = getattr(node, 'dvfs_level', 0)
+                    if dvfs_lev != 0 and hasattr(node, 'sta_energy_lut'):
+                        sta_factor = node.sta_energy_lut.get(dvfs_lev, 1.0)
+                    
+                    scaled_leakage_power = base_leakage_power * sta_factor
+                    core_leakage_powers[core_id].append(scaled_leakage_power)
+
+        for core in self.accelerator.cores:
+            idle_time = max(0, self.latency - core_active_times[core.id])
+            if core_leakage_powers[core.id]:
+                avg_leakage = sum(core_leakage_powers[core.id]) / len(core_leakage_powers[core.id])
+            else:
+                avg_leakage = 0  # If no nodes scheduled, assume perfect power gating or 0 leakage
+            idle_energy += idle_time * avg_leakage
+
+        self.total_idle_energy = idle_energy
+
         self.energy = (
             self.total_cn_onchip_energy
+            + self.total_idle_energy
             + self.total_cn_offchip_link_energy
             + self.total_cn_offchip_memory_energy
             + self.total_eviction_to_offchip_link_energy
