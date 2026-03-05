@@ -20,7 +20,9 @@ class DvfsFitnessEvaluator(FitnessEvaluator):
         cost_lut: CostModelEvaluationLUT,
         operands_to_prefetch: list,
         scheduling_order: list[tuple[int, int]],
-        dvfs_node_id_list: list[int],
+        dvfs_targets: list[int],
+        coala_beam_width: int = 1,
+        allocation_mode: str = "node",
     ) -> None:
         super().__init__(workload, accelerator, cost_lut)
 
@@ -28,7 +30,11 @@ class DvfsFitnessEvaluator(FitnessEvaluator):
         self.metrics = ["energy", "latency"]
         self.operands_to_prefetch = operands_to_prefetch
         self.scheduling_order = scheduling_order
-        self.dvfs_node_id_list = dvfs_node_id_list
+        self.dvfs_targets = dvfs_targets
+        self.coala_beam_width = coala_beam_width
+        if allocation_mode not in {"node", "core"}:
+            raise ValueError("allocation_mode must be either 'node' or 'core'.")
+        self.allocation_mode = allocation_mode
 
     def get_fitness(self, dvfs_level_allocation: list[int], return_scme: bool = False):
         """Get the fitness of the given core_allocations
@@ -36,13 +42,16 @@ class DvfsFitnessEvaluator(FitnessEvaluator):
         Args:
             core_allocations (list): core_allocations
         """
-        self.set_node_dvfs_level(dvfs_level_allocation)
+        if self.allocation_mode == "node":
+            self.set_node_dvfs_level(dvfs_level_allocation)
+        else:
+            self.set_core_dvfs_level(dvfs_level_allocation)
         scme = StreamCostModelEvaluation(
             pickle_deepcopy(self.workload),
             pickle_deepcopy(self.accelerator),
             self.operands_to_prefetch,
             self.scheduling_order,
-            beam_width=1 # Use Greedy
+            beam_width=self.coala_beam_width,
         )
         scme.evaluate()
         energy = scme.energy
@@ -58,10 +67,20 @@ class DvfsFitnessEvaluator(FitnessEvaluator):
         Args:
             dvfs_level_allocation (list): A list of DVFS levels corresponding to each node in the workload.
         """
-        if len(dvfs_level_allocation) != len(self.dvfs_node_id_list):
-            raise ValueError("The length of dvfs_level_allocation must match the number of nodes in the workload.")
-        node_id_to_dvfs_level = {node_id: dvfs_level for node_id, dvfs_level in zip(self.dvfs_node_id_list, dvfs_level_allocation)}
+        if len(dvfs_level_allocation) != len(self.dvfs_targets):
+            raise ValueError("The length of dvfs_level_allocation must match the number of DVFS targets.")
+        node_id_to_dvfs_level = {node_id: dvfs_level for node_id, dvfs_level in zip(self.dvfs_targets, dvfs_level_allocation)}
         for node_id, dvfs_level in node_id_to_dvfs_level.items():
             sub_nodes = self.get_sub_nodes(node_id)
             for sub_node in sub_nodes:
                 sub_node.set_dvfs_level(dvfs_level)
+
+    def set_core_dvfs_level(self, dvfs_level_allocation: list[int]):
+        """Set a static DVFS level per core across all nodes mapped to that core."""
+        if len(dvfs_level_allocation) != len(self.dvfs_targets):
+            raise ValueError("The length of dvfs_level_allocation must match the number of DVFS targets.")
+        core_to_dvfs_level = {core_id: dvfs_level for core_id, dvfs_level in zip(self.dvfs_targets, dvfs_level_allocation)}
+        for node in self.workload.node_list:
+            core_id = node.chosen_core_allocation
+            if core_id in core_to_dvfs_level:
+                node.set_dvfs_level(core_to_dvfs_level[core_id])

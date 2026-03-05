@@ -44,7 +44,8 @@ class CoalaScheduler:
         scheduling_order: list[tuple[int, int]],
         cores_idle_from: dict[int, int] | None = None,
         operands_to_prefetch: list[LayerOperand] | None = None,
-        beam_width: int = 1,
+        beam_width: int = 0,
+        fixed_node_schedule: list[ComputationNode] | None = None,
     ):
         """
         Args:
@@ -54,6 +55,7 @@ class CoalaScheduler:
             cores_idle_from: Optional dict mapping core_id to start offset.
             operands_to_prefetch: Layer operands to prefetch at the start of the schedule.
             beam_width: Number of top partial schedules to keep during exploration (default 1).
+            fixed_node_schedule: Optional exact node execution order to follow.
         """
         if operands_to_prefetch is None:
             operands_to_prefetch = []
@@ -62,6 +64,7 @@ class CoalaScheduler:
         self.scheduling_order = scheduling_order
         self.operands_to_prefetch = operands_to_prefetch
         self.beam_width = beam_width
+        self.fixed_node_schedule = fixed_node_schedule
         core_ids = set(n.chosen_core_allocation for n in g.node_list)
         assert None not in core_ids, "Not all nodes have core allocation. Insert SetFixedAllocationPerformanceStage."
         all_core_ids: list[int] = sorted(list(core_ids))  # type: ignore
@@ -96,6 +99,7 @@ class CoalaScheduler:
         self._initialize_workload_accelerator()
         self.nb_scheduled_nodes = 0
         self.scheduled_nodes: set[ComputationNode] = set()
+        self.scheduled_node_sequence: list[ComputationNode] = []
         self.bw_fraction_to_use_for_tensor: dict[Tensor, float] = {}
         self.candidates = self.get_initial_candidates()
         self.initialize_tensor_priorities()
@@ -186,6 +190,7 @@ class CoalaScheduler:
         
         new_instance.nb_scheduled_nodes = self.nb_scheduled_nodes
         new_instance.scheduled_nodes = self.scheduled_nodes.copy()
+        new_instance.scheduled_node_sequence = self.scheduled_node_sequence.copy()
         new_instance.bw_fraction_to_use_for_tensor = self.bw_fraction_to_use_for_tensor.copy()
         new_instance.node_timesteps = self.node_timesteps.copy()
         new_instance.node_unmet_dependencies = self.node_unmet_dependencies.copy()
@@ -284,10 +289,69 @@ class CoalaScheduler:
         """
         self.prefetch_constant_operands()
 
+        # Special mode: beam_width == 0 means follow lexicographic topological order directly.
+        # Or if fixed_node_schedule is provided, follow that exact order.
+        if self.beam_width == 0 or self.fixed_node_schedule is not None:
+            try:
+                baseline_scheduler = self.copy()
+                if self.fixed_node_schedule is not None:
+                    # Match nodes from the graph (in case graph nodes are copies)
+                    # Node equality should work if id() and == are properly handled,
+                    # but to be safe we associate by node.id or node itself.
+                    baseline_order_nodes = []
+                    _node_map = {n.id: n for n in baseline_scheduler.G.nodes()}
+                    for fn in self.fixed_node_schedule:
+                        fn_id = fn.id if hasattr(fn, 'id') else fn
+                        if fn_id in _node_map:
+                            baseline_order_nodes.append(_node_map[fn_id])
+                        else:
+                            baseline_order_nodes.append(fn)
+                else:
+                    baseline_order_nodes = list(nx.lexicographical_topological_sort(baseline_scheduler.G))
+                
+                baseline_priority = {n: i for i, n in enumerate(baseline_order_nodes)}
+
+                step_base = 0
+                while step_base < baseline_scheduler.nb_graph_nodes:
+                    if not baseline_scheduler.candidates:
+                        break
+
+                    best_cand_tuple = min(
+                        baseline_scheduler.candidates,
+                        key=lambda x: baseline_priority.get(x[1], float("inf")),
+                    )
+                    preds_end, best_candidate = best_cand_tuple
+                    idx_to_remove = baseline_scheduler.candidates.index(best_cand_tuple)
+                    del baseline_scheduler.candidates[idx_to_remove]
+
+                    baseline_scheduler._schedule_node(best_candidate, preds_end)
+                    step_base += 1
+            except Exception as e:
+                raise RuntimeError(f"Failed to run lexicographic topological schedule with beam_width=0: {e}") from e
+
+            self.accelerator = baseline_scheduler.accelerator
+            self.latency = baseline_scheduler.latency
+            self.total_cn_onchip_energy = baseline_scheduler.total_cn_onchip_energy
+            self.link_energy = baseline_scheduler.link_energy
+            self.memory_energy = baseline_scheduler.memory_energy
+            self.nb_scheduled_nodes = baseline_scheduler.nb_scheduled_nodes
+            self.scheduled_nodes = baseline_scheduler.scheduled_nodes
+            self.scheduled_node_sequence = baseline_scheduler.scheduled_node_sequence
+            self.bw_fraction_to_use_for_tensor = baseline_scheduler.bw_fraction_to_use_for_tensor
+            self.node_timesteps = baseline_scheduler.node_timesteps
+            self.candidates = baseline_scheduler.candidates
+            self.cores_idle_from = baseline_scheduler.cores_idle_from
+            self.offchip_core = self.accelerator.get_offchip_core()
+            self.offchip_top_instances = self.accelerator.get_top_instances_of_core(self.offchip_core)
+
+            self.latency = self.get_total_latency()
+            return self.latency
+
         # --- Baseline Comparison (Naive Topological Sort) ---
         baseline_latency = float('inf')
         if self.beam_width > 1:
             try:
+                print("Running beam search with beam_width > 1, also computing baseline lexicographic topological schedule for comparison...")
                 baseline_scheduler = self.copy()
                 # Construct a map for priority-based selection
                 baseline_order_nodes = list(nx.lexicographical_topological_sort(self.G))
@@ -387,7 +451,7 @@ class CoalaScheduler:
                         t2 = time.time()
                         
                         if step % 50 == 0 and i == 0:
-                            logger.info(f"    Copy: {t1-t0:.4f}s, Schedule: {t2-t1:.4f}s")
+                            logger.debug(f"    Copy: {t1-t0:.4f}s, Schedule: {t2-t1:.4f}s")
                     
                     next_generation_beam.append(child)
                 end_time = time.time()
@@ -430,6 +494,7 @@ class CoalaScheduler:
              self.memory_energy = best_scheduler.memory_energy
              self.nb_scheduled_nodes = best_scheduler.nb_scheduled_nodes
              self.scheduled_nodes = best_scheduler.scheduled_nodes
+             self.scheduled_node_sequence = best_scheduler.scheduled_node_sequence
              self.bw_fraction_to_use_for_tensor = best_scheduler.bw_fraction_to_use_for_tensor
              self.node_timesteps = best_scheduler.node_timesteps
              self.candidates = best_scheduler.candidates
@@ -1048,6 +1113,7 @@ class CoalaScheduler:
         self.node_timesteps[node] = (start_time, end_time)
         self.cores_idle_from[core_to_run_on.id] = end_time
         self.scheduled_nodes.add(node)
+        self.scheduled_node_sequence.append(node)
 
         onchip_energy = node.get_onchip_energy()
         if onchip_energy is None:

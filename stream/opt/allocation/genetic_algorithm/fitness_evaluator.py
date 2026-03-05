@@ -50,7 +50,7 @@ class StandardFitnessEvaluator(FitnessEvaluator):
         self.latency_attr = latency_attr
         self.beam_width = beam_width
 
-    def get_fitness(self, core_allocations: list[int], return_scme: bool = False):
+    def get_fitness(self, core_allocations: list[int], return_scme: bool = False, fixed_node_schedule: list | None = None):
         """Get the fitness of the given core_allocations
 
         Args:
@@ -72,6 +72,7 @@ class StandardFitnessEvaluator(FitnessEvaluator):
             self.operands_to_prefetch,
             self.scheduling_order,
             self.beam_width,
+            fixed_node_schedule=fixed_node_schedule,
         )
         scme.evaluate()
         energy = scme.energy
@@ -92,7 +93,7 @@ class StandardFitnessEvaluator(FitnessEvaluator):
         for i, core_allocation in enumerate(core_allocations):
             core = self.accelerator.get_core(core_allocation)
             node = self.flexible_nodes[i]
-            equal_unique_node = self.cost_lut.get_equal_node(node)
+            equal_unique_node = self.cost_lut.get_equal_node(node) or node
             cme = self.cost_lut.get_cme(equal_unique_node, core)
             onchip_energy = cme.energy_total  # Initialize on-chip energy as total energy
             latency = getattr(cme, self.latency_attr)
@@ -134,6 +135,7 @@ class CoOptimizationFitnessEvaluator(StandardFitnessEvaluator):
         scheduling_order: list[tuple[int, int]],
         latency_attr: str,
         beam_width: int = 1,
+        dvfs_switching_speed: int = 0,
     ) -> None:
         super().__init__(
             workload,
@@ -146,8 +148,9 @@ class CoOptimizationFitnessEvaluator(StandardFitnessEvaluator):
             beam_width,
         )
         self.flexible_nodes_dvfs = flexible_nodes_dvfs
+        self.dvfs_switching_speed = max(0, int(dvfs_switching_speed))
 
-    def get_fitness(self, chromosome: list[int], return_scme: bool = False):
+    def get_fitness(self, chromosome: list[int], return_scme: bool = False, fixed_node_schedule: list | None = None):
         """Get the fitness of the given individual (chromosome).
         The chromosome contains core allocations followed by DVFS levels.
         """
@@ -167,6 +170,7 @@ class CoOptimizationFitnessEvaluator(StandardFitnessEvaluator):
             self.operands_to_prefetch,
             self.scheduling_order,
             self.beam_width,
+            fixed_node_schedule=fixed_node_schedule,
         )
         scme.evaluate()
         energy = scme.energy
@@ -184,6 +188,41 @@ class CoOptimizationFitnessEvaluator(StandardFitnessEvaluator):
 
         # 2. Set DVFS levels (second part of chromosome)
         dvfs_levels = chromosome[num_alloc:]
-        for i, level in enumerate(dvfs_levels):
-            node = self.flexible_nodes_dvfs[i]
+        candidate_level_per_node = {
+            (node.id, node.sub_id): level
+            for node, level in zip(self.flexible_nodes_dvfs, dvfs_levels)
+        }
+
+        node_lookup = {(node.id, node.sub_id): node for node in self.workload.node_list}
+        ordered_nodes = []
+        seen = set()
+        for key in self.scheduling_order:
+            node = node_lookup.get(key)
+            if node is not None and key not in seen:
+                ordered_nodes.append(node)
+                seen.add(key)
+        for node in self.workload.node_list:
+            key = (node.id, node.sub_id)
+            if key not in seen:
+                ordered_nodes.append(node)
+
+        prev_level_per_core: dict[int, int] = {}
+        for node in ordered_nodes:
+            key = (node.id, node.sub_id)
+            core = node.chosen_core_allocation
+            if core is None:
+                continue
+
+            candidate_level = candidate_level_per_node.get(key)
+            runtime = node.runtime if node.runtime is not None else 0
+            if self.dvfs_switching_speed > 0 and runtime < self.dvfs_switching_speed:
+                fallback_level = prev_level_per_core.get(core, node.get_dvfs_level())
+                level = int(fallback_level) if fallback_level is not None else 0
+            elif candidate_level is not None:
+                level = int(candidate_level)
+            else:
+                fallback_level = node.get_dvfs_level()
+                level = int(fallback_level) if fallback_level is not None else 0
+
             node.set_dvfs_level(level)
+            prev_level_per_core[core] = level

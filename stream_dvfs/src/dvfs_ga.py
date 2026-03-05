@@ -24,7 +24,7 @@ class DvfsGeneticAlgorithm:
         num_generations=250,
         num_individuals=64,
         num_processes=4,
-        pop_init=[],
+        pop_init=None,
     ) -> None:
         if hasattr(creator, 'FitnessMulti'):
             del creator.FitnessMulti
@@ -88,24 +88,55 @@ class DvfsGeneticAlgorithm:
         # Create the inital population
         self.pop_init = pop_init
         self.pop = self._create_initial_population()
+
+    def _normalize_pop_init(self):
+        """Normalize initial population input to a list of valid seed individuals."""
+        if self.pop_init is None:
+            return []
+
+        if isinstance(self.pop_init, (list, tuple)) and len(self.pop_init) == self.individual_length and all(
+            isinstance(value, int) for value in self.pop_init
+        ):
+            candidates = [list(self.pop_init)]
+        elif isinstance(self.pop_init, (list, tuple)):
+            candidates = [
+                list(candidate)
+                for candidate in self.pop_init
+                if isinstance(candidate, (list, tuple))
+            ]
+        else:
+            return []
+
+        valid_candidates = []
+        low, high = self.valid_allocations
+        for candidate in candidates:
+            if len(candidate) != self.individual_length:
+                continue
+            clipped = [min(max(int(value), low), high) for value in candidate]
+            valid_candidates.append(clipped)
+        return valid_candidates
+
     def _create_initial_population(self):
         """Create the initial population, optionally seeded with pop_init."""
         pop = self.toolbox.population(n=self.num_individuals)
-        
-        # If we have initial solutions, replace some individuals with them
-        if self.pop_init and len(self.pop_init) == self.individual_length:
-            # Replace the first individual with the provided initial solution
-            # Convert list to array format for assignment
-            pop[0] = creator.Individual(self.pop_init)
-            
-            # Optionally, create variations of the initial solution for more diversity
-            for i in range(1, min(self.num_individuals // 4, 10)):  # Use up to 25% or 10 individuals
-                if i < len(pop):
-                    # Create a variation by slightly mutating the initial solution
-                    pop[i] = creator.Individual(self.pop_init)
-                    # Apply mutation to create diversity
-                    self.toolbox.mutate(pop[i])
-                    del pop[i].fitness.values  # Reset fitness as individual was modified
+
+        seed_individuals = self._normalize_pop_init()
+        if not seed_individuals:
+            return pop
+
+        max_seed_count = min(len(seed_individuals), self.num_individuals // 2 if self.num_individuals > 1 else 1)
+        for i in range(max_seed_count):
+            pop[i] = creator.Individual(seed_individuals[i])
+
+        mutation_budget = min(self.num_individuals - max_seed_count, max(1, max_seed_count))
+        for i in range(mutation_budget):
+            target_idx = max_seed_count + i
+            if target_idx >= len(pop):
+                break
+            base_seed = seed_individuals[i % max_seed_count]
+            pop[target_idx] = creator.Individual(base_seed)
+            self.toolbox.mutate(pop[target_idx])
+            del pop[target_idx].fitness.values
         
         return pop
     def _adjust_mutation_probability(self, generation):

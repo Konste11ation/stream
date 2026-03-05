@@ -40,12 +40,15 @@ class DvfsOptimizationStage(Stage):
         self.operands_to_prefetch = operands_to_prefetch
         self.ga_nb_generations = kwargs["ga_nb_generations"]
         self.ga_nb_individuals = kwargs["ga_nb_individuals"]
+        self.coala_beam_width = kwargs.get("coala_beam_width", 1)
         self.dvfs_parser = DvfsParser(kwargs["dvfs_cfg_path"])
         self.dvfs_luts = {}
         self.base_energy = base_energy
         self.base_latency = base_latency
         self.brute_force_energy = None
         self.brute_force_latency = None
+        self.post_sched_pf_energy = []
+        self.post_sched_pf_latency = []
         # Assume the system clock is 1GHz
         # Can be modified later
         self.dvfs_switching_speed = 200 # in cycles, assume the system clock is 1GHz, so 50000 cycles = 0.05ms
@@ -68,7 +71,7 @@ class DvfsOptimizationStage(Stage):
         t1 = __import__("time").time()
         logger.info(f"Dry run CAOLA with clean accelerator took {t1-t0:.4f}s")
 
-        (best_result, best_dvfs_allocation), (latency_10pct_result, latency_10pct_dvfs_allocation), hof = self.run_dvfs_ga()
+        (best_result, best_dvfs_allocation), (latency_10pct_result, latency_10pct_dvfs_allocation), hof, post_sched_hof = self.run_dvfs_ga()
         # Optimal results
         opt_energy = best_result[0]
         opt_latency = best_result[1]
@@ -83,7 +86,7 @@ class DvfsOptimizationStage(Stage):
         print(f"DVFS Energy at 10% Latency Increase: {latency_10pct_energy}, Latency: {latency_10pct_latency}")
         latency_10pct_energy_reduction, latency_10pct_latency_overhead = self.compute_metrics(latency_10pct_energy, latency_10pct_latency)
         print(f"DVFS Energy Reduction at 10% Latency Increase: {latency_10pct_energy_reduction*100:.2f}%, Latency Overhead: {latency_10pct_latency_overhead*100:.2f}%")
-        self.plot_pareto(hof)
+        self.plot_pareto(hof, post_sched_hof)
         self.plot_dvfs_allocation(latency_10pct_scme, self.dvfs_output_path)
         return opt_scme
 
@@ -229,20 +232,32 @@ class DvfsOptimizationStage(Stage):
         node_event_dic = self.node_events
         start_time_per_core = self.get_start_time_per_core()
         runtime_per_node = self.get_runtime_per_node()
-        node_id_dvfs_dict: dict[int, int] = defaultdict(list)
-        for node_id, runtime in runtime_per_node.items():
-            if runtime < self.dvfs_switching_speed:
-                # skip the node if the runtime is less than the dvfs switching speed
+        node_id_dvfs_dict: dict[int, int] = {}
+        prev_dvfs_level_per_core: dict[int, int] = defaultdict(int)
+
+        for core, scheduled_nodes in start_time_per_core.items():
+            seen_node_ids: set[int] = set()
+            ordered_node_ids: list[int] = []
+            for node, _ in scheduled_nodes:
+                if node.id not in seen_node_ids:
+                    seen_node_ids.add(node.id)
+                    ordered_node_ids.append(node.id)
+
+            for node_id in ordered_node_ids:
+                runtime = runtime_per_node.get(node_id, 0)
                 sub_nodes = self.get_sub_nodes(node_id)
-                for sub_node in sub_nodes:
-                    sub_node.set_dvfs_level(0)  # set to the default level
-            else:
-                sub_nodes = self.get_sub_nodes(node_id)
-                last_sub_node = max(sub_nodes, key=lambda n: n.get_end())
-                slack = self.get_slack(last_sub_node, node_event_dic, start_time_per_core)
-                dvfs_level = self.compute_dvfs_level(runtime, slack)
+
+                if runtime < self.dvfs_switching_speed:
+                    dvfs_level = prev_dvfs_level_per_core[core]
+                else:
+                    last_sub_node = max(sub_nodes, key=lambda n: n.get_end())
+                    slack = self.get_slack(last_sub_node, node_event_dic, start_time_per_core)
+                    dvfs_level = self.compute_dvfs_level(runtime, slack)
+
                 for sub_node in sub_nodes:
                     sub_node.set_dvfs_level(dvfs_level)
+
+                prev_dvfs_level_per_core[core] = dvfs_level
                 node_id_dvfs_dict[node_id] = dvfs_level
         return sorted(node_id_dvfs_dict.items(), key=lambda x: x[1])
     def run_coala(self, return_scme: bool = False):
@@ -258,7 +273,7 @@ class DvfsOptimizationStage(Stage):
             pickle_deepcopy(self.accelerator),
             self.operands_to_prefetch,
             self.scheduling_order,
-            beam_width=1 # Use Greedy scheduling for DVFS evaluation speed
+            beam_width=self.coala_beam_width,
         )
         scme_dvfs.evaluate()
         dvfs_energy = scme_dvfs.energy
@@ -271,6 +286,90 @@ class DvfsOptimizationStage(Stage):
         energy_reduction = (self.base_energy - energy) / self.base_energy if self.base_energy > 0 else 0
         latency_overhead = (latency - self.base_latency) / self.base_latency if self.base_latency > 0 else 0
         return energy_reduction, latency_overhead
+
+    def get_active_cores(self) -> list[int]:
+        active_cores = sorted({node.chosen_core_allocation for node in self.workload.node_list if node.chosen_core_allocation is not None})
+        return active_cores
+
+    def map_core_allocation_to_node_allocation(
+        self,
+        core_allocation: list[int],
+        core_id_list: list[int],
+        dvfs_node_id_list: list[int],
+    ) -> list[int]:
+        core_to_level = {core_id: level for core_id, level in zip(core_id_list, core_allocation)}
+        node_allocation: list[int] = []
+        for node_id in dvfs_node_id_list:
+            sub_nodes = self.get_sub_nodes(node_id)
+            if not sub_nodes:
+                node_allocation.append(0)
+                continue
+            core_id = sub_nodes[0].chosen_core_allocation
+            node_allocation.append(core_to_level.get(core_id, 0))
+        return node_allocation
+
+    def run_post_scheduling_core_dvfs(self, dvfs_node_id_list: list[int]):
+        core_id_list = self.get_active_cores()
+        if not core_id_list:
+            return [], []
+
+        valid_allocations = [min(self.dvfs_luts["vdd_lut"].keys()), max(self.dvfs_luts["vdd_lut"].keys())]
+
+        brute_force_dvfs = self.brute_dvfs_opt()
+        node_to_level = {node_id: level for node_id, level in brute_force_dvfs}
+        core_seed = []
+        for core_id in core_id_list:
+            core_nodes = [node for node in self.workload.node_list if node.chosen_core_allocation == core_id]
+            if core_nodes:
+                seed_level = node_to_level.get(core_nodes[0].id, min(valid_allocations))
+            else:
+                seed_level = min(valid_allocations)
+            core_seed.append(seed_level)
+
+        post_sched_evaluator = DvfsFitnessEvaluator(
+            self.workload,
+            self.accelerator,
+            [],
+            self.operands_to_prefetch,
+            self.scheduling_order,
+            core_id_list,
+            self.coala_beam_width,
+            allocation_mode="core",
+        )
+        post_sched_ga = DvfsGeneticAlgorithm(
+            post_sched_evaluator,
+            len(core_id_list),
+            valid_allocations,
+            self.ga_nb_generations,
+            self.ga_nb_individuals,
+            num_processes=8,
+            pop_init=core_seed,
+        )
+        _, post_sched_hof = post_sched_ga.run()
+
+        post_sched_pf_energy = [ind.fitness.values[0] / self.base_energy for ind in post_sched_hof]
+        post_sched_pf_latency = [ind.fitness.values[1] / self.base_latency for ind in post_sched_hof]
+        self.post_sched_pf_energy = post_sched_pf_energy
+        self.post_sched_pf_latency = post_sched_pf_latency
+
+        target_latency = 1.1
+        if post_sched_pf_latency:
+            idx = min(range(len(post_sched_pf_latency)), key=lambda i: abs(post_sched_pf_latency[i] - target_latency))
+            post_sched_result = post_sched_evaluator.get_fitness(post_sched_hof[idx], return_scme=True)
+            post_sched_energy_reduction, post_sched_latency_overhead = self.compute_metrics(post_sched_result[0], post_sched_result[1])
+            print(
+                f"Post-scheduling per-core DVFS @10% target Energy: {post_sched_result[0]:.2f}, "
+                f"Latency: {post_sched_result[1]:.2f}, "
+                f"Energy Reduction: {post_sched_energy_reduction*100:.2f}%, "
+                f"Latency Overhead: {post_sched_latency_overhead*100:.2f}%"
+            )
+
+        full_ga_seeds = [
+            self.map_core_allocation_to_node_allocation(list(core_individual), core_id_list, dvfs_node_id_list)
+            for core_individual in post_sched_hof
+        ]
+        return post_sched_hof, full_ga_seeds
+
     def run_dvfs_ga(self):
         # run the brute force first to get a baseline
         brute_force_dvfs = self.brute_dvfs_opt()
@@ -294,21 +393,30 @@ class DvfsOptimizationStage(Stage):
             # Return the base SCME
             scme_base, energy_base, latency_base = self.run_coala(return_scme=True)
             res = (energy_base, latency_base, scme_base)
-            return (res, []), (res, []), []
+            return (res, []), (res, []), [], []
+
+        post_sched_hof, ga_pop_init = self.run_post_scheduling_core_dvfs(dvfs_node_id_list)
+        print(f"Post-scheduling per-core DVFS Pareto points: {len(post_sched_hof)}")
 
         fitness_evaluator = DvfsFitnessEvaluator(self.workload,
                                                  self.accelerator,
                                                  [],
                                                  self.operands_to_prefetch,
                                                  self.scheduling_order,
-                                                 dvfs_node_id_list)
+                                                 dvfs_node_id_list,
+                                                 self.coala_beam_width,
+                                                 allocation_mode="node")
         individual_length = len(dvfs_node_id_list)
         valid_allocations = [min(self.dvfs_luts["vdd_lut"].keys()), max(self.dvfs_luts["vdd_lut"].keys())]
-        pop_init = []
+        brute_seed = []
         for node_id in dvfs_node_id_list:
             # Find the DVFS level for this node_id from brute_force_dvfs
             dvfs_level = next((level for id_, level in brute_force_dvfs if id_ == node_id), 0)
-            pop_init.append(dvfs_level)
+            brute_seed.append(dvfs_level)
+        if not ga_pop_init:
+            ga_pop_init = [brute_seed]
+        else:
+            ga_pop_init = [brute_seed] + ga_pop_init
         genetic_alg = DvfsGeneticAlgorithm(
             fitness_evaluator,
             individual_length,
@@ -316,7 +424,7 @@ class DvfsOptimizationStage(Stage):
             self.ga_nb_generations,
             self.ga_nb_individuals,
             num_processes=8, # Use 8 processes
-            pop_init=pop_init # Pass pop_init correctly
+            pop_init=ga_pop_init
         )
         pop, hof = genetic_alg.run()
         # Extract the best individual from the hall of fame
@@ -328,7 +436,7 @@ class DvfsOptimizationStage(Stage):
         idx = min(range(len(pf_latency_list)), key=lambda i: abs(pf_latency_list[i] - target_latency))
 
         latency_10pct_result = fitness_evaluator.get_fitness(hof[idx], return_scme=True)
-        return (best_results, hof[-1]), (latency_10pct_result,hof[idx]), hof
+        return (best_results, hof[-1]), (latency_10pct_result,hof[idx]), hof, post_sched_hof
     def plot_brute_force_dvfs(self, brute_force_dvfs_energy, brute_force_dvfs_latency):
         os.makedirs(self.dvfs_output_path, exist_ok=True)
         fig_filename = os.path.join(self.dvfs_output_path, "brute_force_dvfs.png")
@@ -362,11 +470,13 @@ class DvfsOptimizationStage(Stage):
         plt.legend()
         plt.grid(True, linestyle='--', alpha=0.7)
         plt.savefig(fig_filename, dpi=300, bbox_inches='tight', transparent=False)
-    def plot_pareto(self, hof):
+    def plot_pareto(self, hof, post_sched_hof):
         os.makedirs(self.dvfs_output_path, exist_ok=True)
         fig_filename = os.path.join(self.dvfs_output_path, "pareto.png")
         meta_filename = os.path.join(self.dvfs_output_path, "dvfs_meta.pickle")
         plt.figure(figsize=(6, 4))
+        pf_energy = []
+        pf_latency = []
         
         # Plot Pareto front with normalized values
         pareto_front = hof
@@ -376,6 +486,23 @@ class DvfsOptimizationStage(Stage):
             plt.scatter(pf_energy, pf_latency, 
                         c='red', s=50, edgecolors='black',
                         label='Pareto Front', zorder=3)
+
+        if len(post_sched_hof) > 0:
+            post_sched_pf_energy = [ind.fitness.values[0] / self.base_energy for ind in post_sched_hof]
+            post_sched_pf_latency = [ind.fitness.values[1] / self.base_latency for ind in post_sched_hof]
+            plt.scatter(
+                post_sched_pf_energy,
+                post_sched_pf_latency,
+                c='purple',
+                s=45,
+                edgecolors='black',
+                marker='^',
+                label='Post-scheduling per-core Pareto',
+                zorder=3,
+            )
+        else:
+            post_sched_pf_energy = []
+            post_sched_pf_latency = []
         
         # Plot the brute force point
         if self.brute_force_energy and self.brute_force_latency:
@@ -423,10 +550,12 @@ class DvfsOptimizationStage(Stage):
         
         # Set axis limits to show the full range
         if pf_energy and pf_latency:
-            x_min = min(min(pf_energy), min(ideal_energy), 0.8)
-            x_max = max(max(pf_energy), max(ideal_energy), 1.2)
-            y_min = min(min(pf_latency), min(ideal_latency), 0.8)
-            y_max = max(max(pf_latency), max(ideal_latency), 1.2)
+            all_pf_energy = pf_energy + post_sched_pf_energy
+            all_pf_latency = pf_latency + post_sched_pf_latency
+            x_min = min(min(all_pf_energy), min(ideal_energy), 0.8)
+            x_max = max(max(all_pf_energy), max(ideal_energy), 1.2)
+            y_min = min(min(all_pf_latency), min(ideal_latency), 0.8)
+            y_max = max(max(all_pf_latency), max(ideal_latency), 1.2)
             plt.xlim(x_min - 0.1, 1.05)
             plt.ylim(y_min - 0.1, 3)
         
@@ -478,8 +607,24 @@ class DvfsOptimizationStage(Stage):
                 idx = min(range(len(pf_latency_list)), key=lambda i: abs(pf_latency_list[i] - target_latency))
                 pf_energy_at_target = pf_energy_list[idx]
         pf_energy_saving_at_target = (1.0 - pf_energy_at_target) if pf_energy_at_target is not None else None
+        post_sched_energy_at_target = None
+        if post_sched_pf_energy and post_sched_pf_latency:
+            post_sched_under_or_equal = [e for e, l in zip(post_sched_pf_energy, post_sched_pf_latency) if l <= target_latency]
+            if post_sched_under_or_equal:
+                post_sched_energy_at_target = min(post_sched_under_or_equal)
+            else:
+                idx = min(range(len(post_sched_pf_latency)), key=lambda i: abs(post_sched_pf_latency[i] - target_latency))
+                post_sched_energy_at_target = post_sched_pf_energy[idx]
+        post_sched_energy_saving_at_target = (
+            1.0 - post_sched_energy_at_target if post_sched_energy_at_target is not None else None
+        )
         print(f"Ideal DVFS Energy at 10% Latency Increase: {ideal_energy_at_target:.2f}%, Saving: {ideal_energy_saving_at_target:.2f}%")
         print(f"Pareto Front DVFS Energy at 10% Latency Increase: {pf_energy_at_target:.2f}%, Saving: {pf_energy_saving_at_target:.2f}%")
+        if post_sched_energy_at_target is not None:
+            print(
+                f"Post-scheduling per-core Energy at 10% Latency Increase: {post_sched_energy_at_target:.2f}, "
+                f"Saving: {post_sched_energy_saving_at_target:.2f}%"
+            )
         improvement_pct =  ((ideal_energy_at_target - pf_energy_at_target)/ideal_energy_at_target) * 100
         print(f"Pareto Front vs Ideal Energy Improvement at 10% Latency Increase: {improvement_pct:.2f}%")
         # ----------------------------------------------------------------------
@@ -488,6 +633,8 @@ class DvfsOptimizationStage(Stage):
         dvfs_meta = {
             "pf_energy_normalized": pf_energy if 'pf_energy' in locals() else [],
             "pf_latency_normalized": pf_latency if 'pf_latency' in locals() else [],
+            "post_sched_pf_energy_normalized": post_sched_pf_energy,
+            "post_sched_pf_latency_normalized": post_sched_pf_latency,
             "ideal_energy_normalized": ideal_energy,
             "ideal_latency_normalized": ideal_latency,
             "base_energy": self.base_energy,
@@ -498,8 +645,10 @@ class DvfsOptimizationStage(Stage):
             "target_latency_norm": target_latency,
             "ideal_energy_at_target": ideal_energy_at_target,
             "pf_energy_at_target": pf_energy_at_target,
+            "post_sched_energy_at_target": post_sched_energy_at_target,
             "ideal_energy_saving_at_target": ideal_energy_saving_at_target,
             "pf_energy_saving_at_target": pf_energy_saving_at_target,
+            "post_sched_energy_saving_at_target": post_sched_energy_saving_at_target,
             "ga_10pct_energy_improvement_pct": improvement_pct
         }
         pickle_save(dvfs_meta, meta_filename)

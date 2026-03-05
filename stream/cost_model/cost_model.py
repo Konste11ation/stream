@@ -19,10 +19,12 @@ class StreamCostModelEvaluation:
         operands_to_prefetch: list[LayerOperand],
         scheduling_order: list[tuple[int, int]],
         beam_width: int = 2,
+        fixed_node_schedule: list | None = None,
     ) -> None:
         # Initialize the SCME by setting the workload graph to be scheduled
         self.workload = workload
         self.accelerator = accelerator
+        self.fixed_node_schedule = fixed_node_schedule
         self.energy: float | None = None
         self.total_cn_onchip_energy: float | None = None
         self.total_cn_offchip_link_energy: float | None = None
@@ -35,6 +37,7 @@ class StreamCostModelEvaluation:
         self.total_core_to_core_memory_energy: float | None = None
 
         self.latency: int | None = None
+        self.scheduled_node_sequence = None
         self.max_memory_usage = None
         self.core_timesteps_delta_cumsums = None
         self.operands_to_prefetch = operands_to_prefetch
@@ -56,6 +59,7 @@ class StreamCostModelEvaluation:
             scheduling_order=self.scheduling_order,
             operands_to_prefetch=self.operands_to_prefetch,
             beam_width=self.beam_width, # Configurable beam width for exploration
+            fixed_node_schedule=self.fixed_node_schedule,
         )
         schedule.run()
         # Update the accelerator to the one used in the best schedule (since beam search creates copies)
@@ -63,6 +67,7 @@ class StreamCostModelEvaluation:
         schedule.update_graph_nodes()
 
         self.latency = schedule.latency
+        self.scheduled_node_sequence = schedule.scheduled_node_sequence
         self.total_cn_onchip_energy = schedule.total_cn_onchip_energy
         self.total_cn_offchip_link_energy = schedule.total_cn_offchip_link_energy
         self.total_cn_offchip_memory_energy = schedule.total_cn_offchip_memory_energy
