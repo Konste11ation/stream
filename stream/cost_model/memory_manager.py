@@ -46,6 +46,8 @@ class MemoryManager:
             self.memory_operands_per_core[core] = [level.operands for level in top_levels]
 
         self.unique_top_instances: set[MemoryInstance] = set()
+        if hasattr(self, "tensor_priority_per_top_instance"):
+            self.tensor_priority_per_top_instance.clear()
         self.cores_per_top_instance: dict[MemoryInstance, list[Core]] = {}
         self.memory_operands_per_top_instance: dict[MemoryInstance, list[tuple[MemoryOperand, ...]]] = {}
 
@@ -94,6 +96,8 @@ class MemoryManager:
             self.top_instances_per_core[core] = [level.memory_instance for level in top_levels]
             self.memory_operands_per_core[core] = [level.operands for level in top_levels]
         self.unique_top_instances: set[MemoryInstance] = set()
+        if hasattr(self, "tensor_priority_per_top_instance"):
+            self.tensor_priority_per_top_instance.clear()
         self.cores_per_top_instance: dict[MemoryInstance, list[Core]] = {}
         self.memory_operands_per_top_instance: dict[MemoryInstance, list[tuple[MemoryOperand, ...]]] = {}
 
