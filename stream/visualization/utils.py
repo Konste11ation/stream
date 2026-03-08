@@ -173,6 +173,8 @@ def get_dataframe_from_scme(
         en_total_per_op, en_breakdown_per_op = get_energy_breakdown(scme, node, cost_lut)
         ideal_cycle,spatial_stalls, temporal_stalls, stall_slacks_comb, onloading, offloading = get_stalls(scme, node, cost_lut)
         energy = node.get_onchip_energy()
+        energy_dynamic = getattr(node, "get_onchip_dynamic_energy", lambda: 0)()
+        energy_static = getattr(node, "get_onchip_static_energy", lambda: 0)()
         tensors = get_real_input_tensors(node, scme.workload)
         task_type = "compute"
         d = dict(
@@ -198,6 +200,8 @@ def get_dataframe_from_scme(
             Type=task_type,
             Activity=np.nan,
             Energy=energy,
+            EnergyDynamic=energy_dynamic,
+            EnergyStatic=energy_static,
             EnergyTotalPerOp=en_total_per_op,
             EnergyBreakdownPerOp=en_breakdown_per_op,
         )

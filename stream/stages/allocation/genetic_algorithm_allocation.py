@@ -604,6 +604,11 @@ class GeneticAlgorithmAllocationStage(Stage):
         improvement_15x = metrics['energy_at_15x_improvement']
         improvement_15x_str = f"{improvement_15x:.1f}%" if improvement_15x is not None else "N/A"
         logger.info(f"Energy Improvement @ 1.5x Latency: {improvement_15x_str}")
+        
+        ga_auc = metrics['ga_auc']
+        global_auc = metrics['global_auc']
+        auc_improvement = ((global_auc - ga_auc) / global_auc * 100) if global_auc else 0.0
+        logger.info(f"Pareto AUC (Global / GA): {global_auc:.4f} / {ga_auc:.4f} ({auc_improvement:.1f}% improvement)")
         logger.info("="*40)
 
         # 5. Generate Comparison Plot
@@ -839,6 +844,8 @@ class GeneticAlgorithmAllocationStage(Stage):
         base_latency = plot_data["base_latency"]
         base_energy_norm = plot_data["base_energy_norm"]
         base_latency_norm = plot_data["base_latency_norm"]
+        ga_auc = plot_data.get("ga_auc", 0.0)
+        global_auc = plot_data.get("global_auc", 0.0)
 
         plt.figure(figsize=(5, 4))
 
@@ -847,7 +854,7 @@ class GeneticAlgorithmAllocationStage(Stage):
         best_baseline_energy_norm = global_energies[best_global_edp_idx]
         best_baseline_latency_norm = global_latencies[best_global_edp_idx]
 
-        plt.scatter(pf_energies, pf_latencies, c="red", label=f"Co-optimized GA (E@1.5xL={energy_at_15x_ga_str})", alpha=0.4, s=20, zorder=3)
+        plt.scatter(pf_energies, pf_latencies, c="red", label=f"Co-optimized GA (E@1.5xL={energy_at_15x_ga_str}, AUC={ga_auc:.2f})", alpha=0.4, s=20, zorder=3)
         plt.scatter(
             [best_ga_energy_norm],
             [best_ga_latency_norm],
@@ -865,7 +872,7 @@ class GeneticAlgorithmAllocationStage(Stage):
 
         energy_at_15x_global = plot_data["energy_at_15x_global"]
         energy_at_15x_global_str = f"{energy_at_15x_global:.2f}" if energy_at_15x_global else "N/A"
-        baseline_label = f"Post-scheduling per-core Pareto (n={{n_pareto}}, E@1.5xL={energy_at_15x_global_str})"
+        baseline_label = f"Post-scheduling per-core Pareto (n={{n_pareto}}, E@1.5xL={energy_at_15x_global_str}, AUC={global_auc:.2f})"
 
         baseline_points = sorted(zip(global_energies, global_latencies))
         baseline_pareto_curve: list[tuple[float, float]] = []

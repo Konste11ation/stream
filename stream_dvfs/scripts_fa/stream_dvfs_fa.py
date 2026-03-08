@@ -22,6 +22,7 @@ import re
 from stream_dvfs.scripts_fa.utils import get_node_communication_energy, sanity_check, compare_energy
 import pickle
 from stream_dvfs.src.dvfs_optimization import DvfsOptimizationStage
+from stream_dvfs.scripts_fa.analyze_dvfs_potential import analyze_scme_json, print_comparison_summary
 _logging_level = _logging.INFO
 _logging_format = "%(asctime)s - %(name)s.%(funcName)s +%(lineno)s - %(levelname)s - %(message)s"
 _logging.basicConfig(level=_logging_level, format=_logging_format)
@@ -96,7 +97,7 @@ def gen_flash_attention_multicore_config(output_dir: str):
 def run_stream_fa(seq_len:int, embedding_dim:int, tile_size:int, num_cores: int, output_dir: str, include_linear_layers: bool = True):
     suffix = "_KernelOnly" if not include_linear_layers else ""
     workload_path = str(CURRENT_DIR / "inputs" / "workloads" / f"FlashAttention_B=1_Seq={seq_len}_Embed={embedding_dim}_TileBr={tile_size}_TileBc={tile_size}{suffix}_W8A8.onnx")
-    accelerator = str(CURRENT_DIR / "inputs" / "multicores" / f"FA_{num_cores}gemm_32x32x4_512.yaml")
+    accelerator = str(CURRENT_DIR / "inputs" / "multicores" / f"FA_{num_cores}gemm.yaml")
     mapping_path = str(CURRENT_DIR / "inputs" / "mappings" / f"FA_{num_cores}gemm_{seq_len//tile_size}tiles.yaml")
     dvfs_cfg = str(CURRENT_DIR / "inputs" / "dvfs" / "coarse_dvfs.yaml")
     # output_dir is passed as argument
@@ -194,10 +195,10 @@ def run_stream_attention(seq_len:int, embedding_dim:int, num_cores: int, output_
 if __name__ == "__main__":
 
     # Test code
-    num_cores = 4
-    seq_len = 1024
+    num_cores = 8
+    seq_len = 2048
     embedding_dim = 512
-    tile_size = 128
+    tile_size = 256
     # Run the FA test
     gen_flash_attention_onnx(seq_len, embedding_dim, tile_size, output_dir=str(CURRENT_DIR / "inputs" / "workloads"), include_linear_layers=True)
     gen_flash_attention_mapping_config(num_qkv_tiles=seq_len//tile_size, num_cores=num_cores)
@@ -208,3 +209,9 @@ if __name__ == "__main__":
     
     # # Compare
     # compare_energy(scme_fa, scme_ah)
+    
+    experiment_id = f"{num_cores}gemm_FlashAttention_Seq{seq_len}_Embed{embedding_dim}_Tile{tile_size}_W8A8_ga"
+    json_path = f"{CURRENT_DIR}/outputs/{experiment_id}/scme.json"
+    if os.path.exists(json_path):
+        res = analyze_scme_json(json_path)
+        print_comparison_summary([res])

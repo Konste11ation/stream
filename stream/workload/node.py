@@ -102,6 +102,28 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
         # Non-DVFS or missing LUT returns combined baseline
         return base_dyn_energy + base_sta_power
 
+    def get_onchip_dynamic_energy(self):
+        base_dyn_energy = self.onchip_energy
+        if self.dvfs_level != 0 and self.dvfs_level in self.dyn_power_lut:
+            return base_dyn_energy * self.dyn_power_lut[self.dvfs_level]
+        return base_dyn_energy
+
+    def get_onchip_static_energy(self):
+        if self.absolute_static_power is not None:
+            clock_mhz = getattr(self, 'system_clock_mhz', 1000.0)
+            time_ns = self.runtime * (1000.0 / clock_mhz)
+            base_sta_power = self.absolute_static_power * time_ns
+        else:
+            base_sta_power = 0.0
+
+        if self.dvfs_level != 0 and self.dvfs_level in self.sta_power_lut:
+            sta_factor = self.sta_power_lut[self.dvfs_level]
+            freq_factor = self.freq_lut.get(self.dvfs_level, 1.0)
+            time_scaling = 1.0 / freq_factor if freq_factor > 0 else 1.0
+            return base_sta_power * sta_factor * time_scaling
+            
+        return base_sta_power
+
     def get_offchip_energy(self):
         """Get the off-chip energy of running this node."""
         return self.offchip_energy
