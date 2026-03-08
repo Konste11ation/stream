@@ -171,12 +171,13 @@ class GeneticAlgorithmAllocationStage(Stage):
             # Since we removed the threshold logic, all nodes share the same DVFS configuration space
             sys_clock = self.dvfs_luts.get("system_clock_mhz", 1000)
             sta_power = self.dvfs_luts.get("base_static_power_mw", None)
+            self.dvfs_switching_speed = self.dvfs_luts.get("dvfs_switching_speed", self.dvfs_switching_speed)
 
             for node in self.workload.node_list:
                 node.set_dvfs_level(0) # Default to max performance (level 0 usually)
                 node.set_vdd_lut(self.dvfs_luts["vdd_lut"])
                 node.set_freq_lut(self.dvfs_luts["freq_lut"])
-                node.set_dyn_energy_lut(self.dvfs_luts["dyn_energy_dvfs_lut"])
+                node.set_dyn_energy_lut(self.dvfs_luts["dyn_energy_lut"])
                 node.set_sta_energy_lut(self.dvfs_luts["sta_energy_lut"])
                 node.set_dvfs_mode("DVFS")
                 
@@ -424,7 +425,7 @@ class GeneticAlgorithmAllocationStage(Stage):
             with multiprocessing.Pool(
                 processes=worker_count,
                 initializer=init_baseline_worker,
-                initargs=(self.fitness_evaluator, core_allocs_list, active_cores, baseline_level, self.dvfs_luts["dyn_energy_dvfs_lut"], None),
+                initargs=(self.fitness_evaluator, core_allocs_list, active_cores, baseline_level, self.dvfs_luts["dyn_energy_lut"], None),
             ) as pool:
                 for assignment, result in zip(baseline_assignments, pool.imap(evaluate_baseline_assignment, baseline_assignments, chunksize=chunksize)):
                     energy, latency = result
