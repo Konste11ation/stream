@@ -22,7 +22,7 @@ from stream.stages.stage import Stage, StageCallable
 from stream.utils import CostModelEvaluationLUT, get_unique_nodes
 from stream.workload.computation.computation_node import ComputationNode
 from stream.workload.onnx_workload import ComputationNodeWorkload
-
+from stream.visualization.perfetto import convert_scme_to_perfetto_json
 logger = logging.getLogger(__name__)
 
 
@@ -134,7 +134,7 @@ class GeneticAlgorithmAllocationStage(Stage):
         self.fitness_cache_size = kwargs.get("fitness_cache_size", 200_000)
         self.early_stopping_patience = kwargs.get("early_stopping_patience", 0)
         self.early_stopping_min_generations = kwargs.get("early_stopping_min_generations", 0)
-        self.max_baseline_combinations = kwargs.get("max_baseline_combinations", 20_000)
+        self.max_baseline_combinations = kwargs.get("max_baseline_combinations", 5_000)
         self.baseline_combo_sample_budget = kwargs.get("baseline_combo_sample_budget", 2_000)
         self.baseline_combo_seed = kwargs.get("baseline_combo_seed", 0)
         self.force_exhaustive_seed_baseline = kwargs.get("force_exhaustive_seed_baseline", True)
@@ -249,9 +249,14 @@ class GeneticAlgorithmAllocationStage(Stage):
         self.individual_length = len(self.valid_allocations)
 
     def run(self):
-        """Run the InterCoreMappingStage by checking if we have a fixed core_allocation.
-        - if yes: evaluate fixed core allocation
-        - if no: initialize and run the genetic algorithm
+        """
+        Run the InterCoreMappingStage.
+        When DVFS Co-Optimization is enabled, this executes in 3 explicit stages:
+        - STAGE 1: Evaluate a level-0 nominal baseline mapping.
+        - STAGE 2: Exhaustive/Sampled per-core post-scheduling DVFS sweep based on the baseline mapping.
+                   Outputs from Stage 1 & 2 are persisted and their Pareto fronts extracted to seed Stage 3.
+        - STAGE 3: Run the Genetic Algorithm (GA) to simultaneously co-optimize Layer-to-Core allocation 
+                   and Per-Node DVFS. Finally plot/save best configurations and comparisons.
         """
 
         logger.info("Start GeneticAlgorithmAllocationStage.")
@@ -276,73 +281,15 @@ class GeneticAlgorithmAllocationStage(Stage):
             # Create population seeds
             pop_seeds = []
             if self.do_dvfs_cooptimization:
-                import random
-                num_flex = len(self.flexible_nodes)
-                num_dvfs = len(self.flexible_nodes_dvfs)
-                logger.info(
-                    "GA chromosome layout: core genes=%s, dvfs genes=%s, total genes=%s.",
-                    num_flex,
-                    num_dvfs,
-                    num_flex + num_dvfs,
-                )
+                # Stage 1: Evaluate a level-0 nominal baseline mapping.
+                self._run_stage_1_baseline()
+                # Stage 2: Exhaustive/Sampled per-core post-scheduling DVFS sweep based on the baseline mapping.
+                if self._preferred_baseline_core_allocs is not None:
+                    self._run_stage_2_baseline_sweep(list(self._preferred_baseline_core_allocs))
+                # Prepare seeds for Stage 3 based on Stage 1 & 2 results
+                if self._preferred_baseline_core_allocs is not None:
+                    hof = self._run_stage_3_ga_optimization(list(self._preferred_baseline_core_allocs))
 
-                # Preferred experiment flow:
-                # 1) run per-core baseline sweep first (anchor mapping only for deriving DVFS templates)
-                # 2) extract baseline Pareto points
-                # 3) combine Pareto-guided DVFS templates with diverse core-allocation seeds
-                baseline_seed_chromosomes, exhaustive_used = self.get_baseline_best_edp_seed_chromosomes(
-                    target_seed_count=self.nb_individuals,
-                )
-                if baseline_seed_chromosomes:
-                    pop_seeds.extend(baseline_seed_chromosomes)
-                    logger.info(
-                        "Initialized GA with %s baseline Pareto-guided seeds + diverse core allocations (%s sweep).",
-                        len(baseline_seed_chromosomes),
-                        "exhaustive" if exhaustive_used else "sampled",
-                    )
-                # Seed with global DVFS levels (all nodes at same level)
-                for level in self.dvfs_level_choices:
-                    core_allocs = [random.choice(self.valid_allocations[i]) for i in range(num_flex)]
-                    
-                    # DVFS Levels with Constraint Checking
-                    dvfs_levels = []
-                    # The indices for DVFS genes start after the core allocation genes
-                    dvfs_gene_offset = num_flex 
-                    
-                    # Iterate through all DVFS nodes and check if the 'global level' is valid for them
-                    for i in range(num_dvfs):
-                        node_dvfs_gene_index = dvfs_gene_offset + i
-                        valid_choices = self.valid_allocations[node_dvfs_gene_index]
-                        
-                        if level in valid_choices:
-                            dvfs_levels.append(level)
-                        else:
-                            # Fallback: Closest valid level (or just first valid)
-                            # Since restricted nodes are usually high-voltage, level 0 is safe
-                            dvfs_levels.append(valid_choices[0]) 
-
-                    pop_seeds.append(core_allocs + dvfs_levels)
-
-            # Initialize the genetic algorithm
-            self.genetic_algorithm = GeneticAlgorithm(
-                self.fitness_evaluator,
-                self.individual_length,
-                self.valid_allocations,
-                self.nb_generations,
-                self.nb_individuals,
-                pop=pop_seeds,
-                num_processes=self.num_procs,
-                prob_crossover=self.prob_crossover,
-                prob_mutation=self.prob_mutation,
-                fitness_cache_size=self.fitness_cache_size,
-                early_stopping_patience=self.early_stopping_patience,
-                early_stopping_min_generations=self.early_stopping_min_generations,
-            )
-            # Run the genetic algorithm and get the results
-            pop, hof = self.genetic_algorithm.run()
-            logger.info("Finished Genetic Algorithm.")
-
-            if self.do_dvfs_cooptimization:
                 final_scme = self.plot_comparison(hof)
                 if final_scme:
                     yield final_scme, None
@@ -358,414 +305,338 @@ class GeneticAlgorithmAllocationStage(Stage):
                 yield scme, None
         logger.info("Finished GeneticAlgorithmAllocationStage.")
 
-    def is_leaf(self) -> bool:
-        return True
+    def _run_stage_1_baseline(self):
+        """
+        [STAGE 1]: NOMINAL BASELINE EVALUATION
+        Now uses a mini Genetic Algorithm (GA) to find a high-quality layer-to-core allocation
+        while keeping DVFS levels fixed at the baseline level (nominal frequency).
+        This established mapping is then used as the anchor for the Stage 2 per-core sweep.
+        """
+        import random
+        baseline_level = 0 if 0 in self.dvfs_level_choices else min(self.dvfs_level_choices)
+        logger.info("Starting Stage 1: Finding anchor mapping via core-only GA (DVFS level=%s)...", baseline_level)
 
-    def plot_comparison(self, hall_of_fame):
-        """Plot the comparison between the GA Pareto front and the naive DVFS results."""
-        import matplotlib.pyplot as plt
-        import os
-        from stream.visualization.perfetto import convert_scme_to_perfetto_json
+        # 1. Temporarily force all nodes to baseline DVFS level
+        original_valid_allocations = self.valid_allocations
+        num_flex_cores = len(self.flexible_nodes)
+        num_flex_dvfs = len(self.flexible_nodes_dvfs)
         
-        os.makedirs(self.output_path, exist_ok=True)
-        fig_path = os.path.join(self.output_path, "dvfs_comparison.png")
+        # Chromosome for core-only GA: [core_gene_0, ..., core_gene_N, dvfs_gene_0, ..., dvfs_gene_M]
+        # We constrain the DVFS genes to only allow the baseline_level.
+        constrained_allocations = []
+        for i, choices in enumerate(original_valid_allocations):
+            if i < num_flex_cores:
+                constrained_allocations.append(choices) # Core genes remain flexible
+            else:
+                constrained_allocations.append([baseline_level]) # DVFS genes fixed
+        
+        # 2. Initialize a "mini" GA for core-only optimization
+        mini_ga = GeneticAlgorithm(
+            self.fitness_evaluator,
+            self.individual_length,
+            constrained_allocations,
+            num_generations=min(self.nb_generations, 50), # Fewer generations for baseline
+            num_individuals=self.nb_individuals,
+            num_processes=self.num_procs,
+            prob_crossover=self.prob_crossover,
+            prob_mutation=self.prob_mutation,
+            fitness_cache_size=self.fitness_cache_size,
+        )
+        
+        # 3. Run the core-only GA
+        _, hof = mini_ga.run()
+        best_individual = hof[-1]
+        
+        # Extract the core-allocation subset from the best individual
+        anchor_core_allocs = list(best_individual[:num_flex_cores])
+        self._preferred_baseline_core_allocs = tuple(anchor_core_allocs)
+        
+        # 4. Save results for Stage 1
+        stage1_dir = os.path.join(self.output_path, 'stage1_base')
+        os.makedirs(stage1_dir, exist_ok=True)
 
-        # 1. Get GA Pareto points
+        # Plot Pareto Front for Stage 1
+        import matplotlib.pyplot as plt
         pf_energies = []
         pf_latencies = []
-        # Analyze/Save ALL Pareto Individuals
-        pareto_dir = os.path.join(self.output_path, "pareto_scmes")
-        os.makedirs(pareto_dir, exist_ok=True)
+        for ind in hof:
+            res = self.fitness_evaluator.get_fitness(ind, return_scme=False)
+            pf_energies.append(res[0])
+            pf_latencies.append(res[1])
         
-        for idx, ind in enumerate(hall_of_fame):
-            pf_energies.append(ind.fitness.values[0])
-            pf_latencies.append(ind.fitness.values[1])
-            # Only save SCMEs for unique fitness points to save space/time
-            # Or just save top 5
-            if idx < 5 or idx % 10 == 0: 
-                 res = self.fitness_evaluator.get_fitness(ind, return_scme=True)
-                 if len(res) == 3:
-                     p_scme = res[2]
-                     json_name = f"scme_pareto_{idx}_E{ind.fitness.values[0]:.2e}_L{ind.fitness.values[1]:.2e}.json"
-                     convert_scme_to_perfetto_json(p_scme, self.cost_lut, os.path.join(pareto_dir, json_name))
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.scatter(pf_latencies, pf_energies, c='blue', label='Pareto Front (Core-only)')
+        ax.set_xlabel("Latency (Cycles)")
+        ax.set_ylabel("Energy (uJ)")
+        ax.set_title("Stage 1: Core-Allocation Pareto Front (Fixed Nominal DVFS)")
+        ax.grid(True, alpha=0.3)
+        ax.legend()
+        plt.savefig(os.path.join(stage1_dir, "stage1_pareto.png"))
+        plt.close()
 
-        # 2. Get Naive DVFS point
-        # Take the best latency mapping and set DVFS to 0 as baseline
-        best_latency_ind = sorted(hall_of_fame, key=lambda x: x.fitness.values[1])[0]
-        num_flex = len(self.flexible_nodes)
-        core_allocs = best_latency_ind[:num_flex]
-
-        # Evaluate base mapping (No DVFS) -> Level 0 Baseline
-        self.fitness_evaluator.set_node_core_allocations(core_allocations=core_allocs)
-        for node in self.workload.node_list:
-            node.set_dvfs_level(0)
-            node.set_dvfs_mode("Global 0") # Temporary tag for export
+        # Save nominal baseline SCME (Stage 1 Best result)
+        res = self.fitness_evaluator.get_fitness(best_individual, return_scme=True)
+        nominal_scme = res[2] if len(res) == 3 else None
         
-        # Explicit type checking for base_result
-        base_result = self.fitness_evaluator.get_fitness(core_allocs, return_scme=True)
-        if len(base_result) == 3:
-            base_energy = base_result[0]
-            base_latency = base_result[1]
-            base_scme = base_result[2]
-            # Save Baseline SCME
-            convert_scme_to_perfetto_json(base_scme, self.cost_lut, os.path.join(self.output_path, "scme_baseline_level0.json"))
+        if nominal_scme:
+            self._save_scme_to_json(nominal_scme, os.path.join(stage1_dir, 'stage1_best_edp.json'))
+            logger.info("Stage 1 anchor mapping found. Best Energy: %.2e, Latency: %.2e", 
+                        nominal_scme.energy, nominal_scme.latency)
         else:
-            raise ValueError("Fitness evaluator did not return SCME even though return_scme=True was set.")
+            logger.error("Stage 1 nominal evaluation failed to produce SCME.")
 
-        # 3. Per-Core DVFS Baseline Sweep (full or sampled combinations)
-        baseline_data = self.compute_per_core_baseline(core_allocs)
-        global_energies = baseline_data["global_energies"]
-        global_latencies = baseline_data["global_latencies"]
-        global_assignments = baseline_data["global_assignments"]
-        active_cores = baseline_data["active_cores"]
-        exhaustive_baseline = baseline_data["exhaustive_baseline"]
-        base_energy = baseline_data["base_energy"]
-        base_latency = baseline_data["base_latency"]
-
-        metric_data = self.compute_comparison_metrics(
-            pf_energies,
-            pf_latencies,
-            global_energies,
-            global_latencies,
-            global_assignments,
-            base_energy,
-            base_latency,
-        )
-
-        pf_energies = metric_data["pf_energies"]
-        pf_latencies = metric_data["pf_latencies"]
-        global_energies = metric_data["global_energies"]
-        global_latencies = metric_data["global_latencies"]
-        base_energy_norm = metric_data["base_energy_norm"]
-        base_latency_norm = metric_data["base_latency_norm"]
-        best_ga_edp_idx = metric_data["best_ga_edp_idx"]
-        best_ga_edp = metric_data["best_ga_edp"]
-        best_global_edp_idx = metric_data["best_global_edp_idx"]
-        best_global_edp = metric_data["best_global_edp"]
-        best_global_assignment = metric_data["best_global_assignment"]
-        baseline_edp = metric_data["baseline_edp"]
-        ga_pareto_curve = metric_data["ga_pareto_curve"]
-        global_points = metric_data["global_points"]
-        ga_auc = metric_data["ga_auc"]
-        global_auc = metric_data["global_auc"]
-        energy_2x_ga = metric_data["energy_2x_ga"]
-        energy_2x_global = metric_data["energy_2x_global"]
-        energy_2x_improvement = metric_data["energy_2x_improvement"]
-        avg_latency_reduction = metric_data["avg_latency_reduction"]
-
-        energy_2x_gap_str = ""
-        if energy_2x_ga and energy_2x_global:
-            energy_2x_gap_str = f" | GA is {energy_2x_improvement:.1f}% lower energy"
-
-        logger.info("="*40)
-        logger.info("DVFS Optimization Results")
-        logger.info(
-            "Per-core baseline points: %s (%s)",
-            len(global_points),
-            "exhaustive" if exhaustive_baseline else "sampled",
-        )
-        logger.info(f"Baseline (Level 0) EDP: {baseline_edp:.4f} (Normalized)")
-        logger.info(
-            "Best Per-Core Baseline EDP: %.4f (assignment=%s over cores=%s)",
-            best_global_edp,
-            list(best_global_assignment),
-            active_cores,
-        )
-        logger.info(f"Best GA Co-Optimization EDP: {best_ga_edp:.4f}")
-        logger.info(f"Improvement over Baseline (EDP): {(baseline_edp - best_ga_edp)/baseline_edp * 100:.2f}%")
-        # logger.info("-" * 20)
-        # logger.info(f"Global Scaling AUC: {global_auc:.4f}")
-        # logger.info(f"GA Pareto AUC: {ga_auc:.4f}")
-        # logger.info(f"Improvement (AUC): {(global_auc - ga_auc)/global_auc * 100:.2f}%")
-        logger.info("-" * 20)
-        logger.info(f"Energy @ 1.2x Latency (Iso-Latency):")
-        logger.info(f"  Global: {energy_2x_global if energy_2x_global else 'N/A'}")
-        logger.info(f"  GA    : {energy_2x_ga if energy_2x_ga else 'N/A'}{energy_2x_gap_str}")
-        if avg_latency_reduction:
-            logger.info(f"Avg Latency Reduction: {avg_latency_reduction:.2f} (Avg distance between curves)")
-        logger.info("="*40)
-
-        # 5. Prepare and plot comparison figure (plotting decoupled from computation)
-        plot_data = {
-            "pf_energies": pf_energies,
-            "pf_latencies": pf_latencies,
-            "ga_pareto_curve": ga_pareto_curve,
-            "best_ga_edp_idx": best_ga_edp_idx,
-            "best_ga_edp": best_ga_edp,
-            "global_energies": global_energies,
-            "global_latencies": global_latencies,
-            "best_global_edp_idx": best_global_edp_idx,
-            "best_global_edp": best_global_edp,
-            "exhaustive_baseline": exhaustive_baseline,
-            "energy_2x_ga": energy_2x_ga,
-            "energy_2x_global": energy_2x_global,
-            "base_energy": base_energy,
-            "base_latency": base_latency,
-            "base_energy_norm": base_energy_norm,
-            "base_latency_norm": base_latency_norm,
-        }
-        self.plot_comparison_figure(plot_data, fig_path)
-        if exhaustive_baseline:
-            exhaustive_fig_path = os.path.join(self.output_path, "dvfs_exhaustive_baseline_only.png")
-            self.plot_exhaustive_baseline_only(
-                global_energies=global_energies,
-                global_latencies=global_latencies,
-                best_global_edp_idx=best_global_edp_idx,
-                base_energy_norm=base_energy_norm,
-                base_latency_norm=base_latency_norm,
-                fig_path=exhaustive_fig_path,
-            )
-
-        # Attach Baseline metrics to the best SCME for external analysis
-        # "hall_of_fame" contains the best individuals. We assume the last one is good, 
-        # but let's pick the Best EDP individual to return as "The Result"
-        best_scme_ind = hall_of_fame[best_ga_edp_idx] # The individual corresponding to best EDP
-        
-        # We need to re-evaluate to get the SCME object
-        res = self.fitness_evaluator.get_fitness(best_scme_ind, return_scme=True)
-        final_scme = res[2] if len(res) == 3 else None
-        
-        final_scme_to_return = None
-        if final_scme:
-            final_scme.baseline_energy = base_energy
-            final_scme.baseline_latency = base_latency
-            final_scme.best_global_energy_norm = global_energies[best_global_edp_idx]
-            final_scme.best_global_latency_norm = global_latencies[best_global_edp_idx]
-            final_scme.best_ga_edp = best_ga_edp
-            final_scme.ga_auc = ga_auc
-            final_scme.global_auc = global_auc
-            final_scme.energy_2x_ga = energy_2x_ga
-            final_scme.energy_2x_global = energy_2x_global
-            final_scme.energy_2x_improvement = energy_2x_improvement
-            final_scme.avg_latency_reduction = avg_latency_reduction
-            final_scme_to_return = final_scme
-
-            self.export_core_dvfs_timeline(
-                final_scme,
-                os.path.join(self.output_path, "core_dvfs_timeline_ga_best.png"),
-                title="Core DVFS Timeline (Best GA EDP)",
-            )
-            
-            # Save the SCME for the best GA point
-            from stream.visualization.perfetto import convert_scme_to_perfetto_json
-            import pickle
-            convert_scme_to_perfetto_json(
-                final_scme,
-                self.cost_lut,
-                os.path.join(self.output_path, "scme_ga_best_edp.json")
-            )
-            with open(os.path.join(self.output_path, "scme_ga_best_edp.pkl"), "wb") as f:
-                pickle.dump(final_scme, f)
-            
-            logger.info(f"Saved Best EDP allocation SCME to scme_ga_best_edp.json/pkl (Energy: {final_scme.energy:.2e}, Latency: {final_scme.latency:.2e})")
-             
-        return final_scme_to_return
-
-    def compute_per_core_baseline(self, core_allocs: list[int]) -> dict[str, Any]:
-        """Compute per-core baseline sweep results independent from plotting."""
+    def _run_stage_2_baseline_sweep(self, core_allocs_list: list[int]):
+        """
+        [STAGE 2]: EXHAUSTIVE FREQUENCY SWEEP
+        Perform a sweep of per-core DVFS levels for the fixed anchor mapping.
+        Saves the best EDP SCME and an exhaustive search plot to the stage2 directory.
+        """
+        import multiprocessing
+        import os
+        import pickle
         from stream.visualization.perfetto import convert_scme_to_perfetto_json
-
-        cache_key = tuple(int(core_id) for core_id in core_allocs)
+        
+        cache_key = tuple(core_allocs_list)
         if cache_key in self._baseline_sweep_cache:
-            logger.info("Using cached per-core baseline sweep for core allocations: %s", list(cache_key))
-            return self._baseline_sweep_cache[cache_key]
-
-        base_energy = None
-        base_latency = None
+            logger.info("Stage 2 cache hit for baseline sweep.")
+            return
+        
         global_energies: list[float] = []
         global_latencies: list[float] = []
         global_assignments: list[tuple[int, ...]] = []
-
-        global_dir = os.path.join(self.output_path, "global_levels_scmes")
-        os.makedirs(global_dir, exist_ok=True)
-
+        
         active_cores = sorted(
             core.id
             for core in self.accelerator.cores.node_list
             if core.id != self.accelerator.offchip_core_id
         )
-        if not active_cores:
-            active_cores = [0]
-
-        candidate_cores = sorted(
-            {
-                int(core_id)
-                for node in self.flexible_nodes
-                for core_id in (
-                    node.core_allocation if isinstance(node.core_allocation, list) else [node.chosen_core_allocation]
-                )
-                if core_id is not None
-            }
-        )
-        logger.info(
-            "Baseline sweep core sets: active_core_ids=%s (all hardware cores), candidate_core_ids=%s",
-            active_cores,
-            candidate_cores,
-        )
-
+        if not active_cores: active_cores = [0]
+        
         baseline_assignments, exhaustive_baseline = self.generate_baseline_core_dvfs_assignments(active_cores)
-        logger.info(
-            "Per-core DVFS baseline sweep: active_cores=%s, levels=%s, evaluated=%s (%s).",
-            len(active_cores),
-            len(self.dvfs_level_choices),
-            len(baseline_assignments),
-            "exhaustive" if exhaustive_baseline else "sampled subset",
-        )
-
         baseline_level = 0 if 0 in self.dvfs_level_choices else min(self.dvfs_level_choices)
         total_baseline_assignments = len(baseline_assignments)
-        progress_interval = max(1, total_baseline_assignments // 20)
-
-        # ---------------------------------------------------------------------
-        # Extract NOMINAL Temporal Schedule
-        # ---------------------------------------------------------------------
-        logger.info("Evaluating nominal baseline to extract strict temporal schedule...")
-        for node in self.workload.node_list:
-            core = node.chosen_core_allocation
-            node.set_dvfs_level(baseline_level)
-            node.set_dyn_energy_lut(self.dvfs_luts["dyn_energy_dvfs_lut"])
-            node.set_dvfs_mode("PerCoreBaseline")
         
-        nominal_fitness = self.fitness_evaluator.get_fitness(core_allocs, return_scme=True)
-        nominal_scme = nominal_fitness[2]
-        # Store a list of node IDs based on the scheduling sequence
-        if hasattr(nominal_scme, 'scheduled_node_sequence') and nominal_scme.scheduled_node_sequence:
-            nominal_schedule_ids = [n.id for n in nominal_scme.scheduled_node_sequence]
-        else:
-            logger.warning("No scheduled_node_sequence found on nominal_scme!")
-            nominal_schedule_ids = []
-
-        logger.info(f"Extracted strict nominal schedule of length {len(nominal_schedule_ids)}.")
-        # ---------------------------------------------------------------------
-
+        self.fitness_evaluator.set_node_core_allocations(core_allocations=core_allocs_list)
+        
         if exhaustive_baseline and self.num_procs > 1 and total_baseline_assignments > 1:
             worker_count = min(self.num_procs, total_baseline_assignments)
-            logger.info(
-                "Running exhaustive per-core baseline sweep with multiprocessing (%s workers).",
-                worker_count,
-            )
-            chunksize = max(1, total_baseline_assignments // (worker_count * 8))
-            baseline_dvfs_tuple = tuple([baseline_level] * len(active_cores))
-            baseline_tuple_idx = None
-
+            chunksize = max(1, total_baseline_assignments // (worker_count * 4))
             with multiprocessing.Pool(
                 processes=worker_count,
                 initializer=init_baseline_worker,
-                initargs=(
-                    self.fitness_evaluator,
-                    core_allocs,
-                    active_cores,
-                    baseline_level,
-                    self.dvfs_luts["dyn_energy_dvfs_lut"],
-                    None, # was nominal_schedule_ids
-                ),
+                initargs=(self.fitness_evaluator, core_allocs_list, active_cores, baseline_level, self.dvfs_luts["dyn_energy_dvfs_lut"], None),
             ) as pool:
-                for assignment_idx, (assignment, result) in enumerate(
-                    zip(
-                        baseline_assignments,
-                        pool.imap(evaluate_baseline_assignment, baseline_assignments, chunksize=chunksize),
-                    ),
-                    start=1,
-                ):
+                for assignment, result in zip(baseline_assignments, pool.imap(evaluate_baseline_assignment, baseline_assignments, chunksize=chunksize)):
                     energy, latency = result
                     global_energies.append(energy)
                     global_latencies.append(latency)
                     global_assignments.append(assignment)
-
-                    if assignment == baseline_dvfs_tuple:
-                        base_energy, base_latency = energy, latency
-                        baseline_tuple_idx = assignment_idx
-
-                    if (
-                        assignment_idx == 1
-                        or assignment_idx == total_baseline_assignments
-                        or assignment_idx % progress_interval == 0
-                    ):
-                        logger.info(
-                            "Per-core baseline progress: %s/%s (%.1f%%)",
-                            assignment_idx,
-                            total_baseline_assignments,
-                            100.0 * assignment_idx / total_baseline_assignments,
-                        )
-
-            if baseline_tuple_idx is None:
-                logger.warning("Did not find baseline tuple in evaluated assignments; using first point as normalization baseline.")
         else:
-            for assignment_idx, assignment in enumerate(baseline_assignments, start=1):
-                core_to_level = {core: assignment[idx] for idx, core in enumerate(active_cores)}
+            for assignment in baseline_assignments:
+                core_to_level = {core: assignment[i] for i, core in enumerate(active_cores)}
                 for node in self.workload.node_list:
-                    core = node.chosen_core_allocation
-                    node_level = core_to_level.get(int(core), baseline_level) if core is not None else baseline_level
-                    node.set_dvfs_level(node_level)
-                    node.set_dyn_energy_lut(self.dvfs_luts["dyn_energy_dvfs_lut"])
-                    node.set_dvfs_mode("PerCoreBaseline")
-
-                g_res = self.fitness_evaluator.get_fitness(core_allocs, fixed_node_schedule=None)
-                energy_val = g_res[0]
-                latency_val = g_res[1]
-                if energy_val is None or latency_val is None:
-                    raise ValueError("Per-core baseline evaluation returned None for energy or latency.")
-
-                global_energies.append(float(energy_val))
-                global_latencies.append(float(latency_val))
+                    c = node.chosen_core_allocation
+                    node.set_dvfs_level(core_to_level.get(int(c), baseline_level) if c is not None else baseline_level)
+                g_res = self.fitness_evaluator.get_fitness(core_allocs_list)
+                global_energies.append(float(g_res[0]))
+                global_latencies.append(float(g_res[1]))
                 global_assignments.append(assignment)
-
-                if all(level == baseline_level for level in assignment):
-                    base_energy, base_latency = float(energy_val), float(latency_val)
-
-                if (
-                    assignment_idx == 1
-                    or assignment_idx == total_baseline_assignments
-                    or assignment_idx % progress_interval == 0
-                ):
-                    logger.info(
-                        "Per-core baseline progress: %s/%s (%.1f%%)",
-                        assignment_idx,
-                        total_baseline_assignments,
-                        100.0 * assignment_idx / total_baseline_assignments,
-                    )
-
-        if base_energy is None or base_latency is None:
-            base_energy = global_energies[0]
-            base_latency = global_latencies[0]
-
-        global_edps_abs = [e * l for e, l in zip(global_energies, global_latencies)]
-        best_global_idx_abs = global_edps_abs.index(min(global_edps_abs))
-        best_global_assignment_abs = global_assignments[best_global_idx_abs]
-        best_assignment_str = "_".join(map(str, best_global_assignment_abs))
-        best_core_to_level_abs = {
-            core: best_global_assignment_abs[idx] for idx, core in enumerate(active_cores)
-        }
-        for node in self.workload.node_list:
-            core = node.chosen_core_allocation
-            node_level = best_core_to_level_abs.get(int(core), baseline_level) if core is not None else baseline_level
-            node.set_dvfs_level(node_level)
-            node.set_dyn_energy_lut(self.dvfs_luts["dyn_energy_dvfs_lut"])
-            node.set_dvfs_mode("PerCoreBaselineBest")
-
-        best_g_res = self.fitness_evaluator.get_fitness(core_allocs, return_scme=True)
-        if len(best_g_res) == 3:
-            import pickle
-            convert_scme_to_perfetto_json(
-                best_g_res[2],
-                self.cost_lut,
-                os.path.join(global_dir, f"scme_best_per_core_assignment_{best_assignment_str}.json"),
-            )
-            with open(os.path.join(self.output_path, "scme_baseline_best_edp.pkl"), "wb") as f:
-                pickle.dump(best_g_res[2], f)
-
+        
+        # Find best EDP point from sweep
+        global_edps = [e * l for e, l in zip(global_energies, global_latencies)]
+        best_idx = global_edps.index(min(global_edps))
+        best_assignment = global_assignments[best_idx]
+        
+        # Save Stage 2 Specific Outputs
+        stage2_dir = os.path.join(self.output_path, 'stage2_dvfs_sweep')
+        os.makedirs(stage2_dir, exist_ok=True)
+        
+        # 1. Save results to cache
         baseline_result = {
             "global_energies": global_energies,
             "global_latencies": global_latencies,
             "global_assignments": global_assignments,
             "active_cores": active_cores,
             "exhaustive_baseline": exhaustive_baseline,
-            "base_energy": base_energy,
-            "base_latency": base_latency,
+            "base_energy": global_energies[0],
+            "base_latency": global_latencies[0],
         }
         self._baseline_sweep_cache[cache_key] = baseline_result
         self._save_baseline_sweep_cache()
-        return baseline_result
+        
+        # 2. Re-evaluate best EDP assignment to get SCME and save it
+        core_to_level_best = {core: best_assignment[i] for i, core in enumerate(active_cores)}
+        for node in self.workload.node_list:
+            c = node.chosen_core_allocation
+            node.set_dvfs_level(core_to_level_best.get(int(c), baseline_level) if c is not None else baseline_level)
+        
+        best_res = self.fitness_evaluator.get_fitness(core_allocs_list, return_scme=True)
+        if len(best_res) == 3:
+            best_scme = best_res[2]
+            scme_save_path = os.path.join(stage2_dir, 'stage2_best_edp.json')
+            convert_scme_to_perfetto_json(best_scme, self.cost_lut, scme_save_path)
+            with open(os.path.join(stage2_dir, "stage2_best_edp.pkl"), "wb") as f:
+                pickle.dump(best_scme, f)
+        
+        # 3. Save exhaustive plot
+        self.plot_exhaustive_baseline_only(
+            global_energies,
+            global_latencies,
+            best_idx,
+            global_energies[0], 
+            global_latencies[0],
+            os.path.join(stage2_dir, "stage2_exhaustive_search.png")
+        )
+        
+        logger.info("Stage 2 baseline sweep completed.")
+
+    def _run_stage_3_ga_optimization(self, anchor_mapping: list[int]):
+        """
+        [STAGE 3]: GENETIC ALGORITHM (CO-OPTIMIZATION SEARCH)
+        Initialize the GA using Pareto-optimal seeds extracted from Stage 2 results.
+        """
+        import random
+        
+        # 1. Prepare GA Seeds directly using Stage 2 results
+        pop_seeds = []
+        num_flex = len(self.flexible_nodes)
+        num_dvfs = len(self.flexible_nodes_dvfs)
+        
+        cache_key = tuple(anchor_mapping)
+        baseline_data = self._baseline_sweep_cache.get(cache_key)
+        
+        if baseline_data:
+            # Extract Pareto-guided seeds from the cached sweep results
+            # This follows the logic of get_baseline_best_edp_seed_chromosomes but using in-memory baseline_data
+            energies = baseline_data["global_energies"]
+            latencies = baseline_data["global_latencies"]
+            assignments = baseline_data["global_assignments"]
+            
+            pareto_assignments = self.extract_pareto_assignments(energies, latencies, assignments)
+            for assignment in pareto_assignments:
+                # Chromosome = [anchor_mapping] + [per-core-to-per-node mapping]
+                # Stage 2 sweep uses per-core assignments, we need to map them back to nodes
+                active_cores = baseline_data["active_cores"]
+                core_to_level = {core: assignment[i] for i, core in enumerate(active_cores)}
+                
+                dvfs_genes = []
+                baseline_level = 0 if 0 in self.dvfs_level_choices else min(self.dvfs_level_choices)
+                for node in self.flexible_nodes_dvfs:
+                    c = node.chosen_core_allocation
+                    level = core_to_level.get(int(c), baseline_level) if c is not None else baseline_level
+                    dvfs_genes.append(level)
+                
+                pop_seeds.append(anchor_mapping + dvfs_genes)
+            
+            logger.info("Initialized GA with %s seeds from Stage 2 Pareto results.", len(pop_seeds))
+        else:
+            logger.warning("No Stage 2 results found for %s! GA starting with default population.", cache_key)
+
+        # 2. Add extra 'blanket' seeds for diversification
+        for level in self.dvfs_level_choices:
+            core_genes = [random.choice(self.valid_allocations[i]) for i in range(num_flex)]
+            dvfs_genes = [level for _ in range(num_dvfs)]
+            pop_seeds.append(core_genes + dvfs_genes)
+        
+        # 3. Initialize and run GA
+        self.genetic_algorithm = GeneticAlgorithm(
+            self.fitness_evaluator,
+            self.individual_length,
+            self.valid_allocations,
+            self.nb_generations,
+            self.nb_individuals,
+            pop=pop_seeds,
+            num_processes=self.num_procs,
+            prob_crossover=self.prob_crossover,
+            prob_mutation=self.prob_mutation,
+            fitness_cache_size=self.fitness_cache_size,
+            early_stopping_patience=self.early_stopping_patience,
+            early_stopping_min_generations=self.early_stopping_min_generations,
+        )
+        pop, hof = self.genetic_algorithm.run()
+        logger.info("Finished Genetic Algorithm.")
+        return hof
+
+    def is_leaf(self) -> bool:
+        return True
+
+    def plot_comparison(self, hall_of_fame):
+        """
+        Extract results from Stage 3 and compare them against Stage 1/2 baselines.
+        Generates Pareto plots and saves the top-performing co-optimized configurations.
+        """
+        import os
+        import pickle
+        from stream.visualization.perfetto import convert_scme_to_perfetto_json
+
+        stage3_dir = os.path.join(self.output_path, 'stage3_co')
+        os.makedirs(stage3_dir, exist_ok=True)
+
+        # 1. Extract GA Pareto points (Energy, Latency)
+        pf_energies = [ind.fitness.values[0] for ind in hall_of_fame]
+        pf_latencies = [ind.fitness.values[1] for ind in hall_of_fame]
+
+        # 2. Retrieve Stage 2 Baseline Data from Cache
+        anchor_key = tuple(self._preferred_baseline_core_allocs) if self._preferred_baseline_core_allocs else None
+        baseline_data = self._baseline_sweep_cache.get(anchor_key)
+        
+        if not baseline_data:
+            logger.error("Stage 2 result missing from cache; comparison aborted.")
+            return None
+
+        # 3. Compute Comparison Metrics (Area Under Curve, EDP improvements, etc.)
+        metrics = self.compute_comparison_metrics(
+            pf_energies, pf_latencies,
+            baseline_data["global_energies"], baseline_data["global_latencies"],
+            baseline_data["global_assignments"],
+            baseline_data["base_energy"], baseline_data["base_latency"]
+        )
+
+        # 4. Logging Summary
+        logger.info("="*40)
+        logger.info("DVFS CO-OPTIMIZATION SUMMARY")
+        logger.info(f"Baseline (Nominal) EDP: {metrics['baseline_edp']:.4f}")
+        logger.info(f"Best Stage 2 Sweep EDP: {metrics['best_global_edp']:.4f}")
+        logger.info(f"Best Stage 3 GA EDP   : {metrics['best_ga_edp']:.4f}")
+        logger.info(f"Overall EDP Improvement: {(metrics['baseline_edp'] - metrics['best_ga_edp'])/metrics['baseline_edp']*100:.1f}%")
+        
+        improvement_15x = metrics['energy_at_15x_improvement']
+        improvement_15x_str = f"{improvement_15x:.1f}%" if improvement_15x is not None else "N/A"
+        logger.info(f"Energy Improvement @ 1.5x Latency: {improvement_15x_str}")
+        logger.info("="*40)
+
+        # 5. Generate Comparison Plot
+        plot_data = {
+            **metrics, 
+            "exhaustive_baseline": baseline_data["exhaustive_baseline"],
+            "base_energy": baseline_data["base_energy"],
+            "base_latency": baseline_data["base_latency"]
+        }
+        self.plot_comparison_figure(plot_data, os.path.join(stage3_dir, 'dvfs_comparison.png'))
+
+        # 6. Save Best SCME (The 'Winning' Configuration)
+        best_ind = hall_of_fame[metrics['best_ga_edp_idx']]
+        res = self.fitness_evaluator.get_fitness(best_ind, return_scme=True)
+        final_scme = res[2] if len(res) == 3 else None
+
+        if final_scme:
+            # Attach metrics metadata to the SCME object for downstream tools
+            for key, val in metrics.items():
+                setattr(final_scme, key, val) 
+            
+            # Save to Stage 3 Dir
+            self._save_scme_to_json(final_scme, os.path.join(stage3_dir, 'stage3_best_edp.json'))
+            with open(os.path.join(stage3_dir, 'stage3_best_edp.pkl'), "wb") as f:
+                pickle.dump(final_scme, f)
+            
+            # Generate Timeline Visualization for the best co-optimized point
+            self.export_core_dvfs_timeline(
+                final_scme, 
+                os.path.join(stage3_dir, "stage3_best_timeline.png"),
+                title="Co-Optimized Core DVFS Timeline"
+            )
+
+        return final_scme
 
     def _load_baseline_sweep_cache(self):
         """Load baseline sweep cache from disk if enabled and available."""
@@ -899,19 +770,25 @@ class GeneticAlgorithmAllocationStage(Stage):
                 current_min_latency = l
 
         global_points = sorted(zip(global_energies_norm, global_latencies_norm))
-        min_energy_bound = global_points[0][0] if global_points else 0.0
+        global_pareto_curve: list[tuple[float, float]] = []
+        current_min_latency = float("inf")
+        for e, l in global_points:
+            if l < current_min_latency:
+                global_pareto_curve.append((e, l))
+                current_min_latency = l
+
+        min_energy_bound = min(ga_pareto_curve[0][0], global_pareto_curve[0][0]) if ga_pareto_curve and global_pareto_curve else 0.0
 
         ga_auc = self._calculate_auc(ga_pareto_curve, min_energy_bound)
-        global_auc = self._calculate_auc(global_points)
-        ga_auc, global_auc = 0.0, 0.0
+        global_auc = self._calculate_auc(global_pareto_curve, min_energy_bound)
 
-        target_latency = 1.2
-        energy_2x_ga = self._get_value_at_target(target_latency, ga_pareto_curve, x_axis="latency")
-        energy_2x_global = self._get_value_at_target(target_latency, global_points, x_axis="latency")
+        target_latency = 1.5
+        energy_at_15x_ga = self._get_value_at_target(target_latency, ga_pareto_curve, x_axis="latency")
+        energy_at_15x_global = self._get_value_at_target(target_latency, global_pareto_curve, x_axis="latency")
 
-        energy_2x_improvement = 0.0
-        if energy_2x_ga and energy_2x_global:
-            energy_2x_improvement = ((energy_2x_global - energy_2x_ga) / energy_2x_global) * 100
+        energy_at_15x_improvement = None
+        if energy_at_15x_ga and energy_at_15x_global:
+            energy_at_15x_improvement = ((energy_at_15x_global - energy_at_15x_ga) / energy_at_15x_global) * 100
 
         avg_latency_reduction = None
         if global_auc > 0 and ga_auc > 0:
@@ -936,18 +813,16 @@ class GeneticAlgorithmAllocationStage(Stage):
             "global_points": global_points,
             "ga_auc": ga_auc,
             "global_auc": global_auc,
-            "energy_2x_ga": energy_2x_ga,
-            "energy_2x_global": energy_2x_global,
-            "energy_2x_improvement": energy_2x_improvement,
+            "energy_at_15x_ga": energy_at_15x_ga,
+            "energy_at_15x_global": energy_at_15x_global,
+            "energy_at_15x_improvement": energy_at_15x_improvement,
             "avg_latency_reduction": avg_latency_reduction,
         }
 
     def plot_comparison_figure(self, plot_data: dict[str, Any], fig_path: str):
         """Render comparison figure from precomputed data only."""
-        energy_2x_ga = plot_data["energy_2x_ga"]
-        energy_2x_global = plot_data["energy_2x_global"]
-        energy_2x_ga_str = f"{energy_2x_ga:.2f}" if energy_2x_ga else "N/A"
-        energy_2x_global_str = f"{energy_2x_global:.2f}" if energy_2x_global else "N/A"
+        energy_at_15x_ga = plot_data["energy_at_15x_ga"]
+        energy_at_15x_ga_str = f"{energy_at_15x_ga:.2f}" if energy_at_15x_ga else "N/A"
 
         pf_energies = plot_data["pf_energies"]
         pf_latencies = plot_data["pf_latencies"]
@@ -971,7 +846,7 @@ class GeneticAlgorithmAllocationStage(Stage):
         best_baseline_energy_norm = global_energies[best_global_edp_idx]
         best_baseline_latency_norm = global_latencies[best_global_edp_idx]
 
-        plt.scatter(pf_energies, pf_latencies, c="red", label=f"Co-optimized GA (E@1.2xL={energy_2x_ga_str})", alpha=0.4, s=20, zorder=3)
+        plt.scatter(pf_energies, pf_latencies, c="red", label=f"Co-optimized GA (E@1.5xL={energy_at_15x_ga_str})", alpha=0.4, s=20, zorder=3)
         plt.scatter(
             [best_ga_energy_norm],
             [best_ga_latency_norm],
@@ -987,9 +862,9 @@ class GeneticAlgorithmAllocationStage(Stage):
             ga_px, ga_py = zip(*ga_pareto_curve)
             plt.plot(ga_px, ga_py, 'r--', alpha=0.3, label='GA Pareto Boundary')
 
-        baseline_label = (
-            f"Post-scheduling per-core Pareto (n={{n_pareto}}, E@1.2xL={energy_2x_global_str})"
-        )
+        energy_at_15x_global = plot_data["energy_at_15x_global"]
+        energy_at_15x_global_str = f"{energy_at_15x_global:.2f}" if energy_at_15x_global else "N/A"
+        baseline_label = f"Post-scheduling per-core Pareto (n={{n_pareto}}, E@1.5xL={energy_at_15x_global_str})"
 
         baseline_points = sorted(zip(global_energies, global_latencies))
         baseline_pareto_curve: list[tuple[float, float]] = []
@@ -1008,7 +883,7 @@ class GeneticAlgorithmAllocationStage(Stage):
                 marker='o',
                 s=45,
                 alpha=0.7,
-                label=baseline_label.format(n_pareto=len(baseline_pareto_curve)),
+                label=baseline_label.replace("{n_pareto}", str(len(baseline_pareto_curve))),
                 zorder=1,
             )
             plt.plot(baseline_px, baseline_py, color='green', linestyle='-', alpha=0.35, zorder=1)
@@ -1114,57 +989,6 @@ class GeneticAlgorithmAllocationStage(Stage):
         plt.close()
         logger.info("Core DVFS timeline saved to %s", output_file)
 
-    def plot_bandwidth_comparison(self, scme_base, scme_comp):
-        """Plots off-chip bandwidth usage of Baseline vs Comparison (e.g., Level 1)."""
-        import matplotlib.pyplot as plt
-        import numpy as np
-        
-        fig, ax = plt.subplots(figsize=(12, 6))
-        
-        def get_bw_profile(scme):
-            # Aggregate transfer events
-            events = []
-            acc = scme.accelerator
-            # Go through all links
-            for links in acc.communication_manager.all_pair_links.values():
-                for link_pair in links:
-                    for link in link_pair:
-                         # Filter for off-chip links (DRAM) if possible, or just all links
-                         # Assuming 'DRAM' or similar in name for offchip, or just plot all for congestion proxy
-                         for event in link.events:
-                             if (event.end - event.start) > 0:
-                                 events.append((event.start, event.end, link.bandwidth)) # Storing util or BW?
-            
-            # Simplified: Plot 'Active Transfers' count or similar, since raw BW is hard to sum without time-binning
-            # Better: Use CostModelEvaluation properties if available.
-            # Fallback: Time-binning
-            max_time = int(scme.latency)
-            bins = np.zeros(max_time // 100 + 1) # Downsample 
-            # This is complex to do efficiently in Python loop for many events. 
-            # Alternative: Just return the SCME latency for annotation
-            return max_time
-            
-        # Since full BW plotting is complex, let's plot a simplified "Activity" view or just annotated latencies
-        # Real "Slower is Faster" proof requires looking at Communication contention.
-        # We will save the detailed SCMEs (already done above) and user can analyze in Perfetto.
-        # Here we just output a text summary or simple bar chart of components.
-        
-        # Breakdown Latency
-        labels = ['Level 0', 'Level 1']
-        latencies = [scme_base.latency, scme_comp.latency]
-        
-        ax.bar(labels, latencies, color=['gray', 'green'])
-        ax.set_ylabel("Total Latency (Cycles)")
-        ax.set_title("Latency Comparison: Max Freq (L0) vs Slower (L1)\n(Slower Logic -> Less Contention -> Faster System)")
-        
-        # Annotate
-        for i, v in enumerate(latencies):
-            ax.text(i, v, str(int(v)), ha='center', va='bottom')
-            
-        bw_fig_path = os.path.join(self.output_path, "bandwidth_latency_comparison.png")
-        plt.savefig(bw_fig_path)
-        plt.close()
-
     def generate_baseline_core_dvfs_assignments(self, active_cores: list[int]) -> tuple[list[tuple[int, ...]], bool]:
         """Generate per-core DVFS assignments.
 
@@ -1224,28 +1048,6 @@ class GeneticAlgorithmAllocationStage(Stage):
         if log_distribution:
             logger.info("Spread core-allocation seed uses core load distribution: %s", dict(sorted(core_load.items())))
         return core_allocs
-
-    def get_spread_core_allocation_pool(self, pool_size: int) -> list[list[int]]:
-        """Generate diverse core-allocation chromosomes for seeding.
-
-        Deterministic round-robin across each node's valid cores to avoid fixing one core-allocation.
-        """
-        pool_size = max(1, int(pool_size))
-        if not self.flexible_nodes:
-            return [[]]
-
-        pool: list[list[int]] = []
-        for seed_idx in range(pool_size):
-            alloc: list[int] = []
-            for node_idx, node in enumerate(self.flexible_nodes):
-                candidate_cores = node.core_allocation if isinstance(node.core_allocation, list) else [node.core_allocation]
-                candidate_cores = [int(core_id) for core_id in candidate_cores if core_id is not None]
-                if not candidate_cores:
-                    raise ValueError(f"No valid core allocation candidates for node {node.name}.")
-                core_pick = candidate_cores[(seed_idx + node_idx) % len(candidate_cores)]
-                alloc.append(core_pick)
-            pool.append(alloc)
-        return pool
 
     def plot_exhaustive_baseline_only(
         self,
@@ -1312,178 +1114,20 @@ class GeneticAlgorithmAllocationStage(Stage):
                 best_latency = latency
         return pareto_assignments
 
-    def get_baseline_best_edp_seed_chromosomes(
-        self,
-        target_seed_count: int,
-    ) -> tuple[list[list[int]], bool]:
-        """Run baseline sweep first and convert Pareto points into GA seed chromosomes.
-
-        Core-allocation genes are diversified and not fixed to the baseline anchor allocation.
-        """
-        core_allocs = self.get_spread_core_allocations(log_distribution=False)
-        self._preferred_baseline_core_allocs = tuple(core_allocs)
-        self.fitness_evaluator.set_node_core_allocations(core_allocs)
-        active_cores = sorted(
-            core.id
-            for core in self.accelerator.cores.node_list
-            if core.id != self.accelerator.offchip_core_id
-        )
-        if not active_cores:
-            active_cores = [0]
-        total_state_space = len(self.dvfs_level_choices) ** len(active_cores)
-
-        old_max_baseline_combinations = self.max_baseline_combinations
-        if self.force_exhaustive_seed_baseline:
-            if total_state_space <= self.max_seed_baseline_state_space:
-                self.max_baseline_combinations = max(self.max_baseline_combinations, total_state_space)
-                logger.info(
-                    "For GA seeding: forcing exhaustive per-core baseline sweep (state-space=%s).",
-                    total_state_space,
-                )
+    def _save_scme_to_json(self, scme, path):
+        import os
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        try:
+            from stream.visualization.perfetto import convert_scme_to_perfetto_json
+            cost_lut = getattr(self, "cost_lut", None)
+            if cost_lut is not None:
+                convert_scme_to_perfetto_json(scme, cost_lut, path)
             else:
-                logger.warning(
-                    "For GA seeding: exhaustive baseline state-space too large (%s > %s); falling back to sampled baseline sweep.",
-                    total_state_space,
-                    self.max_seed_baseline_state_space,
-                )
-
-        baseline_data = self.compute_per_core_baseline(core_allocs)
-        self.max_baseline_combinations = old_max_baseline_combinations
-
-        assignments = baseline_data["global_assignments"]
-        energies = baseline_data["global_energies"]
-        latencies = baseline_data["global_latencies"]
-        exhaustive_baseline = baseline_data["exhaustive_baseline"]
-        active_cores = baseline_data["active_cores"]
-
-        pareto_assignments = self.extract_pareto_assignments(energies, latencies, assignments)
-        pareto_set = set(pareto_assignments)
-        pareto_points = [
-            (energy, latency, assignment)
-            for energy, latency, assignment in zip(energies, latencies, assignments)
-            if assignment in pareto_set
-        ]
-        if not pareto_points:
-            return [], exhaustive_baseline
-
-        pareto_points_sorted = sorted(
-            pareto_points,
-            key=lambda p: (p[0] * p[1], p[1], p[0]),
-        )
-        pareto_assignments_ranked = [assignment for _, _, assignment in pareto_points_sorted]
-
-        core_seed_pool = self.get_spread_core_allocation_pool(max(target_seed_count, len(pareto_assignments_ranked)))
-        node_key_to_seed_pos = {
-            (node.id, node.sub_id): idx for idx, node in enumerate(self.flexible_nodes)
-        }
-
-        baseline_level = 0 if 0 in self.dvfs_level_choices else min(self.dvfs_level_choices)
-        num_flex = len(self.flexible_nodes)
-        seen: set[tuple[int, ...]] = set()
-        seed_chromosomes: list[list[int]] = []
-
-        for assignment in pareto_assignments_ranked:
-            core_to_level = {core: assignment[idx] for idx, core in enumerate(active_cores)}
-
-            for core_alloc_seed in core_seed_pool:
-                dvfs_levels: list[int] = []
-                dvfs_gene_offset = num_flex
-                for i, node in enumerate(self.flexible_nodes_dvfs):
-                    node_key = (node.id, node.sub_id)
-                    seed_pos = node_key_to_seed_pos.get(node_key)
-                    if seed_pos is not None:
-                        core = core_alloc_seed[seed_pos]
-                    else:
-                        core = node.chosen_core_allocation
-                    chosen_level = core_to_level.get(int(core), baseline_level) if core is not None else baseline_level
-                    valid_choices = self.valid_allocations[dvfs_gene_offset + i]
-                    if chosen_level in valid_choices:
-                        dvfs_levels.append(chosen_level)
-                    else:
-                        dvfs_levels.append(valid_choices[0])
-
-                chromosome = list(core_alloc_seed) + dvfs_levels
-                chromosome_key = tuple(chromosome)
-                if chromosome_key not in seen:
-                    seed_chromosomes.append(chromosome)
-                    seen.add(chromosome_key)
-
-                if len(seed_chromosomes) >= target_seed_count:
-                    break
-
-            if len(seed_chromosomes) >= target_seed_count:
-                break
-
-        logger.info(
-            "Pareto-guided seed generation: pareto_points=%s, selected_seeds=%s, target=%s.",
-            len(pareto_assignments_ranked),
-            len(seed_chromosomes),
-            target_seed_count,
-        )
-
-        self.get_spread_core_allocations(log_distribution=True)
-
-        return seed_chromosomes, exhaustive_baseline
-
-    def get_communication_dic(self, accelerator):
-        active_links = accelerator.communication_manager.get_all_links()
-        node_events = {}
-        for cl in active_links:
-            for event in cl.events:
-                if (event.end - event.start) == 0:
-                    continue
-                if not event.tensor.memory_operand.is_output():
-                    continue
-                node_events[(event.tensor.origin.id, event.tensor.origin.sub_id)] = {
-                    "Runtime": event.end - event.start,
-                }
-        return node_events
-
-    def get_start_time_per_core(self):
-        start_time_per_core = defaultdict(list)
-        for node in self.workload.node_list:
-            start_time_per_core[node.chosen_core_allocation].append((node, node.start))
-        for core in start_time_per_core:
-            start_time_per_core[core].sort(key=lambda x: x[1])
-        return start_time_per_core
-
-    def get_runtime_per_node(self) -> dict[int, int]:
-        nodes_by_id = defaultdict(list)
-        for node in self.workload.node_list:
-            nodes_by_id[node.id].append(node)
-        runtime_per_node = {}
-        for node_id, nodes in nodes_by_id.items():
-            start = min(n.start for n in nodes)
-            end = max(n.get_end() for n in nodes)
-            runtime_per_node[node_id] = end - start
-        return runtime_per_node
-
-    def get_slack(self, node, node_event_dic, start_time_per_core):
-        cur_end = node.get_end()
-        cur_core = node.chosen_core_allocation
-        successor_nodes = list(self.workload.successors(node))
-        successor_starts = [n.start for n in successor_nodes]
-
-        output_transfer_time = node_event_dic.get((node.id, node.sub_id), {}).get("Runtime", 0)
-        est_successors = min(successor_starts) if successor_starts else cur_end + output_transfer_time
-
-        # find the next start time on the same core
-        est_core = float("inf")
-        for next_node, next_start in start_time_per_core.get(cur_core, []):
-            if next_start >= cur_end:
-                est_core = next_start
-                break
-
-        deadline = min(est_successors - output_transfer_time, est_core)
-        return deadline - cur_end
-
-    def compute_dvfs_level(self, runtime, slack):
-        freq_lut = self.dvfs_luts["freq_lut"]
-        sorted_levels = sorted(freq_lut.keys(), reverse=True)
-        for level in sorted_levels:
-            if level == 0:
-                continue
-            required_runtime = runtime / freq_lut[level]
-            if required_runtime <= (runtime + slack):
-                return level
-        return 0
+                raise ValueError("cost_lut is None")
+        except Exception as e:
+            import json
+            import logging
+            logging.getLogger(__name__).warning("Could not save perfetto JSON: " + str(e))
+            data = {"energy": getattr(scme, "energy", -1), "latency": getattr(scme, "latency", -1)}
+            with open(path, "w") as f:
+                json.dump(data, f, indent=4)
