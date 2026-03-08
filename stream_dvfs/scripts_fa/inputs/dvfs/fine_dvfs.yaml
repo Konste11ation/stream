@@ -1,67 +1,67 @@
 name: finer_dvfs
-# Switching penalties (in cycles)
-# dvfs_switching_penalty: Penalty for changing Voltage (requires regulator ramp).
-dvfs_switching_penalty: 100000 # 100k cycles ~ 1ms @ 1GHz
+# Switching speeds (in cycles)
+# dvfs_switching_speed: Speed of changing Voltage (requires regulator ramp).
+dvfs_switching_speed: 100000 # 100k cycles ~ 1ms @ 1GHz
 
 # Level Definitions
 # vdd: Voltage Level (used to group levels).
 # freq: Frequency Factor (used to scale runtime).
-# dyn_energy_dvfs: Energy Factor when node is in DVFS mode (Voltage Scaling allowed).
+# dyn_power: Energy Factor when node is in DVFS mode (Voltage Scaling allowed).
 #                  Model: E ~ V^2. Quadratic saving.
-# sta_energy: Static Power Factor.
+# sta_power: Static Power Factor.
 dvfs_level:
   0:
     - vdd: 1.0
     - freq: 1.0
-    - dyn_energy_dvfs: 1.0
-    - sta_energy: 1.0
+    - dyn_power: 1.0
+    - sta_power: 1.0
   1:
     - vdd: 0.95
     - freq: 0.92
-    - dyn_energy_dvfs: 0.90
-    - sta_energy: 0.95
+    - dyn_power: 0.90
+    - sta_power: 0.95
   2:
     - vdd: 0.9
     - freq: 0.85
-    - dyn_energy_dvfs: 0.82
-    - sta_energy: 0.90
+    - dyn_power: 0.82
+    - sta_power: 0.90
   3:
     - vdd: 0.85
     - freq: 0.78
-    - dyn_energy_dvfs: 0.73
-    - sta_energy: 0.85
+    - dyn_power: 0.73
+    - sta_power: 0.85
   4:
     - vdd: 0.8
     - freq: 0.71
-    - dyn_energy_dvfs: 0.63
-    - sta_energy: 0.80
+    - dyn_power: 0.63
+    - sta_power: 0.80
   5:
     - vdd: 0.75
     - freq: 0.61
-    - dyn_energy_dvfs: 0.55
-    - sta_energy: 0.75
+    - dyn_power: 0.55
+    - sta_power: 0.75
   6:
     - vdd: 0.7
     - freq: 0.52
-    - dyn_energy_dvfs: 0.48
-    - sta_energy: 0.70
+    - dyn_power: 0.48
+    - sta_power: 0.70
   7:
     - vdd: 0.65
     - freq: 0.44
-    - dyn_energy_dvfs: 0.40
-    - sta_energy: 0.65
+    - dyn_power: 0.40
+    - sta_power: 0.65
   8:
     - vdd: 0.6
     - freq: 0.34
-    - dyn_energy_dvfs: 0.34
-    - sta_energy: 0.60
+    - dyn_power: 0.34
+    - sta_power: 0.60
   9:
     - vdd: 0.55
     - freq: 0.22
-    - dyn_energy_dvfs: 0.30
-    - sta_energy: 0.55
+    - dyn_power: 0.30
+    - sta_power: 0.55
   10:
     - vdd: 0.5
     - freq: 0.11
-    - dyn_energy_dvfs: 0.25
-    - sta_energy: 0.50
+    - dyn_power: 0.25
+    - sta_power: 0.50

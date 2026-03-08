@@ -96,8 +96,8 @@ class DvfsOptimizationStage(Stage):
             node.set_dvfs_level(0)  # default DVFS level
             node.set_vdd_lut(self.dvfs_luts['vdd_lut'])
             node.set_freq_lut(self.dvfs_luts['freq_lut'])
-            node.set_dyn_energy_lut(self.dvfs_luts['dyn_energy_lut'])
-            node.set_sta_energy_lut(self.dvfs_luts['sta_energy_lut'])
+            node.set_dyn_power_lut(self.dvfs_luts['dyn_power_lut'])
+            node.set_sta_power_lut(self.dvfs_luts['sta_power_lut'])
 
     def get_communication_dic(self):
         """
@@ -445,16 +445,16 @@ class DvfsOptimizationStage(Stage):
                     c='orange', s=50, edgecolors='black', linewidths=2,
                     marker='D', label='Brute Force DVFS', zorder=4)
         # Plot ideal DVFS curve
-        dyn_energy_lut = self.dvfs_luts['dyn_energy_lut']
+        dyn_power_lut = self.dvfs_luts['dyn_power_lut']
         freq_lut = self.dvfs_luts['freq_lut']
         # Get sorted DVFS levels for consistent curve
-        dvfs_levels = sorted(dyn_energy_lut.keys())
+        dvfs_levels = sorted(dyn_power_lut.keys())
         ideal_energy = []
         ideal_latency = []
         
         for level in dvfs_levels:
             # Normalized energy from dynamic energy scaling
-            norm_energy = dyn_energy_lut[level]
+            norm_energy = dyn_power_lut[level]
             # Normalized latency from frequency scaling (inverse relationship)
             norm_latency = 1.0 / freq_lut[level]
             ideal_energy.append(norm_energy)
@@ -511,17 +511,17 @@ class DvfsOptimizationStage(Stage):
                         marker='D', label='Brute Force DVFS', zorder=4)
         
         # Plot ideal DVFS curve
-        dyn_energy_lut = self.dvfs_luts['dyn_energy_lut']
+        dyn_power_lut = self.dvfs_luts['dyn_power_lut']
         freq_lut = self.dvfs_luts['freq_lut']
         
         # Get sorted DVFS levels for consistent curve
-        dvfs_levels = sorted(dyn_energy_lut.keys())
+        dvfs_levels = sorted(dyn_power_lut.keys())
         ideal_energy = []
         ideal_latency = []
         
         for level in dvfs_levels:
             # Normalized energy from dynamic energy scaling
-            norm_energy = dyn_energy_lut[level]
+            norm_energy = dyn_power_lut[level]
             # Normalized latency from frequency scaling (inverse relationship)
             norm_latency = 1.0 / freq_lut[level]
             ideal_energy.append(norm_energy)

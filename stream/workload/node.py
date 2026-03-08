@@ -56,8 +56,8 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
         self.dvfs_mode: str = "Unset" # one of "DFS", "DVFS", "Unset", "Global"
         self.vdd_lut: dict[int, float] = {0: 1.0}  # default VDD LUT
         self.freq_lut: dict[int, float] = {0: 1.0}
-        self.dyn_energy_lut: dict[int, float] = {0: 1.0}
-        self.sta_energy_lut: dict[int, float] = {0: 1.0}
+        self.dyn_power_lut: dict[int, float] = {0: 1.0}
+        self.sta_power_lut: dict[int, float] = {0: 1.0}
         self.absolute_static_power: float | None = None
 
     def get_total_energy(self) -> float:
@@ -68,7 +68,7 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
         """Get the on-chip energy of running this node.
         
         Energy = Dynamic Energy + Static Energy
-        - Dynamic Energy scales with dyn_energy_lut (representing V^2 drop or activity scaling)
+        - Dynamic Energy scales with dyn_power_lut (representing V^2 drop or activity scaling)
         - Static Energy = Power * Time. 
           The user provides an absolute static power per core.
         """
@@ -79,15 +79,15 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
             # Cycles to Time (ns) = cycles * (1000 / MHz)
             clock_mhz = getattr(self, 'system_clock_mhz', 1000.0)
             time_ns = self.runtime * (1000.0 / clock_mhz)
-            base_sta_energy = self.absolute_static_power * time_ns
+            base_sta_power = self.absolute_static_power * time_ns
         else:
-            base_sta_energy = 0.0
+            base_sta_power = 0.0
         
         if self.dvfs_level != 0:
-            if self.dvfs_level in self.dyn_energy_lut and self.dvfs_level in self.sta_energy_lut:
+            if self.dvfs_level in self.dyn_power_lut and self.dvfs_level in self.sta_power_lut:
                 # 1. Scaling Factors
-                dyn_factor = self.dyn_energy_lut[self.dvfs_level]
-                sta_factor = self.sta_energy_lut[self.dvfs_level] # Represents Leakage Power scaling
+                dyn_factor = self.dyn_power_lut[self.dvfs_level]
+                sta_factor = self.sta_power_lut[self.dvfs_level] # Represents Leakage Power scaling
                 
                 # 2. Runtime scaling
                 freq_factor = self.freq_lut.get(self.dvfs_level, 1.0)
@@ -95,12 +95,12 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
                 
                 # 3. Component Estimation
                 scaled_dyn = base_dyn_energy * dyn_factor
-                scaled_sta = base_sta_energy * sta_factor * time_scaling
+                scaled_sta = base_sta_power * sta_factor * time_scaling
                 
                 return scaled_dyn + scaled_sta
                 
         # Non-DVFS or missing LUT returns combined baseline
-        return base_dyn_energy + base_sta_energy
+        return base_dyn_energy + base_sta_power
 
     def get_offchip_energy(self):
         """Get the off-chip energy of running this node."""
@@ -202,13 +202,13 @@ class Node(LayerNodeABC, metaclass=ABCMeta):
         """Set the frequency LUT for DVFS levels."""
         self.freq_lut = freq_lut
         
-    def set_dyn_energy_lut(self, dyn_energy_lut: dict[int, float]):
+    def set_dyn_power_lut(self, dyn_power_lut: dict[int, float]):
         """Set the dynamic energy LUT for DVFS levels."""
-        self.dyn_energy_lut = dyn_energy_lut
+        self.dyn_power_lut = dyn_power_lut
         
-    def set_sta_energy_lut(self, sta_energy_lut: dict[int, float]):
+    def set_sta_power_lut(self, sta_power_lut: dict[int, float]):
         """Set the static energy LUT for DVFS levels."""
-        self.sta_energy_lut = sta_energy_lut
+        self.sta_power_lut = sta_power_lut
 
     def set_absolute_static_power(self, power: float):
         """Set the absolute static leakage power (per core)."""

@@ -107,8 +107,8 @@ class StreamCostModelEvaluation:
                     
                     sta_factor = 1.0
                     dvfs_lev = getattr(node, 'dvfs_level', 0)
-                    if dvfs_lev != 0 and hasattr(node, 'sta_energy_lut'):
-                        sta_factor = node.sta_energy_lut.get(dvfs_lev, 1.0)
+                    if dvfs_lev != 0 and hasattr(node, 'sta_power_lut'):
+                        sta_factor = node.sta_power_lut.get(dvfs_lev, 1.0)
                     
                     scaled_leakage_power = base_leakage_power * sta_factor
                     core_leakage_powers[core_id].append(scaled_leakage_power)

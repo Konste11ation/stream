@@ -30,7 +30,7 @@ global_baseline_fitness_evaluator = None
 global_baseline_core_allocs = None
 global_baseline_active_cores = None
 global_baseline_level = 0
-global_baseline_dyn_energy_lut = None
+global_baseline_dyn_power_lut = None
 global_baseline_fixed_node_schedule = None
 
 def init_baseline_worker(
@@ -38,7 +38,7 @@ def init_baseline_worker(
     core_allocs,
     active_cores,
     baseline_level,
-    dyn_energy_lut,
+    dyn_power_lut,
     fixed_node_schedule=None,
 ):
     """Initialize worker process context for per-core baseline evaluation."""
@@ -46,14 +46,14 @@ def init_baseline_worker(
     global global_baseline_core_allocs
     global global_baseline_active_cores
     global global_baseline_level
-    global global_baseline_dyn_energy_lut
+    global global_baseline_dyn_power_lut
     global global_baseline_fixed_node_schedule
 
     global_baseline_fitness_evaluator = evaluator
     global_baseline_core_allocs = core_allocs
     global_baseline_active_cores = active_cores
     global_baseline_level = baseline_level
-    global_baseline_dyn_energy_lut = dyn_energy_lut
+    global_baseline_dyn_power_lut = dyn_power_lut
     global_baseline_fixed_node_schedule = fixed_node_schedule
 
 def evaluate_baseline_assignment(assignment: tuple[int, ...]) -> tuple[float, float]:
@@ -62,10 +62,10 @@ def evaluate_baseline_assignment(assignment: tuple[int, ...]) -> tuple[float, fl
     core_allocs = global_baseline_core_allocs
     active_cores = global_baseline_active_cores
     baseline_level = global_baseline_level
-    dyn_energy_lut = global_baseline_dyn_energy_lut
+    dyn_power_lut = global_baseline_dyn_power_lut
     fixed_node_schedule = global_baseline_fixed_node_schedule
 
-    if evaluator is None or core_allocs is None or active_cores is None or dyn_energy_lut is None:
+    if evaluator is None or core_allocs is None or active_cores is None or dyn_power_lut is None:
         raise RuntimeError("Baseline worker context is not initialized.")
 
     core_to_level = {core: assignment[idx] for idx, core in enumerate(active_cores)}
@@ -73,7 +73,7 @@ def evaluate_baseline_assignment(assignment: tuple[int, ...]) -> tuple[float, fl
         core = node.chosen_core_allocation
         node_level = core_to_level.get(int(core), baseline_level) if core is not None else baseline_level
         node.set_dvfs_level(node_level)
-        node.set_dyn_energy_lut(dyn_energy_lut)
+        node.set_dyn_power_lut(dyn_power_lut)
         node.set_dvfs_mode("PerCoreBaseline")
 
     energy, latency = evaluator.get_fitness(core_allocs, fixed_node_schedule=fixed_node_schedule)
@@ -177,8 +177,8 @@ class GeneticAlgorithmAllocationStage(Stage):
                 node.set_dvfs_level(0) # Default to max performance (level 0 usually)
                 node.set_vdd_lut(self.dvfs_luts["vdd_lut"])
                 node.set_freq_lut(self.dvfs_luts["freq_lut"])
-                node.set_dyn_energy_lut(self.dvfs_luts["dyn_energy_lut"])
-                node.set_sta_energy_lut(self.dvfs_luts["sta_energy_lut"])
+                node.set_dyn_power_lut(self.dvfs_luts["dyn_power_lut"])
+                node.set_sta_power_lut(self.dvfs_luts["sta_power_lut"])
                 node.set_dvfs_mode("DVFS")
                 
                 # Apply absolute static power from CACTI if available
@@ -425,7 +425,7 @@ class GeneticAlgorithmAllocationStage(Stage):
             with multiprocessing.Pool(
                 processes=worker_count,
                 initializer=init_baseline_worker,
-                initargs=(self.fitness_evaluator, core_allocs_list, active_cores, baseline_level, self.dvfs_luts["dyn_energy_lut"], None),
+                initargs=(self.fitness_evaluator, core_allocs_list, active_cores, baseline_level, self.dvfs_luts["dyn_power_lut"], None),
             ) as pool:
                 for assignment, result in zip(baseline_assignments, pool.imap(evaluate_baseline_assignment, baseline_assignments, chunksize=chunksize)):
                     energy, latency = result

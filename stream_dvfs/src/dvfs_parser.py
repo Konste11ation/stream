@@ -21,8 +21,8 @@ class DvfsParser:
         dvfs_levels = dvfs_data['dvfs_level']
         vdd_lut = {}
         freq_lut = {}
-        dyn_energy_lut = {}
-        sta_energy_lut = {}
+        dyn_power_lut = {}
+        sta_power_lut = {}
         for level, entries in dvfs_levels.items():
             combined = {}
             for entry in entries:
@@ -30,14 +30,14 @@ class DvfsParser:
             vdd_lut[level] = combined['vdd']
             freq_lut[level] = combined['freq']
             # Parse energy model
-            dyn_energy_lut[level] = combined.get('dyn_energy_dvfs', combined.get('dyn_energy', 1.0))
-            sta_energy_lut[level] = combined['sta_energy']
+            dyn_power_lut[level] = combined.get('dyn_power', combined.get('dyn_energy', 1.0))
+            sta_power_lut[level] = combined['sta_power']
 
         dvfs_luts = {
             'vdd_lut': vdd_lut,
             'freq_lut': freq_lut,
-            'dyn_energy_lut': dyn_energy_lut,
-            'sta_energy_lut': sta_energy_lut,
+            'dyn_power_lut': dyn_power_lut,
+            'sta_power_lut': sta_power_lut,
             'dvfs_switching_speed': dvfs_data.get('dvfs_switching_speed', 20000),
             'system_clock_mhz': dvfs_data.get('system_clock_mhz', 1000),
             'base_static_power_mw': dvfs_data.get('base_static_power_mw', None),
