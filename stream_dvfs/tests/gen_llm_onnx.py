@@ -1,17 +1,11 @@
-import sys
-import os
-from pathlib import Path
 import argparse
+from pathlib import Path
 
-# Resolve paths early
-CURRENT_DIR = Path(__file__).resolve().parent  # noqa: F821 
-STREAM_DVFS_DIR = CURRENT_DIR.parent  # noqa: F821 
-sys.path.append(str(STREAM_DVFS_DIR))  # noqa: F821 
-
-from src.config_library import W4A8, W8A8, W4A16, W16A16, W32A32  # noqa: E402 
-from src.config_library import LLAMA1_7B, LLAMA2_7B, LLAMA3_8B, OPT_6_7B, FlashAttentionTestConfig  # noqa: E402 
-from src.util import Stage, get_onnx_path  # noqa: E402 
-from src.export_onnx import export_model_to_onnx  # noqa: E402 
+from stream_dvfs.experiments.modeling.config_library import W4A8, W8A8, W4A16, W16A16, W32A32
+from stream_dvfs.experiments.modeling.config_library import LLAMA1_7B, LLAMA2_7B, LLAMA3_8B, OPT_6_7B, FlashAttentionTestConfig
+from stream_dvfs.experiments.modeling.export_onnx import export_model_to_onnx
+from stream_dvfs.experiments.modeling.util import Stage, get_onnx_path
+from stream_dvfs.paths import ensure_output_dir
 
 # Maps for argparse choices -> actual objects
 MODEL_CHOICES = {
@@ -64,18 +58,18 @@ def parse_args():
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=STREAM_DVFS_DIR / "inputs" / "workloads",
-        help="Output directory for ONNX file (default: STREAM_DVFS_DIR/inputs/workloads)",
+        default=ensure_output_dir("generated_workloads"),
+        help="Output directory for ONNX files.",
     )  
 
     return parser.parse_args()  
 
 def main():
-    args = parse_args()  
+    args = parse_args()
 
     model = MODEL_CHOICES[args.model]
     quant = QUANT_CHOICES[args.quant]
-    stage = STAGE_CHOICES[args.stage]  
+    stage = STAGE_CHOICES[args.stage]
     print(f"Exporting model: {args.model}, quant: {args.quant}, stage: {args.stage}")
     onnx_path = get_onnx_path(
         output_dir=args.output_dir,
@@ -84,7 +78,8 @@ def main():
         quant=quant,
     )  
 
-    export_model_to_onnx(model, quant, output_path=onnx_path, stage=stage)  
+    export_model_to_onnx(model, quant, output_path=onnx_path, stage=stage)
+    print(f"Saved ONNX model to {onnx_path}")
 
 if __name__ == "__main__":
-    main()  
+    main()

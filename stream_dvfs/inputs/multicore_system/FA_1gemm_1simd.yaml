@@ -1,9 +1,0 @@
-name: FA_1gemm_1simd
-cores:
-  0: scripts_fa/inputs/cores/array_16x16.yaml
-  1: scripts_fa/inputs/cores/vec_128.yaml
-  2: scripts_fa/inputs/cores/offchip.yaml
-offchip_core_id: 2
-core_connectivity:
-  - {type: link, cores: [0, 1],  bandwidth: 512}
-  - {type: link, cores: [0, 2],  bandwidth: 512}

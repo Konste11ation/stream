@@ -70,10 +70,11 @@ class GeneticAlgorithm:
         # class to track statistics of certain generations
         self.statistics_evaluator = StatisticsEvaluator(self.fitness_evaluator)
 
-        # define target of fitness function
-        creator.create("FitnessMulti", base.Fitness, weights=self.fitness_evaluator.weights)
-        # define individual in population
-        creator.create("Individual", array.array, typecode="i", fitness=creator.FitnessMulti)  # type: ignore
+        # Define DEAP classes once per process to avoid noisy re-registration warnings.
+        if not hasattr(creator, "FitnessMulti"):
+            creator.create("FitnessMulti", base.Fitness, weights=self.fitness_evaluator.weights)
+        if not hasattr(creator, "Individual"):
+            creator.create("Individual", array.array, typecode="i", fitness=creator.FitnessMulti)  # type: ignore
 
         self.toolbox = base.Toolbox()  # initialize DEAP toolbox
         self.hof = tools.ParetoFront()  # initialize Hall-of-Fame as Pareto Front

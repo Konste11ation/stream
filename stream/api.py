@@ -7,18 +7,18 @@ from onnx import ModelProto
 from zigzag.mapping.temporal_mapping import TemporalMappingType
 from zigzag.utils import pickle_load, pickle_save
 
-from stream.stream.cost_model.cost_model import StreamCostModelEvaluation
-from stream.stream.stages.allocation.constraint_optimization_allocation import ConstraintOptimizationAllocationStage
-from stream.stream.stages.allocation.genetic_algorithm_allocation import GeneticAlgorithmAllocationStage
-from stream.stream.stages.estimation.zigzag_core_mapping_estimation import ZigZagCoreMappingEstimationStage
-from stream.stream.stages.generation.layer_stacks_generation import LayerStacksGenerationStage
-from stream.stream.stages.generation.scheduling_order_generation import SchedulingOrderGenerationStage
-from stream.stream.stages.generation.tiled_workload_generation import TiledWorkloadGenerationStage
-from stream.stream.stages.generation.tiling_generation import TilingGenerationStage
-from stream.stream.stages.parsing.accelerator_parser import AcceleratorParserStage
-from stream.stream.stages.parsing.onnx_model_parser import ONNXModelParserStage as StreamONNXModelParserStage
-from stream.stream.stages.set_fixed_allocation_performance import SetFixedAllocationPerformanceStage
-from stream.stream.stages.stage import MainStage
+from stream.cost_model.cost_model import StreamCostModelEvaluation
+from stream.stages.allocation.constraint_optimization_allocation import ConstraintOptimizationAllocationStage
+from stream.stages.allocation.genetic_algorithm_allocation import GeneticAlgorithmAllocationStage
+from stream.stages.estimation.zigzag_core_mapping_estimation import ZigZagCoreMappingEstimationStage
+from stream.stages.generation.layer_stacks_generation import LayerStacksGenerationStage
+from stream.stages.generation.scheduling_order_generation import SchedulingOrderGenerationStage
+from stream.stages.generation.tiled_workload_generation import TiledWorkloadGenerationStage
+from stream.stages.generation.tiling_generation import TilingGenerationStage
+from stream.stages.parsing.accelerator_parser import AcceleratorParserStage
+from stream.stages.parsing.onnx_model_parser import ONNXModelParserStage as StreamONNXModelParserStage
+from stream.stages.set_fixed_allocation_performance import SetFixedAllocationPerformanceStage
+from stream.stages.stage import MainStage
 
 _logging_level = _logging.INFO
 _logging_format = "%(asctime)s - %(funcName)s +%(lineno)s - %(levelname)s - %(message)s"

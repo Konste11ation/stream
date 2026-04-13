@@ -1,0 +1,13 @@
+name: FA_1gemm
+cores:
+  0: stream_dvfs/config/cores/array_16x16.yaml
+  1: stream_dvfs/config/cores/vec_64.yaml
+  2: stream_dvfs/config/cores/offchip.yaml
+offchip_core_id: 2
+unit_energy_cost: 32
+core_connectivity:
+# 0-1
+# | 
+# 2
+  - {type: link, cores: [0, 1],  bandwidth: 256}
+  - {type: link, cores: [0, 2],  bandwidth: 256}

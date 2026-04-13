@@ -1,2 +1,2 @@
-outputs
-inputs/workloads/*
+outputs/
+config/legacy_inputs/workloads/*

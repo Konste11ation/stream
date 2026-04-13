@@ -158,7 +158,7 @@ class GeneticAlgorithmAllocationStage(Stage):
             self.valid_allocations.append(flexible_node.core_allocation)
 
         if self.do_dvfs_cooptimization and self.dvfs_config_path:
-            from stream_dvfs.src.dvfs_parser import DvfsParser
+            from stream.parser.dvfs_parser import DvfsParser
 
             dvfs_parser = DvfsParser(self.dvfs_config_path)
             self.dvfs_luts = dvfs_parser.parse_dvfs_data()
@@ -248,6 +248,30 @@ class GeneticAlgorithmAllocationStage(Stage):
 
         # Extract the length of an individual.
         self.individual_length = len(self.valid_allocations)
+        self.genetic_algorithm = None
+
+        if not self.do_dvfs_cooptimization and self.individual_length > 0:
+            self.genetic_algorithm = self._build_genetic_algorithm()
+
+    def _build_genetic_algorithm(self, pop=None):
+        """Build a GA instance using the stage's shared tuning parameters."""
+        if pop is None:
+            pop = []
+
+        return GeneticAlgorithm(
+            self.fitness_evaluator,
+            self.individual_length,
+            self.valid_allocations,
+            self.nb_generations,
+            self.nb_individuals,
+            pop=pop,
+            num_processes=self.num_procs,
+            prob_crossover=self.prob_crossover,
+            prob_mutation=self.prob_mutation,
+            fitness_cache_size=self.fitness_cache_size,
+            early_stopping_patience=self.early_stopping_patience,
+            early_stopping_min_generations=self.early_stopping_min_generations,
+        )
 
     def run(self):
         """
@@ -279,8 +303,7 @@ class GeneticAlgorithmAllocationStage(Stage):
                 f"Exploring allocation for {len(self.flexible_nodes)} flexible layers: {flexible_layer_names}"
             )
 
-            # Create population seeds
-            pop_seeds = []
+            hof = None
             if self.do_dvfs_cooptimization:
                 # Stage 1: Evaluate a level-0 nominal baseline mapping.
                 self._run_stage_1_baseline()
@@ -296,6 +319,15 @@ class GeneticAlgorithmAllocationStage(Stage):
                     yield final_scme, None
                     logger.info("Finished GeneticAlgorithmAllocationStage.")
                     return
+            else:
+                if self.genetic_algorithm is None:
+                    self.genetic_algorithm = self._build_genetic_algorithm()
+                _, hof = self.genetic_algorithm.run()
+
+            if not hof:
+                logger.warning("Genetic algorithm did not produce a hall of fame result.")
+                logger.info("Finished GeneticAlgorithmAllocationStage.")
+                return
 
             # Return the SCME of the last individual in the hall of fame
             best_core_allocations = hof[-1]
@@ -540,20 +572,7 @@ class GeneticAlgorithmAllocationStage(Stage):
             pop_seeds.append(core_genes + dvfs_genes)
         
         # 3. Initialize and run GA
-        self.genetic_algorithm = GeneticAlgorithm(
-            self.fitness_evaluator,
-            self.individual_length,
-            self.valid_allocations,
-            self.nb_generations,
-            self.nb_individuals,
-            pop=pop_seeds,
-            num_processes=self.num_procs,
-            prob_crossover=self.prob_crossover,
-            prob_mutation=self.prob_mutation,
-            fitness_cache_size=self.fitness_cache_size,
-            early_stopping_patience=self.early_stopping_patience,
-            early_stopping_min_generations=self.early_stopping_min_generations,
-        )
+        self.genetic_algorithm = self._build_genetic_algorithm(pop=pop_seeds)
         pop, hof = self.genetic_algorithm.run()
         logger.info("Finished Genetic Algorithm.")
         return hof
