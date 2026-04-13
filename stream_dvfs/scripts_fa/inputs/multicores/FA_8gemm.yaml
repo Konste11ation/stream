@@ -1,80 +1,80 @@
 core_connectivity:
-- bandwidth: 64
+- bandwidth: 256
   cores:
   - 0
   - 1
   type: link
-- bandwidth: 64
+- bandwidth: 256
   cores:
   - 0
   - 9
   type: link
-- bandwidth: 64
+- bandwidth: 256
   cores:
   - 0
   - 3
   type: link
-- bandwidth: 64
+- bandwidth: 256
   cores:
   - 1
   - 2
   type: link
-- bandwidth: 64
+- bandwidth: 256
   cores:
   - 1
   - 4
   type: link
-- bandwidth: 64
+- bandwidth: 256
   cores:
   - 2
   - 5
   type: link
-- bandwidth: 64
+- bandwidth: 256
   cores:
   - 3
   - 4
   type: link
-- bandwidth: 64
+- bandwidth: 256
   cores:
   - 4
   - 5
   type: link
-- bandwidth: 64
+- bandwidth: 256
   cores:
   - 3
   - 6
   type: link
-- bandwidth: 64
+- bandwidth: 256
   cores:
   - 4
   - 7
   type: link
-- bandwidth: 64
+- bandwidth: 256
   cores:
   - 5
   - 8
   type: link
-- bandwidth: 64
+- bandwidth: 256
   cores:
   - 6
   - 7
   type: link
-- bandwidth: 64
+- bandwidth: 256
   cores:
   - 7
   - 8
   type: link
 cores:
-  0: stream_dvfs/scripts_fa/inputs/cores/array_8x8.yaml
-  1: stream_dvfs/scripts_fa/inputs/cores/array_8x8.yaml
-  2: stream_dvfs/scripts_fa/inputs/cores/array_8x8.yaml
-  3: stream_dvfs/scripts_fa/inputs/cores/array_8x8.yaml
-  4: stream_dvfs/scripts_fa/inputs/cores/array_8x8.yaml
-  5: stream_dvfs/scripts_fa/inputs/cores/array_8x8.yaml
-  6: stream_dvfs/scripts_fa/inputs/cores/array_8x8.yaml
-  7: stream_dvfs/scripts_fa/inputs/cores/array_8x8.yaml
-  8: stream_dvfs/scripts_fa/inputs/cores/vec_128.yaml
+  0: stream_dvfs/scripts_fa/inputs/cores/array_16x16.yaml
+  1: stream_dvfs/scripts_fa/inputs/cores/array_16x16.yaml
+  2: stream_dvfs/scripts_fa/inputs/cores/array_16x16.yaml
+  3: stream_dvfs/scripts_fa/inputs/cores/array_16x16.yaml
+  4: stream_dvfs/scripts_fa/inputs/cores/array_16x16.yaml
+  5: stream_dvfs/scripts_fa/inputs/cores/array_16x16.yaml
+  6: stream_dvfs/scripts_fa/inputs/cores/array_16x16.yaml
+  7: stream_dvfs/scripts_fa/inputs/cores/array_16x16.yaml
+  8: stream_dvfs/scripts_fa/inputs/cores/vec_64.yaml
   9: stream_dvfs/scripts_fa/inputs/cores/offchip.yaml
 name: FA_8gemm
 offchip_core_id: 9
-unit_energy_cost: 1
+unit_energy_cost: 32 # 1pJ/B 1pJ*32B = 6.4pJ/256B

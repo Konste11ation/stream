@@ -11,10 +11,10 @@ sys.path.append(str(STREAM_WORKDIR))
 import yaml
 from zigzag.utils import open_yaml
 from zigzag.datatypes import Constants
-from stream.parser.accelerator_validator import AcceleratorValidator
-from stream.parser.accelerator_factory import AcceleratorFactory
-from stream.parser.mapping_parser import MappingParser
-from stream.parser.onnx.model import ONNXModelParser
+from stream.stream.parser.accelerator_validator import AcceleratorValidator
+from stream.stream.parser.accelerator_factory import AcceleratorFactory
+from stream.stream.parser.mapping_parser import MappingParser
+from stream.stream.parser.onnx.model import ONNXModelParser
 def sanity_check(workload_path, accelerator_path, mapping_path, output_yaml_path):
     # Sanity Check here
     # Running the parsing of the workload, acc, mapping and dump the workload info to yaml output
@@ -178,3 +178,72 @@ def compare_energy(scme_fa, scme_ah):
     print(f"  Off-Chip Energy: {ah_offchip:,.2f} pJ")
     print(f"  Total Energy:    {ah_onchip + ah_offchip:,.2f} pJ")
     print("=" * 60)
+from stream_dvfs.src.config_library import W8A8
+from stream_dvfs.src.config import AttentionHeadConfig, FlashAttentionConfig
+from stream_dvfs.src.util import get_onnx_path
+from stream_dvfs.src.export_onnx import export_model_to_onnx
+
+def gen_flash_attention_onnx(seq_len:int, embedding_dim:int, tile_size:int, output_dir: str, include_linear_layers: bool = True, seq_len_q: int = None):
+    flash_attention_config = FlashAttentionConfig(
+        seq_len=seq_len,
+        seq_len_q=seq_len_q if seq_len_q is not None else seq_len,
+        input_dim=embedding_dim,
+        dim_k=embedding_dim,
+        dim_v=embedding_dim,
+        tile_Br=tile_size,
+        tile_Bc=tile_size,
+        batch_size=1,
+        name=f"FlashAttention",
+        include_linear_layers=include_linear_layers
+    )
+    onnx_output_path = get_onnx_path(output_dir=output_dir,
+                              model=flash_attention_config,
+                              quant=W8A8)
+    if os.path.exists(onnx_output_path):
+        print(f"ONNX model already exists at: {onnx_output_path}, skipping export.")
+        return
+    export_model_to_onnx(
+        model_config=flash_attention_config,
+        quant_config=W8A8,
+        output_path=onnx_output_path
+    )
+    print(f"Exported Flash Attention ONNX model to: {onnx_output_path}")
+
+def gen_attention_head_onnx(seq_len:int, embedding_dim:int, output_dir: str):
+    # The attention head does not have tiling parameters
+    attention_head_config = AttentionHeadConfig(
+        seq_len=seq_len,
+        input_dim=embedding_dim,
+        dim_k=embedding_dim,
+        dim_v=embedding_dim,
+        batch_size=1,
+        name=f"AttentionHead"
+    )
+    onnx_output_path = get_onnx_path(output_dir=output_dir,
+                              model=attention_head_config,
+                              quant=W8A8)
+    if os.path.exists(onnx_output_path):
+        print(f"ONNX model already exists at: {onnx_output_path}, skipping export.")
+        return
+    export_model_to_onnx(
+        model_config=attention_head_config,
+        quant_config=W8A8,
+        output_path=onnx_output_path
+    )
+    print(f"Exported Attention Head ONNX model to: {onnx_output_path}")
+
+def gen_flash_attention_mapping_config(num_qkv_tiles: int, num_cores: int =1):
+    tpl_mapping_path = str(CURRENT_DIR / "inputs" / "mappings" / f"FA_{num_cores}gemm.yaml.tpl")
+    mapping_output_path = str(CURRENT_DIR / "inputs" / "mappings" / f"FA_{num_cores}gemm_{num_qkv_tiles}tiles.yaml")
+    if os.path.exists(mapping_output_path):
+        print(f"Mapping config already exists at: {mapping_output_path}, skipping generation.")
+        return
+    with open(tpl_mapping_path, 'r') as tpl_file:
+        tpl_content = tpl_file.read()
+        mapping_content = tpl_content.replace("<num_qkv_tiles>", str(num_qkv_tiles))
+    with open(mapping_output_path, 'w') as mapping_file:
+        mapping_file.write(mapping_content)
+    print(f"Generated mapping config at: {mapping_output_path}")
+
+def gen_flash_attention_multicore_config(output_dir: str):
+    pass

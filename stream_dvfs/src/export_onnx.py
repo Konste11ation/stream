@@ -193,7 +193,7 @@ def export_flash_attention_to_onnx(
     if flash_attention_config.include_linear_layers:
         dummy_input = torch.randn(
             flash_attention_config.batch_size,
-            flash_attention_config.seq_len,
+            flash_attention_config.seq_len_q,
             flash_attention_config.input_dim,
         )
         torch.onnx.export(
@@ -208,7 +208,7 @@ def export_flash_attention_to_onnx(
             export_params=False,
         )
     else:
-        q = torch.randn(flash_attention_config.batch_size, flash_attention_config.seq_len, flash_attention_config.dim_k)
+        q = torch.randn(flash_attention_config.batch_size, flash_attention_config.seq_len_q, flash_attention_config.dim_k)
         k = torch.randn(flash_attention_config.batch_size, flash_attention_config.seq_len, flash_attention_config.dim_k)
         v = torch.randn(flash_attention_config.batch_size, flash_attention_config.seq_len, flash_attention_config.dim_v)
         

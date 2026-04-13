@@ -16,7 +16,8 @@ class FlashAttentionFunction(torch.autograd.Function):
         # This method tells the ONNX exporter how to represent this function.
         # g.op() creates a new node in the ONNX graph.
         # "Flash_Attention" will be the 'op_type' of the node.
-        output = g.op("FlashAttention", q, k, v)
+        # Use custom domain to avoid ONNX checker failing
+        output = g.op("custom::FlashAttention", q, k, v)
         # Infer the shape of the output
         # We assume the output shape is the same as the query shape
         output.setType(q.type())
@@ -36,6 +37,13 @@ class FlashAttentionModel(nn.Module):
             self.k_proj = nn.Linear(input_dim, dim_k, bias=False)
             self.v_proj = nn.Linear(input_dim, dim_v, bias=False)
             self.o_proj = nn.Linear(dim_v, input_dim, bias=False)
+        else:
+            # Add small dummy parameters to force the exporter to generate Add nodes.
+            # This makes Stream framework transfer the Q/K/V tensors from off-chip 
+            # as a bulk operation at the start.
+            self.dummy_q = nn.Parameter(torch.zeros(dim_k))
+            self.dummy_k = nn.Parameter(torch.zeros(dim_k))
+            self.dummy_v = nn.Parameter(torch.zeros(dim_v))
 
     def forward(self, q, k=None, v=None):
         if self.include_linear_layers:
@@ -50,8 +58,14 @@ class FlashAttentionModel(nn.Module):
             return output
         else:
             # Inputs are q, k, v directly
+            # To force the memory manager to load the entire Q, K, V tensors from off-chip 
+            # before the FlashAttention kernel tiling execution starts, 
+            # we insert dummy Add operations (which act like memory-load buffers).
+            q_out = q + self.dummy_q
+            k_out = k + self.dummy_k
+            v_out = v + self.dummy_v
             # Just run the attention kernel
-            return FlashAttentionFunction.apply(q, k, v)
+            return FlashAttentionFunction.apply(q_out, k_out, v_out)
 
 
 # --- Example of how to export ---

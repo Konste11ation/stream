@@ -94,8 +94,10 @@ class FlashAttentionConfig(ModelConfig):
         name: str = "FlashAttention",
         type: Literal["FlashAttention"] = "FlashAttention",
         include_linear_layers: bool = True,
+        seq_len_q: Optional[int] = None,
     ):
-        self.seq_len = seq_len
+        self.seq_len = seq_len # Corresponds to KV seq_len (context length)
+        self.seq_len_q = seq_len_q if seq_len_q is not None else seq_len # Q seq_len (prompt for prefill, 1 for decode)
         self.input_dim = input_dim
         self.dim_k = dim_k
         self.dim_v = dim_v
@@ -129,7 +131,7 @@ class FlashAttentionConfig(ModelConfig):
     @property
     def parameterized_name(self) -> str:
         suffix = "_KernelOnly" if not self.include_linear_layers else ""
-        return f"{self.name}_B={self.batch_size}_Seq={self.seq_len}_Embed={self.dim_k}_TileBr={self.tile_Br}_TileBc={self.tile_Bc}{suffix}"
+        return f"{self.name}_B={self.batch_size}_SeqQ={self.seq_len_q}_SeqKV={self.seq_len}_Embed={self.dim_k}_TileBr={self.tile_Br}_TileBc={self.tile_Bc}{suffix}"
     
 class TransformerConfig(ModelConfig):
     def __init__(

@@ -79,7 +79,7 @@ memories:
     served_dimensions: []
 
   sram_2MB:
-    size: 16777216
+    size: 67108864
     r_cost: 416.16
     w_cost: 378.4
     area: 0
@@ -89,26 +89,26 @@ memories:
       - name: rw_port_1
         type: read_write
         bandwidth_min: 64
-        bandwidth_max: 512
+        bandwidth_max: 256
         allocation: 
           - I1, tl
       - name: rw_port_2
         type: read_write
         bandwidth_min: 64
-        bandwidth_max: 512
+        bandwidth_max: 256
         allocation: 
           - I2, tl
       - name: rw_port_3
         type: read_write
         bandwidth_min: 64
-        bandwidth_max: 512
+        bandwidth_max: 256
         allocation: 
           - O, tl
           - O, fl
       - name: rw_port_4  # DMA port
         type: read_write
         bandwidth_min: 64
-        bandwidth_max: 512
+        bandwidth_max: 256
         allocation: 
           - I1, fh
           - I2, fh
@@ -121,4 +121,4 @@ operational_array:
   unit_energy: 0.04 # pJ
   unit_area: 1 # unit
   dimensions: [D1, D2]
-  sizes: [64, 1]
+  sizes: [32, 1]

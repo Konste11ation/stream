@@ -4,16 +4,16 @@ type: memory
 memories:
   dram: # 400 GB/s
     size: 10000000000000000
-    r_cost: 10000
-    w_cost: 10000
+    r_cost: 6400
+    w_cost: 6400
     area: 0
     latency: 10
     operands: [I1, I2, O]
     ports:
       - name: rw_port_1
         type: read_write
-        bandwidth_min: 64
-        bandwidth_max: 512
+        bandwidth_min: 256
+        bandwidth_max: 256
         allocation: 
           - "I1, fh"
           - "I1, tl"

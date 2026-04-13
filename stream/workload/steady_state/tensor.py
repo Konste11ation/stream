@@ -5,9 +5,9 @@ from typing import Any
 
 from zigzag.datatypes import LayerOperand
 
-from stream.hardware.architecture.core import Core
-from stream.workload.steady_state.iteration_space import SteadyStateIterationSpace
-from stream.workload.steady_state.node import SteadyStateNode
+from stream.stream.hardware.architecture.core import Core
+from stream.stream.workload.steady_state.iteration_space import SteadyStateIterationSpace
+from stream.stream.workload.steady_state.node import SteadyStateNode
 
 
 class TensorFlag(Flag):

@@ -78,8 +78,8 @@ memories:
           - O, fl
     served_dimensions: []
 
-  sram_2MB:
-    size: 16777216
+  sram_8MB:
+    size: 67108864
     r_cost: 416.16
     w_cost: 378.4
     area: 0
