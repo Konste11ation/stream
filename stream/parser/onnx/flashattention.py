@@ -53,7 +53,8 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         self.node_name_to_id: dict[str, int] = {}
         self.tensor_shape: tuple[int, ...] = ()
         self.batch: int = 0
-        self.seq_len: int = 0
+        self.seq_len_q: int = 0
+        self.seq_len_kv: int = 0
         self.hidden_dim: int = 0
         self.tile_Br: int = 0
         self.tile_Bc: int = 0
@@ -76,27 +77,44 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         EXPECTED_NUMBER_OF_OUTPUTS = 1
         assert len(input_shapes) == EXPECTED_NUMBER_OF_INPUTS, "FlashAttention node must have 3 (QKV) inputs"
         assert len(output_shapes) == EXPECTED_NUMBER_OF_OUTPUTS, "FlashAttention node must have 1(O) output"
-        assert input_shapes[0] == output_shapes[0], "FlashAttention input and output shapes must match"
-        # For now the input shapes are assumend to be in the format [Batch, Seq_Len, Hidden_Dim]
-        Batch, Seq_Len, Hidden_Dim = input_shapes[0]
-        self.tensor_shape = (Batch, Seq_Len, Hidden_Dim)
-        self.batch = Batch
-        self.seq_len = Seq_Len
-        self.hidden_dim = Hidden_Dim
+        q_shape, k_shape, v_shape = input_shapes
+        output_shape = output_shapes[0]
+        assert q_shape == output_shape, "FlashAttention Q input and output shapes must match"
+        # Q and O use the row dimension, K/V use the column dimension.
+        # Decode can therefore have seq_len_q != seq_len_kv.
+        batch_q, seq_len_q, hidden_q = q_shape
+        batch_k, seq_len_kv, hidden_k = k_shape
+        batch_v, seq_len_v, hidden_v = v_shape
+        assert batch_q == batch_k == batch_v, "FlashAttention Q/K/V batch dims must match"
+        assert seq_len_kv == seq_len_v, "FlashAttention K/V sequence dims must match"
+        assert hidden_q == hidden_k == hidden_v, "FlashAttention Q/K/V hidden dims must match"
+        self.tensor_shape = tuple(output_shape)
+        self.batch = batch_q
+        self.seq_len_q = seq_len_q
+        self.seq_len_kv = seq_len_kv
+        self.hidden_dim = hidden_q
         
     def init_set_tile_info(self):
         """ Set the FlashAttention tiling information """
         # For now we set to a fix value
         self.tile_Br = get_attribute_ints_with_name("tile_Br", self.node.attribute, default=16)
         self.tile_Bc = get_attribute_ints_with_name("tile_Bc", self.node.attribute, default=16)
-        self.Tr = ceil(self.seq_len / self.tile_Br) # Number of row tiles, for Q and O
-        self.Tc = ceil(self.seq_len / self.tile_Bc) # Number of column tiles, for K and V
+        self.Tr = ceil(self.seq_len_q / self.tile_Br) # Number of row tiles, for Q and O
+        self.Tc = ceil(self.seq_len_kv / self.tile_Bc) # Number of column tiles, for K and V
         # If seq_len is not divisible by tile sizes, we need padding or partial tiles
         # The computation logic handles loop ranges, so partial tiles should be handled by adjusting loop sizes per node
-        if self.seq_len % self.tile_Br != 0:
-            logger.warning(f"Sequence length {self.seq_len} is not divisible by tile_Br {self.tile_Br}. Last tile will be padded/partial.")
-        if self.seq_len % self.tile_Bc != 0:
-            logger.warning(f"Sequence length {self.seq_len} is not divisible by tile_Bc {self.tile_Bc}. Last tile will be padded/partial.")
+        if self.seq_len_q % self.tile_Br != 0:
+            logger.warning(
+                "Q sequence length %s is not divisible by tile_Br %s. Last row tile will be padded/partial.",
+                self.seq_len_q,
+                self.tile_Br,
+            )
+        if self.seq_len_kv % self.tile_Bc != 0:
+            logger.warning(
+                "KV sequence length %s is not divisible by tile_Bc %s. Last column tile will be padded/partial.",
+                self.seq_len_kv,
+                self.tile_Bc,
+            )
     def init_set_operand_precision(self):
         """ Set the operand precision for FlashAttention """
         act_precision: int = self.get_activation_precision()
@@ -641,7 +659,7 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
             predecessors=pred_id_partial_o_nodes,
             axis=1, # Concatenate along the sequence length axis
             input_names=[f"O_tile_{i}" for i in range(self.Tr)],
-            output_shape = (self.batch, self.seq_len, self.hidden_dim),
+            output_shape = (self.batch, self.seq_len_q, self.hidden_dim),
             axis_exists_in_input=True
         )
     def _util_get_and_increment_id(self):
@@ -703,13 +721,13 @@ class FlashAttentionParser(OnnxComputeOperatorParser):
         
         # Check if this is the last row tile
         if idx == self.Tr - 1:
-            remainder = self.seq_len % self.tile_Br
+            remainder = self.seq_len_q % self.tile_Br
             if remainder != 0:
                 current_br_size = remainder
         
         # Check if this is the last col tile
         if jdx == self.Tc - 1:
-            remainder = self.seq_len % self.tile_Bc
+            remainder = self.seq_len_kv % self.tile_Bc
             if remainder != 0:
                 current_bc_size = remainder
         
