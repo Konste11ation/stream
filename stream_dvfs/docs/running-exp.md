@@ -118,3 +118,5 @@ The experiment root also receives:
 
 - `prefill_decode_comparison.csv`
 - `prefill_decode_comparison.md`
+
+The most important output is the stage3_co/dvfs_comparison.png which compares the co-optimized result with the baseline methods.
