@@ -49,9 +49,13 @@ class GeneticAlgorithm:
         fitness_cache_size=200_000,
         early_stopping_patience=0,
         early_stopping_min_generations=0,
+        random_seed=None,
     ) -> None:
         if pop is None:
             pop = []
+        self.random_seed = random_seed
+        if self.random_seed is not None:
+            random.seed(self.random_seed)
         self.num_generations = num_generations  # number of generations
         self.num_individuals = num_individuals  # number of individuals in initial generation
         self.para_mu = int(num_individuals / 2)  # number of indiviuals taken from previous generation

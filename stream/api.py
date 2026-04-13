@@ -79,6 +79,7 @@ def optimize_allocation_ga(  # noqa: PLR0913
     early_stopping_min_generations: int = 0,
     # baseline combination handling limit (passed through to the GA stage)
     baseline_combo_limit: int = 2_000,
+    random_seed: int | None = 0,
 ) -> StreamCostModelEvaluation:
     _sanity_check_inputs(hardware, workload, mapping, mode, output_path)
 
@@ -141,6 +142,7 @@ def optimize_allocation_ga(  # noqa: PLR0913
             early_stopping_patience=early_stopping_patience,
             early_stopping_min_generations=early_stopping_min_generations,
             baseline_combo_limit=baseline_combo_limit,
+            random_seed=random_seed,
         )
         # Launch the MainStage
         answers = mainstage.run()

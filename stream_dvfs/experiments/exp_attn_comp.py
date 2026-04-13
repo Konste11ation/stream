@@ -4,23 +4,7 @@ import argparse
 import csv
 from pathlib import Path
 
-from stream.api import optimize_allocation_ga
-from stream.utils import CostModelEvaluationLUT
-from stream.visualization.perfetto import convert_scme_to_perfetto_json
-from stream_dvfs.experiments.common import (
-    export_attention_head_onnx,
-    export_flash_attention_onnx,
-    generate_flash_attention_mapping_config,
-    generated_dir,
-    get_multicore_config_path,
-    prepare_workload_copy,
-    sanity_check,
-    stage_run_dir,
-    write_attention_single_core_mapping,
-)
 from stream_dvfs.paths import ensure_gurobi_license, ensure_output_dir
-
-ensure_gurobi_license()
 
 DEFAULT_BEAM_WIDTHS = (1, 2)
 SMOKE_TEST_SETTINGS = {
@@ -35,6 +19,9 @@ SMOKE_TEST_SETTINGS = {
 
 
 def save_scme_json(scme, experiment_id: str, output_dir: str | Path) -> None:
+    from stream.utils import CostModelEvaluationLUT
+    from stream.visualization.perfetto import convert_scme_to_perfetto_json
+
     cost_lut_path = Path(output_dir) / experiment_id / "cost_lut.pickle"
     if not cost_lut_path.exists():
         print(f"Cost LUT not found at {cost_lut_path}, skipping JSON export.")
@@ -82,6 +69,8 @@ def run_ga(
     skip_if_exists: bool,
     beam_width: int,
 ):
+    from stream.api import optimize_allocation_ga
+
     scme = optimize_allocation_ga(
         hardware=str(hardware),
         workload=str(workload),
@@ -111,6 +100,16 @@ def run_single_core_attention(
     num_procs: int,
     skip_if_exists: bool,
 ):
+    from stream_dvfs.experiments.common import (
+        export_attention_head_onnx,
+        generated_dir,
+        get_multicore_config_path,
+        prepare_workload_copy,
+        sanity_check,
+        stage_run_dir,
+        write_attention_single_core_mapping,
+    )
+
     experiment_id = f"compare_singlecore_attention_seq{seq_len}_embed{embedding_dim}_ga"
     run_dir = stage_run_dir(output_dir, experiment_id)
     generated = generated_dir(run_dir)
@@ -146,6 +145,16 @@ def run_single_core_flash_attention(
     num_procs: int,
     skip_if_exists: bool,
 ):
+    from stream_dvfs.experiments.common import (
+        export_flash_attention_onnx,
+        generate_flash_attention_mapping_config,
+        generated_dir,
+        get_multicore_config_path,
+        prepare_workload_copy,
+        sanity_check,
+        stage_run_dir,
+    )
+
     experiment_id = f"compare_singlecore_flashattention_seq{seq_len}_embed{embedding_dim}_tile{tile_size}_ga"
     run_dir = stage_run_dir(output_dir, experiment_id)
     generated = generated_dir(run_dir)
@@ -186,6 +195,16 @@ def run_quad_core_flash_attention(
     num_procs: int,
     skip_if_exists: bool,
 ):
+    from stream_dvfs.experiments.common import (
+        export_flash_attention_onnx,
+        generate_flash_attention_mapping_config,
+        generated_dir,
+        get_multicore_config_path,
+        prepare_workload_copy,
+        sanity_check,
+        stage_run_dir,
+    )
+
     suffix = "bw0" if beam_width == 0 else f"beamga_bw{beam_width}"
     experiment_id = f"compare_quadcore_flashattention_seq{seq_len}_embed{embedding_dim}_tile{tile_size}_{suffix}"
     run_dir = stage_run_dir(output_dir, experiment_id)
@@ -420,6 +439,7 @@ def validate_args(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
+    ensure_gurobi_license()
     args = apply_smoke_test_defaults(parse_args())
     validate_args(args)
     run_experiment(

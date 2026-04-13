@@ -134,9 +134,10 @@ class GeneticAlgorithmAllocationStage(Stage):
         self.fitness_cache_size = kwargs.get("fitness_cache_size", 200_000)
         self.early_stopping_patience = kwargs.get("early_stopping_patience", 0)
         self.early_stopping_min_generations = kwargs.get("early_stopping_min_generations", 0)
+        self.random_seed = kwargs.get("random_seed", 0)
         self.max_baseline_combinations = kwargs.get("max_baseline_combinations", 5_000)
         self.baseline_combo_sample_budget = kwargs.get("baseline_combo_sample_budget", 2_000)
-        self.baseline_combo_seed = kwargs.get("baseline_combo_seed", 0)
+        self.baseline_combo_seed = kwargs.get("baseline_combo_seed", self.random_seed)
         self.force_exhaustive_seed_baseline = kwargs.get("force_exhaustive_seed_baseline", True)
         self.max_seed_baseline_state_space = kwargs.get("max_seed_baseline_state_space", 500_000)
         self.enable_baseline_disk_cache = kwargs.get("enable_baseline_disk_cache", True)
@@ -271,6 +272,7 @@ class GeneticAlgorithmAllocationStage(Stage):
             fitness_cache_size=self.fitness_cache_size,
             early_stopping_patience=self.early_stopping_patience,
             early_stopping_min_generations=self.early_stopping_min_generations,
+            random_seed=self.random_seed,
         )
 
     def run(self):
@@ -374,6 +376,7 @@ class GeneticAlgorithmAllocationStage(Stage):
             prob_crossover=self.prob_crossover,
             prob_mutation=self.prob_mutation,
             fitness_cache_size=self.fitness_cache_size,
+            random_seed=None if self.random_seed is None else self.random_seed + 1,
         )
         
         # 3. Run the core-only GA
@@ -529,7 +532,9 @@ class GeneticAlgorithmAllocationStage(Stage):
         Initialize the GA using Pareto-optimal seeds extracted from Stage 2 results.
         """
         import random
-        
+
+        rng = random.Random(self.random_seed)
+
         # 1. Prepare GA Seeds directly using Stage 2 results
         pop_seeds = []
         num_flex = len(self.flexible_nodes)
@@ -567,7 +572,7 @@ class GeneticAlgorithmAllocationStage(Stage):
 
         # 2. Add extra 'blanket' seeds for diversification
         for level in self.dvfs_level_choices:
-            core_genes = [random.choice(self.valid_allocations[i]) for i in range(num_flex)]
+            core_genes = [rng.choice(self.valid_allocations[i]) for i in range(num_flex)]
             dvfs_genes = [level for _ in range(num_dvfs)]
             pop_seeds.append(core_genes + dvfs_genes)
         
@@ -637,6 +642,8 @@ class GeneticAlgorithmAllocationStage(Stage):
             "base_energy": baseline_data["base_energy"],
             "base_latency": baseline_data["base_latency"]
         }
+        with open(os.path.join(stage3_dir, "plot_data.pkl"), "wb") as handle:
+            pickle.dump(plot_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
         self.plot_comparison_figure(plot_data, os.path.join(stage3_dir, 'dvfs_comparison.png'))
 
         # 6. Save Best SCME (The 'Winning' Configuration)

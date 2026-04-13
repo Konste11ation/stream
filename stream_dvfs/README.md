@@ -23,7 +23,7 @@ python -m pip install -r requirements.txt
 python -m pip install -e .
 ```
 
-## Public Experiments
+## Experiments
 
 ```bash
 python -m stream_dvfs.experiments.exp_attn_comp --smoke-test

@@ -4,22 +4,7 @@ import argparse
 import csv
 from pathlib import Path
 
-from stream.api import optimize_allocation_ga
-from stream.utils import CostModelEvaluationLUT
-from stream.visualization.perfetto import convert_scme_to_perfetto_json
-from stream_dvfs.experiments.analysis import analyze_scme_json, print_comparison_summary
-from stream_dvfs.experiments.common import (
-    export_flash_attention_onnx,
-    generate_flash_attention_mapping_config,
-    generated_dir,
-    get_multicore_config_path,
-    prepare_workload_copy,
-    sanity_check,
-    stage_run_dir,
-)
 from stream_dvfs.paths import DVFS_CONFIG_DIR, ensure_gurobi_license, ensure_output_dir
-
-ensure_gurobi_license()
 
 SMOKE_TEST_SETTINGS = {
     "num_cores": 4,
@@ -51,6 +36,9 @@ def build_experiment_id(
 
 
 def save_scme_json(scme, experiment_id: str, output_dir: Path) -> Path:
+    from stream.utils import CostModelEvaluationLUT
+    from stream.visualization.perfetto import convert_scme_to_perfetto_json
+
     cost_lut_path = output_dir / experiment_id / "cost_lut.pickle"
     cost_lut = CostModelEvaluationLUT(str(cost_lut_path))
     json_path = output_dir / experiment_id / "scme.json"
@@ -156,7 +144,20 @@ def run_flash_attention_cooptimization(
     baseline_combo_limit: int,
     dvfs_config_path: Path,
     skip_if_exists: bool,
+    random_seed: int,
 ):
+    from stream.api import optimize_allocation_ga
+    from stream_dvfs.experiments.analysis import analyze_scme_json
+    from stream_dvfs.experiments.common import (
+        export_flash_attention_onnx,
+        generate_flash_attention_mapping_config,
+        generated_dir,
+        get_multicore_config_path,
+        prepare_workload_copy,
+        sanity_check,
+        stage_run_dir,
+    )
+
     experiment_id = build_experiment_id(
         phase=phase,
         seq_len=seq_len,
@@ -206,12 +207,13 @@ def run_flash_attention_cooptimization(
         coala_beam_width=1,
         do_dvfs_cooptimization=True,
         dvfs_config_path=str(dvfs_config_path),
-        prob_crossover=0.7,
-        prob_mutation=0.3,
+        prob_crossover=0.8,
+        prob_mutation=0.2,
         fitness_cache_size=300_000,
         early_stopping_patience=24,
         early_stopping_min_generations=48,
         baseline_combo_limit=baseline_combo_limit,
+        random_seed=random_seed,
     )
     final_scme = scme[0] if isinstance(scme, tuple) else scme
     json_path = save_scme_json(final_scme, experiment_id, output_dir)
@@ -233,7 +235,10 @@ def run_experiment(
     baseline_combo_limit: int,
     dvfs_config_path: Path,
     skip_if_exists: bool,
+    random_seed: int,
 ) -> None:
+    from stream_dvfs.experiments.analysis import print_comparison_summary
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
     _, prefill_result, _ = run_flash_attention_cooptimization(
@@ -251,6 +256,7 @@ def run_experiment(
         baseline_combo_limit=baseline_combo_limit,
         dvfs_config_path=dvfs_config_path,
         skip_if_exists=skip_if_exists,
+        random_seed=random_seed,
     )
 
     _, decode_result, _ = run_flash_attention_cooptimization(
@@ -268,6 +274,7 @@ def run_experiment(
         baseline_combo_limit=baseline_combo_limit,
         dvfs_config_path=dvfs_config_path,
         skip_if_exists=skip_if_exists,
+        random_seed=random_seed,
     )
 
     print_comparison_summary([prefill_result, decode_result])
@@ -293,6 +300,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ga-individuals", type=int, default=128)
     parser.add_argument("--num-procs", type=int, default=32)
     parser.add_argument("--baseline-combo-limit", type=int, default=2000)
+    parser.add_argument(
+        "--random-seed",
+        type=int,
+        default=0,
+        help="Seed used for GA initialization and mutations so runs can be reproduced exactly.",
+    )
     parser.add_argument(
         "--dvfs-config-path",
         type=Path,
@@ -343,6 +356,7 @@ def validate_args(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
+    ensure_gurobi_license()
     args = apply_smoke_test_defaults(parse_args())
     validate_args(args)
     run_experiment(
@@ -358,6 +372,7 @@ def main() -> None:
         baseline_combo_limit=args.baseline_combo_limit,
         dvfs_config_path=args.dvfs_config_path,
         skip_if_exists=args.skip_if_exists,
+        random_seed=args.random_seed,
     )
 
 
